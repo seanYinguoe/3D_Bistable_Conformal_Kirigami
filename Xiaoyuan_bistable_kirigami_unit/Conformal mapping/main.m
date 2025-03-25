@@ -32,7 +32,7 @@ edgeLen = 20; % Define the size of triangular grids
 
 %% Plot the results
 % Plot the configurations
-% test
+% test2
 figure()
 patch('Vertices', obj_3D.v, 'Faces', obj_3D.f.v, ...
       'FaceVertexCData', obj_3D.v(:,3),...
