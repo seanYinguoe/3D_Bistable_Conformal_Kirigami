@@ -28,11 +28,11 @@ edgeLen = 20; % Define the size of triangular grids
 [v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, i_grid, x_grid, v_mesh, f_mesh, scale_facs, edgeLen);
 
 %% Tessellate the triangular units with bistable units
+tessellation = tessellated_triangle(v_grid, f_grid, c_grid, i_grid, x_grid, edgeLen);
 
 
 %% Plot the results
 % Plot the configurations
-% test2
 figure()
 patch('Vertices', obj_3D.v, 'Faces', obj_3D.f.v, ...
       'FaceVertexCData', obj_3D.v(:,3),...
@@ -72,5 +72,19 @@ colormap summer;
 c = colorbar; 
 c.FontSize = 18;
 axis equal; 
+axis off
+
+% Plot the scale_area colormap of overlaid grips
+figure(); 
+patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceColor', 'none', 'EdgeColor', 'b'); % Plot overlaid surface
+axis equal;
+axis off
+colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
+figure()
+hold on
+for i = 1:size(f_out,1)
+    plot_triangle(triangle_tessellation{i},colour);
+end
+hold off
 axis off
 
