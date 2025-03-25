@@ -1,4 +1,4 @@
-% function tessellation = tessellated_triangle(v_grid, f_grid, c_grid, i_grid, x_grid, edgeLen)
+%function tessellation = tessellated_triangle(v_grid, f_grid, c_grid, i_grid, x_grid, edgeLen)
 % Find the optimised bistable unit for each triangular unit, and move it to
 % cooresponding grid
 % edgeLen = l2 + l1 + t + l4 + l4
@@ -31,18 +31,6 @@ for i = 1:size(f_out,1)
     end
 end
 
-% 
-figure(); 
-patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceColor', 'none', 'EdgeColor', 'b'); % Plot overlaid surface
-axis equal;
-axis off
-colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
-figure()
-hold on
-for i = 1:size(f_out,1)
-    plot_triangle(triangle_tessellation{i},colour);
-end
-hold off
-axis off
+
 
 
