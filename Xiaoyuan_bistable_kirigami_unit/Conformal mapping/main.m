@@ -37,6 +37,7 @@ patch('Vertices', obj_3D.v, 'Faces', obj_3D.f.v, ...
       'FaceVertexCData', obj_3D.v(:,3),...
       'FaceColor', 'interp', 'EdgeColor', 'none');
 axis equal;          % Equal scaling for all axes
+axis off;
 view(3);             % Set default 3D view angle
 camlight;            % Add a light source for better visualization
 lighting gouraud;    % Smooth lighting across surfaces
