@@ -24,11 +24,14 @@ scale_facs = areas_3D./areas_2D; % Calculate the scale factor. Area_3D/Area_2D
 
 %% Overlay the regular triangular grids to envelop mesh surface
 edgeLen = 20; % Define the size of triangular grids
-[v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_mesh, edgeLen); % Overlay regular triangular grids on a box
-[v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, i_grid, x_grid, v_mesh, f_mesh, scale_facs, edgeLen);
+[v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_mesh, edgeLen); % Overlay regular triangular grids in a rectangle box
+[v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, ...
+    i_grid, x_grid, v_mesh, f_mesh, scale_facs, edgeLen); % Remove the grids outside the mesh surface
 
 %% Tessellate the triangular units with bistable units
-tessellation = tessellated_triangle(v_grid, f_grid, c_grid, i_grid, x_grid, edgeLen);
+tessellation = tessellated_triangle(f_out, c_out, i_out, edgeLen); % Tessellate bistable triangle into fitted grids
+
+%% Deploy the 2D tessellated onto 3D surface
 
 
 %% Plot the results
@@ -45,14 +48,21 @@ lighting gouraud;    % Smooth lighting across surfaces
 
 figure()
 axis equal
-patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.vt, 'FaceColor', 'magenta', 'EdgeColor', 'none'); % Plot 2D figure
+axis off;
+patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.vt, ...
+    'FaceColor', [0.2 0.1 0.5], 'EdgeColor', 'none'); % Plot 2D figure
+view(3);             % Set default 3D view angle
+camlight;            % Add a light source for better visualization
+material shiny;                % Make the surface shiny (adjustable)
+lighting gouraud;    % Smooth lighting across surfaces
 
 % Plot the Overlaid grids
 figure(); 
 hold on;
-patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', 'none', 'EdgeColor', 'b'); % Plot mesh surface
-patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceColor', 'none', 'EdgeColor', 'b'); % Plot overlaid surface
-axis equal; 
+patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', 'none', 'EdgeColor', 'black','LineWidth',0.5); % Plot mesh surface
+patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceColor', 'none', 'EdgeColor', 'b','LineWidth',1); % Plot overlaid surface
+axis equal;
+axis off;
 hold off
 
 
@@ -74,16 +84,12 @@ c.FontSize = 18;
 axis equal; 
 axis off
 
-% Plot the scale_area colormap of overlaid grips
-figure(); 
-patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceColor', 'none', 'EdgeColor', 'b'); % Plot overlaid surface
-axis equal;
-axis off
+% Plot the tessellated configuration
 colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
 figure()
 hold on
 for i = 1:size(f_out,1)
-    plot_triangle(triangle_tessellation{i},colour);
+    plot_triangle(tessellation{i},colour);
 end
 hold off
 axis off
