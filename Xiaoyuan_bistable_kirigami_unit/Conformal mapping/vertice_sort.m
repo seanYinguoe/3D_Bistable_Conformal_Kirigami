@@ -1,0 +1,15 @@
+function sorted_uv = vertice_sort(vt,face_v,face_vt)
+% Sort the indices of texture vertices vt
+% vt: vertices of texture vectors
+% face_v: connectivity of faces in 3D configuration
+% face_vt: connectivity of faces in 2D configuration
+% Initialize an empty array for sorted texture vertices
+sorted_uv = zeros(size(vt,1),2);
+
+% Iterate through the faces' texture vertex connectivity
+for i = 1:size(face_vt, 1)
+    for j = 1:size(face_vt,2)
+        sorted_uv(face_v(i,j),:) = vt(face_vt(i,j),:);
+    end
+end
+end

@@ -13,12 +13,16 @@ filename_2D = 'hemisphere_2D.obj'; % 2D model
 obj_3D = readObj(path,filename_3D); % read 3D object
 obj_2D = readObj(path,filename_2D); % read 2D object
 
+% We need to change the order the nodes in vt. the connectivity doesn't match
+sorted_uv = vertice_sort(obj_2D.vt,obj_2D.f.v,obj_2D.f.vt);
+obj_2D.vt = sorted_uv;
+
 v_mesh = obj_2D.vt;
-f_mesh = obj_2D.f.vt;
+f_mesh = obj_2D.f.v;
 
 %% Calculate the scale factor of mesh
-areas_2D = triangle_area_2D(obj_2D.vt, obj_2D.f.vt);  % Deprive the area of mesh in 2D
-areas_3D = triangle_area_3D(obj_3D.v, obj_3D.f.v);  % Deprive the area of mesh in 3D
+areas_2D = triangle_area_2D(obj_2D.vt, obj_2D.f.v);  % Deprive the area of mesh in 2D
+areas_3D = triangle_area_3D(obj_2D.v, obj_2D.f.v);  % Deprive the area of mesh in 3D
 
 scale_facs = areas_3D./areas_2D; % Calculate the scale factor. Area_3D/Area_2D
 
@@ -37,7 +41,7 @@ tessellation = tessellated_triangle(f_out, c_out, i_out, edgeLen); % Tessellate 
 %% Plot the results
 % Plot the configurations
 figure()
-patch('Vertices', obj_3D.v, 'Faces', obj_3D.f.v, ...
+patch('Vertices', obj_3D.v, 'Faces', obj_2D.f.v, ...
       'FaceVertexCData', obj_3D.v(:,3),...
       'FaceColor', 'interp', 'EdgeColor', 'none');
 axis equal;          % Equal scaling for all axes
@@ -49,8 +53,10 @@ lighting gouraud;    % Smooth lighting across surfaces
 figure()
 axis equal
 axis off;
-patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.vt, ...
-    'FaceColor', [0.2 0.1 0.5], 'EdgeColor', 'none'); % Plot 2D figure
+% patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.v, ...
+%     'FaceColor', [0.2 0.1 0.5], 'EdgeColor', 'none'); % Plot 2D figure
+patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.v, ...
+    'FaceColor', 'none', 'EdgeColor', 'black'); % Plot 2D figure
 view(3);             % Set default 3D view angle
 camlight;            % Add a light source for better visualization
 material shiny;                % Make the surface shiny (adjustable)
