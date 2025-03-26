@@ -1,0 +1,6 @@
+function deployment(flattened_surface, deployed_surface)
+% Deploy a flattened surface onto the deployed surface(conformal mapping)
+% using interploation between flattened surface and deployed surface 
+% to track the deployment
+% Input: flattened_surface(vertices, faces)
+%        deployed_suraface(vertices, faces)
