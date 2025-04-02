@@ -29,6 +29,7 @@ tri = triangulation(f_mesh, v_mesh); % Define triangulation using given faces
 grid_points = c_grid(:,[1,2]);
 inside = ~isnan(tri.pointLocation(grid_points)); % Check if points are inside the mesh
 
+
 % Replace all the outside centroid as NaN
 f_grid(~inside, :) = NaN;
 c_grid(~inside, :) = NaN;
