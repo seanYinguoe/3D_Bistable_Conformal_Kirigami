@@ -11,7 +11,7 @@ function centroids = face_center(vertices, faces)
 
 % Initialize centroids matrix
 num_faces = size(faces, 1);
-centroids = zeros(num_faces, 2);
+centroids = [];
 
 % Loop through each face
 for i = 1:num_faces

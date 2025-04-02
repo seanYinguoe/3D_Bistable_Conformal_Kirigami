@@ -10,7 +10,7 @@ path = '/Users/sean/Desktop/PhD/Program/Project_2_Shape_morphing_3D_kirigami/Xia
 filename_3D = 'hemisphere.obj'; % 3D model
 filename_2D = 'hemisphere_2D.obj'; % 2D model
 
-obj_3D = readObj(path,filename_3D); % read 3D object
+obj_3D = readObj(path,filename_2D); % read 3D object
 obj_2D = readObj(path,filename_2D); % read 2D object
 
 % We need to change the order the nodes in vt. the connectivity doesn't match
@@ -25,17 +25,16 @@ areas_2D = triangle_area_2D(obj_2D.vt, obj_2D.f.v);  % Deprive the area of mesh 
 areas_3D = triangle_area_3D(obj_2D.v, obj_2D.f.v);  % Deprive the area of mesh in 3D
 
 scale_facs = areas_3D./areas_2D; % Calculate the scale factor. Area_3D/Area_2D
+disp("Scale facs min: "+num2str(min(scale_facs)) +", max: "+num2str(max(scale_facs)))
 
 %% Overlay the regular triangular grids to envelop mesh surface
-edgeLen = 20; % Define the size of triangular grids
+edgeLen = 10; % Define the size of triangular grids
 [v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_mesh, edgeLen); % Overlay regular triangular grids in a rectangle box
 [v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, ...
     i_grid, x_grid, v_mesh, f_mesh, scale_facs, edgeLen); % Remove the grids outside the mesh surface
 
 %% Tessellate the triangular units with bistable units
 tessellation = tessellated_triangle(f_out, c_out, i_out, edgeLen); % Tessellate bistable triangle into fitted grids
-
-%% Deploy the 2D tessellated onto 3D surface
 
 
 %% Plot the results
@@ -53,8 +52,6 @@ lighting gouraud;    % Smooth lighting across surfaces
 figure()
 axis equal
 axis off;
-% patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.v, ...
-%     'FaceColor', [0.2 0.1 0.5], 'EdgeColor', 'none'); % Plot 2D figure
 patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.v, ...
     'FaceColor', 'none', 'EdgeColor', 'black'); % Plot 2D figure
 view(3);             % Set default 3D view angle
@@ -70,7 +67,6 @@ patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceColor', 'none', 'EdgeColor'
 axis equal;
 axis off;
 hold off
-
 
 % Plot the scale_factor colormap of mesh surface
 figure()
@@ -99,4 +95,10 @@ for i = 1:size(f_out,1)
 end
 hold off
 axis off
+
+% Plot the mesh deployment
+mesh_deployment(obj_2D);
+
+% Plot the grid deployment
+grid_deployment(obj_2D,v_out,f_out);
 
