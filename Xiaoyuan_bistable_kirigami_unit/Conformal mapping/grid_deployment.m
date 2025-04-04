@@ -36,7 +36,7 @@ alpha = get(src, 'Value');
 % Compute interpolated deployment shape
 x_deploy = (1-alpha) * flattened_surface(:,1) + alpha * deployed_surface(:,1);
 y_deploy = (1-alpha) * flattened_surface(:,2) + alpha * deployed_surface(:,2);
-z_deploy = alpha * deployed_surface(:,3);  % Gradually lift into 3D
+z_deploy = alpha * deployed_surface(:,3);  % lift into 3D
 
 v_deploy = [x_deploy, y_deploy, z_deploy];
 
