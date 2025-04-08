@@ -19,6 +19,7 @@ obj_2D.vt = sorted_uv;
 
 v_mesh = obj_2D.vt;
 f_mesh = obj_2D.f.v;
+c_mesh = face_center(v_mesh, f_mesh);
 
 %% Calculate the scale factor of mesh
 areas_2D = triangle_area_2D(obj_2D.vt, obj_2D.f.v);  % Deprive the area of mesh in 2D
@@ -28,7 +29,7 @@ scale_facs = areas_3D./areas_2D; % Calculate the scale factor. Area_3D/Area_2D
 disp("Scale facs min: "+num2str(min(scale_facs)) +", max: "+num2str(max(scale_facs)))
 
 %% Overlay the regular triangular grids to envelop mesh surface
-edgeLen = 10; % Define the size of triangular grids
+edgeLen = 20; % Define the size of triangular grids
 [v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_mesh, edgeLen); % Overlay regular triangular grids in a rectangle box
 [v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, ...
     i_grid, x_grid, v_mesh, f_mesh, scale_facs, edgeLen); % Remove the grids outside the mesh surface
@@ -100,5 +101,5 @@ axis off
 mesh_deployment(obj_2D);
 
 % Plot the grid deployment
-grid_deployment(obj_2D,v_out,f_out);
+grid_deployment(obj_2D,c_mesh,v_out,f_out);
 
