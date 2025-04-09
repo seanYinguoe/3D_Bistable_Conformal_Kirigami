@@ -1,8 +1,7 @@
-function grid_deployment(obj_2D,c_mesh,v_out,f_out)
+function v_target = grid_deployment(obj_2D,c_mesh,v_out,f_out)
 % Deploy a flattened grids onto the deployed surface
-% using interpolation and analysis.
-% Input: flattened_surface (vertices, faces)
-%        deployed_surface (vertices, faces)
+% using barycentric interpolation.
+
 
 %% Input flattened mesh surface and deployed mesh surface
 % Input flattened and deployed surface
