@@ -101,8 +101,8 @@ axis off
 mesh_deployment(obj_2D);
 
 % Plot grid deployment
-v_target = grid_deployment(obj_2D,c_mesh,v_out,f_out);
+grid_deployment(obj_2D,c_mesh,v_out,f_out);
 
 % Plot tessellation deployment
-tessellation_deployment(tessellation,v_out,v_target,f_out)
+tessellation_deployment(tessellation,v_out,v_)
 

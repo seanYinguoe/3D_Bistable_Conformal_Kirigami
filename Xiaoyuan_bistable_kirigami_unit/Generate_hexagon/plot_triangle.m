@@ -13,9 +13,12 @@ if nargin < 2
 end
 axis equal;
 hold on;
+% Define connecivity of filaments, voids, flanks, Innertriangle
+faces
+
+
 % Plot voids
 for i = 1:3
-    %plot([triangle(6*(i-1)+1:6*i,1);triangle(6*(i-1)+1:6*i,1)], [triangle(6*(i-1)+1:6*i,2);triangle(6*(i-1)+1:6*i,2)], colour{1}, 'LineWidth', 0.01, 'MarkerFaceColor', 'cyan');
     fill([triangle(6*(i-1)+1:6*i,1);triangle(6*(i-1)+1,1)], [triangle(6*(i-1)+1:6*i,2);triangle(6*(i-1)+1,2)], colour{1}, 'FaceAlpha', 0.5,'EdgeColor', 'none');
 end
 % Plot flanks
