@@ -1,10 +1,13 @@
-function tessellation_target = tessellate_deployment(tessellation,v_out,v_target,f_out)
+function tessellation_target = tessellation_deployment(tessellation,v_out,v_target,f_out,T)
 % Deploy a flattened tessellation onto the target tessellation
 % using barycentric interpolation.
-%% expanse tessellation matrix to Nx3 from Nx2
+%% Modify 2D tessellation coordinate
 for i = 1:size(tessellation,1)
-    tessellation{i} = [tessellation{i} zeros(size(tessellation{i},1),1)];
+    tessellation{i} = [tessellation{i} zeros(size(tessellation{i},1),1)]; % expanse tessellation matrix to Nx3 from Nx2
+    tessellation{i} = tessellation{i} - [T(:,[1,2]),0];% Move it to the central point   
 end
+
+v_out = v_out - [T(:,[1,2]),0]; % Move the grids to match the centroid of flattened surface 
 
 %% Convert coordinate system from global cartesian cooridinate to local barycentric coordinate
 bc_out = cell(size(tessellation));
@@ -13,7 +16,6 @@ for i = 1:size(tessellation,1)
         tri = v_out(f_out(i,:),:);
         p = tessellation{i}(j,:);
         bc_out{i}(j,:) = cart2barycentric(tri,p);
-        k = k+1;
     end
 end
 
@@ -33,28 +35,29 @@ end
 fig = figure('Name', 'Deployment Control', 'Position', [100 100 800 600]);
 slider = uicontrol('Parent', fig, 'Style', 'slider', 'Position', [150 20 500 20], ...
                    'Min', 0, 'Max', 1, 'Value', 0, ...
-                   'Callback', @(src,event) updatePlot(src, tessellation, tessellation_target, f_out));
+                   'Callback', @(src,event) updatePlot(src, tessellation, tessellation_target));
 
 % Function to update the plot based on slider value
-function updatePlot(src, v_out, v_target, faces)
+function updatePlot(src, tessellation, tessellation_target)
 
 alpha = get(src, 'Value');
 
 % Compute interpolated deployment shape
+tessellation_deploy = cell(size(tessellation));
 for m = 1:size(tessellation,1)
-    x_deploy = (1-alpha) * v_out{m}(:,1) + alpha * v_target(:,1);
-    y_deploy = (1-alpha) * v_out{m}(:,2) + alpha * v_target(:,2);
-    z_deploy = alpha * v_target(:,3);
-
-    v_deploy = [x_deploy, y_deploy, z_deploy];
+    x_deploy = (1-alpha) * tessellation{m}(:,1) + alpha * tessellation_target{m}(:,1);
+    y_deploy = (1-alpha) * tessellation{m}(:,2) + alpha * tessellation_target{m}(:,2);
+    z_deploy = alpha * tessellation_target{m}(:,3);
+    tessellation_deploy{m} = [x_deploy, y_deploy, z_deploy];
 end
 
 
 % Clear previous plot and create new one
 cla();
-patch('Vertices', v_deploy, 'Faces', faces, ...
-    'FaceColor', 'none', 'EdgeColor', 'black', 'FaceAlpha', 0.6);
-
+colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
+for m = 1:size(tessellation,1)
+    plot_triangle(tessellation_deploy{m},colour);
+end
 grid off;
 axis equal;
 xlim([-90,90]);
