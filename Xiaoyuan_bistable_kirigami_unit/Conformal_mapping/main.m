@@ -26,6 +26,7 @@ areas_2D = triangle_area_2D(obj_2D.vt, obj_2D.f.v);  % Deprive the area of mesh 
 areas_3D = triangle_area_3D(obj_2D.v, obj_2D.f.v);  % Deprive the area of mesh in 3D
 
 scale_facs = areas_3D./areas_2D; % Calculate the scale factor. Area_3D/Area_2D
+% for a bistable unit the range of scale factor should be within(1.15,1.75)
 disp("Scale facs min: "+num2str(min(scale_facs)) +", max: "+num2str(max(scale_facs)))
 
 %% Overlay the regular triangular grids to envelop mesh surface
@@ -37,7 +38,6 @@ edgeLen = 20; % Define the size of triangular grids
 %% Tessellate the triangular units with bistable units
 tessellation = tessellated_triangle(f_out, c_out, i_out, edgeLen); % Tessellate bistable triangle into fitted grids
 
-
 %% Plot the results
 % Plot the configurations
 figure()
@@ -47,7 +47,7 @@ patch('Vertices', obj_3D.v, 'Faces', obj_2D.f.v, ...
 axis equal;          % Equal scaling for all axes
 axis off;
 view(3);             % Set default 3D view angle
-camlight;            % Add a light source for better visualization
+camlight;            % Add light source
 lighting gouraud;    % Smooth lighting across surfaces
 
 figure()
@@ -101,8 +101,8 @@ axis off
 mesh_deployment(obj_2D);
 
 % Plot grid deployment
-grid_deployment(obj_2D,c_mesh,v_out,f_out);
+[T,v_target] = grid_deployment(obj_2D,c_mesh,v_out,f_out);
 
 % Plot tessellation deployment
-tessellation_deployment(tessellation,v_out,v_)
+tessellation_deployment(tessellation,v_out,v_target,f_out,T);
 
