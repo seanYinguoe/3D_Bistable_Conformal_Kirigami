@@ -34,16 +34,15 @@ tessellation = hexagonal_tessellation(num_x,num_y,l1,l2,l3,t);
 
 %% Plot the result
 % Plot the single triangular unit
-%figure(1)
-%plot_triangle(triangle,colour) 
+figure(1)
+plot_triangle(triangle,colour) 
 
 % Plot the single hexagon unit
-%figure(2)
-%plot_hexagon(hexagon,colour)
+figure(2)
+plot_hexagon(hexagon,colour)
 
 % Plot the interactive hexagon unit
-%figure(3)
-%interactive_hexagon(l1,l2,l3,t)
+interactive_hexagon(l1,l2,l3,t)
 
 % Plot hexagon tessellation
 for i = 1:num_x

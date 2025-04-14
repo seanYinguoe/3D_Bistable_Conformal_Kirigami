@@ -38,8 +38,7 @@ edgeLen = 20; % Define the size of triangular grids
 %% Tessellate the triangular units with bistable units
 tessellation = tessellated_triangle(f_out, c_out, i_out, edgeLen); % Tessellate bistable triangle into fitted grids
 
-%% Plot the results
-% Plot the configurations
+%% Plot the original configurations
 figure()
 patch('Vertices', obj_3D.v, 'Faces', obj_2D.f.v, ...
       'FaceVertexCData', obj_3D.v(:,3),...
@@ -60,7 +59,7 @@ camlight;            % Add a light source for better visualization
 material shiny;                % Make the surface shiny (adjustable)
 lighting gouraud;    % Smooth lighting across surfaces
 
-% Plot the Overlaid grids
+%% Plot the Overlaid grids
 figure(); 
 hold on;
 patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', 'none', 'EdgeColor', 'black','LineWidth',0.5); % Plot mesh surface
@@ -69,7 +68,7 @@ axis equal;
 axis off;
 hold off
 
-% Plot the scale_factor colormap of mesh surface
+%% Plot the scale_factor colormap of mesh surface
 figure()
 patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceVertexCData', scale_facs, 'FaceColor', 'flat', 'EdgeColor', 'none');
 colormap summer; 
@@ -78,7 +77,7 @@ c.FontSize = 18;
 axis equal; 
 axis off
 
-% Plot the scale_area colormap of overlaid grips
+%% Plot the scale_area colormap of overlaid grips
 figure()
 patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceVertexCData', scale_area, 'FaceColor', 'flat', 'EdgeColor', 'none');
 colormap summer; 
@@ -87,7 +86,7 @@ c.FontSize = 18;
 axis equal; 
 axis off
 
-% Plot the tessellated configuration
+%% Plot the tessellated configuration
 colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
 figure()
 hold on
@@ -97,12 +96,18 @@ end
 hold off
 axis off
 
-% Plot mesh deployment
+%% Plot mesh deployment
 mesh_deployment(obj_2D);
 
-% Plot grid deployment
+%% Plot grid deployment
 [T,v_target] = grid_deployment(obj_2D,c_mesh,v_out,f_out);
 
-% Plot tessellation deployment
-tessellation_deployment(tessellation,v_out,v_target,f_out,T);
+%% Plot tessellation deployment
+% Calculate stretch facor based on flattened grid and deployed grid
+areas_2D = triangle_area_2D(v_out, f_out);  % Deprive the area of mesh in 2D
+areas_3D = triangle_area_3D(v_target, f_out);  % Deprive the area of mesh in 3D
+
+stretch_facs = sqrt(areas_3D./areas_2D); % Calculate the scale factor. Area_3D/Area_2D
+
+tessellation_deployment(tessellation,v_out,v_target,f_out,T,stretch_facs); % Plot deployment
 

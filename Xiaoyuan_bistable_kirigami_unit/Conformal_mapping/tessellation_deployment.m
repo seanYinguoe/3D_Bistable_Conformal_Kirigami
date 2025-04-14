@@ -1,7 +1,7 @@
-function tessellation_target = tessellation_deployment(tessellation,v_out,v_target,f_out,T)
+function tessellation_target = tessellation_deployment(tessellation,v_out,v_target,f_out,T,stretch_facs)
 % Deploy a flattened tessellation onto the target tessellation
 % using barycentric interpolation.
-%% Modify 2D tessellation coordinate
+%% Modify 2D closed tessellation configuration
 for i = 1:size(tessellation,1)
     tessellation{i} = [tessellation{i} zeros(size(tessellation{i},1),1)]; % expanse tessellation matrix to Nx3 from Nx2
     tessellation{i} = tessellation{i} - [T(:,[1,2]),0];% Move it to the central point   
@@ -9,7 +9,12 @@ end
 
 v_out = v_out - [T(:,[1,2]),0]; % Move the grids to match the centroid of flattened surface 
 
-%% Convert coordinate system from global cartesian cooridinate to local barycentric coordinate
+%% Get 2D open tessellation configuration based on stretch_facs
+%stretch_facs = 
+
+
+%% Get 3D open tessellation configuration
+% Convert coordinate system from global cartesian cooridinate to local barycentric coordinate
 bc_out = cell(size(tessellation));
 for i = 1:size(tessellation,1)
     for j = 1:size(tessellation{i},1)
