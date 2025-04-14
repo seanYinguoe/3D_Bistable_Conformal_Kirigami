@@ -2,7 +2,7 @@
 function triangle = triangle_expression(alpha_1,alpha_2,l1,l2,l3,t)
 % Set the size of a unit
 % Check the reference on the graph
-% l1 = 2*l2+l3+l4
+% l1 = 2*l2+l3+l4 + t
 % The total length of a bisatble unit: L_ = l4+l2+l1+l4+t
 l4 = l1 - 2*l2 - l3;
 theta = pi/3;
