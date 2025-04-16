@@ -2,7 +2,7 @@
 function triangle = triangle_expression(alpha_1,alpha_2,l1,l2,l3,t)
 % Set the size of a unit
 % Check the reference on the graph
-% l1 = 2*l2+l3+l4 + t
+% l1 = 2*l2+l3+l4
 % The total length of a bisatble unit: L_ = l4+l2+l1+l4+t
 l4 = l1 - 2*l2 - l3;
 theta = pi/3;
@@ -13,7 +13,7 @@ theta = pi/3;
 AF = [-l1*sin(theta),-l1*cos(theta)]';
 FE = rotation(-(alpha_1-theta))*[l2*sin(theta),-l2*cos(theta)]';
 ED = rotation(-(alpha_2-(pi-theta)))*rotation(-(alpha_1-theta))*[l3*sin(theta),l3*cos(theta)]';
-DC = rotation(theta)*FE;
+DC = rotation(theta)*FE*(l2 + t*sin(alpha_2 + alpha_1)/sin(alpha_1))/l2; % different length
 CB = [l4*sin(theta),l4*cos(theta)]';
 
 point_A = [0,-l4]';  % fixed point, displacement control
