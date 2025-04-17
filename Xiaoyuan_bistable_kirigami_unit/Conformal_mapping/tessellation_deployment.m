@@ -17,7 +17,8 @@ l2 = params(3);
 l3 = params(4);
 t = params(5);
 delta = (stretch_facs - 1) * edgeLen; % should be within the delta range
-triangle = triangle_unit(prev_alpha_1, prev_alpha_2, delta,l1,l2,l3,t);
+triangle = triangle_unit(pi/3, 2*pi/3, delta,l1,l2,l3,t);
+triangle = triangle / stretch_facs; % rescale triangle to the same length
 plot_triangle(triangle)
 
 
