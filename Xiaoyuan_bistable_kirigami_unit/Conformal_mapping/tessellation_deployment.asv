@@ -1,4 +1,4 @@
-function tessellation_target = tessellation_deployment(tessellation,v_out,v_target,f_out,T,stretch_facs,params)
+function tessellation_target = tessellation_deployment(tessellation,v_out,v_target,f_out,T,stretch_facs)
 % Deploy a flattened tessellation onto the target tessellation
 % using barycentric interpolation.
 %% Modify 2D closed tessellation configuration
@@ -9,16 +9,8 @@ end
 
 v_out = v_out - [T(:,[1,2]),0]; % Move the grids to match the centroid of flattened surface 
 
-%% Get 2D clsosed tessellation configuration based on stretch_facs and rescale to the same edgeLen
-% Get the parameters
-edgeLen = params(1);
-l1 = params(2);
-l2 = params(3);
-l3 = params(4);
-t = params(5);
-delta = (stretch_facs - 1) * edgeLen; % should be within the delta range
-triangle = triangle_unit(prev_alpha_1, prev_alpha_2, delta,l1,l2,l3,t);
-plot_triangle(triangle)
+%% Get 2D open tessellation configuration based on stretch_facs
+%stretch_facs = 
 
 
 %% Get 3D open tessellation configuration
