@@ -1,16 +1,16 @@
-function triangle_tessellation = tessellated_triangle(f_out, c_out, i_out, edgeLen,stretch_facs)
+function triangle_tessellation = tessellated_triangle(f_out, c_out, i_out, params)
 % Find the optimised bistable unit for each triangular unit, and move it to
 % cooresponding grid
 % edgeLen = l2 + l1 + t + l4 + l4 + delta
 
 %% Generate optimised bistable unit for each triangular grid
 % Create standards bistable unit(upwards and downwards)
-%delta = 0; % default, closed state
-delta = (stretch_facs-1) * edgeLen; % deployed state
-l1 = edgeLen * 0.65 * (2-stretch_facs);
-l2 = edgeLen * 0.15 * (2-stretch_facs);
-t  = edgeLen * 0.05 * (2-stretch_facs);
-l3 = (l1 -2*l2 - (edgeLen - l2 -l1 -t)/2)*(2-stretch_facs);
+delta = 0; % default, closed state
+edgeLen = params(1);
+l1 = params(2);
+l2 = params(3);
+l3 = params(4);
+t = params(5);
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
 [triangle,~,~] = triangle_unit(prev_alpha_1, prev_alpha_2, delta,l1,l2,l3,t);

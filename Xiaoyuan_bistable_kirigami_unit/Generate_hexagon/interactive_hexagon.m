@@ -14,7 +14,7 @@ function interactive_hexagon(l1,l2,l3,t)
 
     % Set the range of phi value
     delta_min = 0;
-    delta_max = 0.7;
+    delta_max = l1*0.7;
     
     % Define colors
     % colour = {'white', 'black', 'black', 'black'};

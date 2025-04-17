@@ -6,14 +6,17 @@ function triangle = triangle_expression(alpha_1,alpha_2,l1,l2,l3,t)
 % The total length of a bisatble unit: L_ = l4+l2+l1+l4+t
 l4 = l1 - 2*l2 - l3;
 theta = pi/3;
-%L = l1 + l4*cos(theta)*2 + t;
+% Calculation of l2_
+delta1 = t/sin(alpha_1)*sin(alpha_2);
+delta2 = -t/sin(alpha_1)*sin(alpha_1+alpha_2);
+l2_ = sqrt((l2 - delta2)^2 + (t - delta1)^2 + 2*(l2 - delta2)*(t - delta1)*cos(alpha_1));
 
 %% Defining the geometry of a unit
 % Defining the geometry of a void(cut)
 AF = [-l1*sin(theta),-l1*cos(theta)]';
 FE = rotation(-(alpha_1-theta))*[l2*sin(theta),-l2*cos(theta)]';
-ED = rotation(-(alpha_2-(pi-theta)))*rotation(-(alpha_1-theta))*[l3*sin(theta),l3*cos(theta)]';
-DC = rotation(theta)*FE*(l2 + t*sin(alpha_2 + alpha_1)/sin(alpha_1))/l2; % different length
+ED = rotation(-(alpha_2-(pi-theta)))*rotation(-(alpha_1-theta))*[l3*sin(theta),l3*cos(theta)]'; 
+DC = rotation(-(alpha_1-theta))*[l2_*sin(theta),l2_*cos(theta)]'; % different length
 CB = [l4*sin(theta),l4*cos(theta)]';
 
 point_A = [0,-l4]';  % fixed point, displacement control
@@ -58,7 +61,8 @@ Innertriangle_y = [point_D(2),point_D_(2),point_D__(2)];
 Innertriangle = [Innertriangle_x;Innertriangle_y]';
 
 % Mirror to other parts to create a triangular unit
-Rotation_centre = 1/3 * sum(Innertriangle);
+% Rotation_centre = 1/3 * sum(Innertriangle);
+Rotation_centre = findBisectorIntersection(point_C_, point_C, point_B, point_B_)';
 
 flank_2 = (flank_1 - Rotation_centre)*rotation(-2*pi/3) + Rotation_centre;
 flank_3 = (flank_1 - Rotation_centre)*rotation(2*pi/3) + Rotation_centre;

@@ -37,18 +37,13 @@ function F = equations(x, l2, l3, t, delta)
     
     alpha_1 = x(1);
     alpha_2 = x(2);
-%     F = [
-%         (1/2) * (-sqrt(3)*(2*l2 + l3) + sqrt(3)*l2*cos(alpha_1) + ...
-%         3*l2*sin(alpha_1) - l3*(sqrt(3)*cos(alpha_1 + alpha_2) + sin(alpha_1 + alpha_2)));
-%         (1/2) * (-l3 + 3*l2*cos(alpha_1) - l3*cos(alpha_1 + alpha_2) - ...
-%         sqrt(3)*l2*sin(alpha_1) + sqrt(3)*l3*sin(alpha_1 + alpha_2)) + delta
-%         ];
-    l2_ = l2 + t*sin(alpha_2 + alpha_1)/sin(alpha_1);
-    %l2_ = l2;
+    delta1 = t/sin(alpha_1)*sin(alpha_2);
+    delta2 = -t/sin(alpha_1)*sin(alpha_1+alpha_2);
+    l2_ = sqrt((l2 - delta2)^2 + (t - delta1)^2 + 2*(l2 - delta2)*(t - delta1)*cos(alpha_1));
     F = [
-        l2 * (-2*sin(pi/3) + sin(2*pi/3-alpha_1) + l2_/l2*sin(pi/3))+...
+        l2 * (-2*sin(pi/3) + sin(2*pi/3-alpha_1) + l2_/l2*sin(alpha_1))+...
         l3 * (-sin(pi/3) + sin(alpha_1 + alpha_2 - 2*pi/3));
-        l2 * (-2*cos(pi/3) - cos(2*pi/3-alpha_1) + l2_/l2*cos(pi/3))+...
+        l2 * (-2*cos(pi/3) - cos(2*pi/3-alpha_1) + l2_/l2*cos(alpha_1))+...
         l3 * (-cos(pi/3) + cos(alpha_1 + alpha_2 - 2*pi/3)) + l2 + delta;
         ];
 end
