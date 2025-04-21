@@ -26,29 +26,30 @@ areas_2D = triangle_area_2D(obj_2D.vt, obj_2D.f.v);  % Deprive the area of mesh 
 areas_3D = triangle_area_3D(obj_2D.v, obj_2D.f.v);  % Deprive the area of mesh in 3D
 
 scale_facs = areas_3D./areas_2D; % Calculate the scale factor. Area_3D/Area_2D
-% for a bistable unit the range of scale factor should be within(1.15,1.75)
-disp("Scale facs min: "+num2str(min(scale_facs)) +", max: "+num2str(max(scale_facs)))
 
 %% Overlay the regular triangular grids to envelop mesh surface
 % Define the size of triangular grids
-edgeLen = 20; 
+edgeLen = 40; 
 [v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_mesh, edgeLen); % Overlay regular triangular grids in a rectangle box
 [v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, ...
     i_grid, x_grid, v_mesh, f_mesh, scale_facs, edgeLen); % Remove the grids outside the mesh surface
 
+disp("Scale area min: "+num2str(min(scale_area)) +", max: "+num2str(max(scale_area)))
+
 %% Tessellate the triangular units with bistable units
 % Define the size of tessellation
-l1 = edgeLen * 0.65;
-l2 = edgeLen * 0.15;
-t  = edgeLen * 0.05;
-l3 = l1 -2*l2 - (edgeLen - l2 -l1 -t)/2; 
+% edgeLen = l1 + l4 l4: the thickness of flanks
+l1 = edgeLen * 0.9;
+l2 = edgeLen * 0.05;
+t  = edgeLen * 0.02;
+l3 = l1 -2*l2 - (edgeLen - l1);  % stretch length
 params = [edgeLen % The length of a unit
     l1            % The length of flanks
     l2            % The length of ligaments           
     l3            % The length of innertriangles
     t             % The thickness of ligaments
     ];
-tessellation = tessellated_triangle(f_out, c_out, i_out, params); % Tessellate bistable triangle into fitted grids
+tessellation = tessellated_triangle(f_out, c_out, i_out, params,ones(size(x_out))); % Tessellate bistable triangle into fitted grids
 
 %% Plot the original configurations
 figure()
@@ -118,8 +119,17 @@ mesh_deployment(obj_2D);
 % Calculate stretch facor based on flattened grid and deployed grid
 areas_2D = triangle_area_2D(v_out, f_out);  % Deprive the area of mesh in 2D
 areas_3D = triangle_area_3D(v_target, f_out);  % Deprive the area of mesh in 3D
-stretch_facs = sqrt(areas_3D./areas_2D); % Calculate the scale factor. Area_3D/Area_2D
+% for a bistable unit the range of stretch factor should be within(1.15,1.75)
+stretch_facs = sqrt(areas_3D./areas_2D); % Calculate the scale factor. Area_3D/Area_2D. 
+rescale_facs = 1/min(stretch_facs); % Rescale the stretch factor globally, and it doesn't affect curvature
+stretch_facs = rescale_facs * stretch_facs; % Enlarge the v_target * rescale_facs
+disp("Stretch facs min: "+num2str(min(stretch_facs)) +", max: "+num2str(max(stretch_facs)))
+if min(stretch_facs) < 0.95 || max(stretch_facs) > 1.75
+    disp("Warning: The stretch factors are out of range")
+end
+
+tessellation_close = tessellated_triangle(f_out, c_out, i_out, params,stretch_facs); % Generate closed state of deployed
 
 % Define parameters
-tessellation_deployment(tessellation,v_out,v_target,f_out,T,stretch_facs,params); % Plot deployment
+tessellation_deployment(tessellation,tessellation_close,v_out,v_target * rescale_facs,f_out,T); % Plot deployment
 

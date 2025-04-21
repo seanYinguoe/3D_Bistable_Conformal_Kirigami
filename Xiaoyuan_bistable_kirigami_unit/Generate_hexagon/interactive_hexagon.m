@@ -4,8 +4,8 @@ function interactive_hexagon(l1,l2,l3,t)
     % Create a figure
     fig = figure('Position', [100, 100, 800, 800]); % Set figure size: left, bottom, width, height
 
-    xlim([-2.5, 2.5]); 
-    ylim([-2.5, 2.5]); 
+    xlim([-l1*3, l1*3]); 
+    ylim([-l1*3, l1*3]); 
 
     % Initial delta value
     delta = 0;
@@ -42,8 +42,8 @@ function interactive_hexagon(l1,l2,l3,t)
         clf(fig);
         axis equal;
         hold on;
-        xlim([-2.5, 2.5]);
-        ylim([-2.5, 2.5]);
+        xlim([-l1*3, l1*3]);
+        ylim([-l1*3, l1*3]);
 
         % Plot the updated hexagon unit
         plot_hexagon(hexagon,colour);
