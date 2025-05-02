@@ -4,6 +4,10 @@ function interactive_hexagon(l1,l2,l3,t)
     % Create a figure
     fig = figure('Position', [100, 100, 800, 800]); % Set figure size: left, bottom, width, height
 
+    l4 = l1 - 2*l2 - l3;
+
+    edgeLen = l1 + 2*l4 + l2;
+
     xlim([-l1*3, l1*3]); 
     ylim([-l1*3, l1*3]); 
 
@@ -13,8 +17,8 @@ function interactive_hexagon(l1,l2,l3,t)
     prev_alpha_2 = 2*pi/3;
 
     % Set the range of phi value
-    delta_min = 0;
-    delta_max = l1*0.7;
+    strain_min = 0;
+    strain_max = 0.8;
     
     % Define colors
     % colour = {'white', 'black', 'black', 'black'};
@@ -24,10 +28,10 @@ function interactive_hexagon(l1,l2,l3,t)
     [hexagon,alpha_1_optimal,alpha_2_optimal] = hexagon_unit(prev_alpha_1, prev_alpha_2, delta,l1,l2,l3,t);
 
     % Add slider in the bottom half
-    slider_handle = uicontrol(fig, 'Style', 'slider', 'Min', delta_min, 'Max', delta_max, 'Value', delta, ...
+    slider_handle = uicontrol(fig, 'Style', 'slider', 'Min', strain_min*edgeLen, 'Max', strain_max*edgeLen, 'Value', delta, ...
         'Position', [150, 30, 500, 30], 'Callback', {@update_plot, fig});
     % Add text label for slider value
-    text_label = uicontrol(fig, 'Style', 'text', 'String', ['Delta = ', num2str(delta)], ...
+    text_label = uicontrol(fig, 'Style', 'text', 'String', ['Strain = ', num2str(delta/edgeLen)], ...
         'Position', [650, 25, 60, 40],'FontSize', 12);
 
     % Update plot function
@@ -49,11 +53,11 @@ function interactive_hexagon(l1,l2,l3,t)
         plot_hexagon(hexagon,colour);
 
         % Add slider in the bottom half
-        slider_handle = uicontrol(fig, 'Style', 'slider', 'Min', delta_min, 'Max', delta_max, 'Value', delta, ...
+        slider_handle = uicontrol(fig, 'Style', 'slider', 'Min', strain_min*edgeLen, 'Max', strain_max*edgeLen, 'Value', delta, ...
             'Position', [150, 30, 500, 30], 'Callback', {@update_plot, fig});
 
         % Add text label for slider value
-        text_label = uicontrol(fig, 'Style', 'text', 'String', ['Delta = ', num2str(delta)], ...
+        text_label = uicontrol(fig, 'Style', 'text', 'String', ['Strain = ', num2str(delta/edgeLen)], ...
             'Position', [650, 25, 60, 40],'FontSize', 12);
     end
 

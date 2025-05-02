@@ -9,7 +9,6 @@ num_x = 3;
 num_y = 3;
 
 % Set the parameters of a unit
-% edgenLen = l1+l2 = 1.23
 l1 = 1.03;
 l2 = 0.2;
 l3 = 0.53;

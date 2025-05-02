@@ -38,11 +38,11 @@ disp("Scale area min: "+num2str(min(scale_area)) +", max: "+num2str(max(scale_ar
 
 %% Tessellate the triangular units with bistable units
 % Define the size of tessellation
-% edgeLen = l1 + l4 l4: the thickness of flanks
-l1 = edgeLen * 0.9;
-l2 = edgeLen * 0.05;
+% edgeLen = l1 + 2*l4 + l2  l4 = (edgeLen - l1 - l2)/2
+l1 = edgeLen * 0.8;
+l2 = edgeLen * 0.1;
 t  = edgeLen * 0.02;
-l3 = l1 -2*l2 - (edgeLen - l1);  % stretch length
+l3 = l1 -2*l2 - (edgeLen - l1 -l2)/2;  % stretch length
 params = [edgeLen % The length of a unit
     l1            % The length of flanks
     l2            % The length of ligaments           
@@ -117,19 +117,26 @@ mesh_deployment(obj_2D);
 
 %% Plot tessellation deployment
 % Calculate stretch facor based on flattened grid and deployed grid
-areas_2D = triangle_area_2D(v_out, f_out);  % Deprive the area of mesh in 2D
-areas_3D = triangle_area_3D(v_target, f_out);  % Deprive the area of mesh in 3D
 % for a bistable unit the range of stretch factor should be within(1.15,1.75)
-stretch_facs = sqrt(areas_3D./areas_2D); % Calculate the scale factor. Area_3D/Area_2D. 
-rescale_facs = 1/min(stretch_facs); % Rescale the stretch factor globally, and it doesn't affect curvature
-stretch_facs = rescale_facs * stretch_facs; % Enlarge the v_target * rescale_facs
-disp("Stretch facs min: "+num2str(min(stretch_facs)) +", max: "+num2str(max(stretch_facs)))
-if min(stretch_facs) < 0.95 || max(stretch_facs) > 1.75
+areas_2D = triangle_area_2D(v_out, f_out);  % Deprive the area of grid in 2D
+areas_3D = triangle_area_3D(v_target, f_out);  % Deprive the area of grid in 3D
+
+scale_facs = areas_3D./areas_2D; % Calculate the scale factor. Area_3D/Area_2D
+stretch_facs = sqrt(scale_facs);
+rescale_facs = 1/min(stretch_facs);
+
+stretch_facs = stretch_facs * rescale_facs;
+disp("Stretch factor min: "+num2str(min(stretch_facs)) +", max: "+num2str(max(stretch_facs)))
+
+if min(min(stretch_facs)) < 0.95 || max(max(stretch_facs)) > 1.75
     disp("Warning: The stretch factors are out of range")
 end
 
-tessellation_close = tessellated_triangle(f_out, c_out, i_out, params,stretch_facs); % Generate closed state of deployed
+% Calculate the stretch facor based on every edge(every edge deploy
+% differently)
+def_facs = def_factor(v_out,v_target,f_out);
+
+tessellation_close = tessellated_triangle(f_out, c_out, i_out, params, stretch_facs); % Generate closed state of deployed
 
 % Define parameters
-tessellation_deployment(tessellation,tessellation_close,v_out,v_target * rescale_facs,f_out,T); % Plot deployment
-
+tessellation_deployment(tessellation,tessellation_close,v_out,v_target * rescale_facs,f_out,T,def_facs); % Plot deployment

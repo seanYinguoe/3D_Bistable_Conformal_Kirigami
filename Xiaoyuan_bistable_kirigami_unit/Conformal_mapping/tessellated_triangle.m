@@ -1,7 +1,7 @@
 function triangle_tessellation = tessellated_triangle(f_out, c_out, i_out, params, stretch_facs)
 % Find the optimised bistable unit for each triangular unit, and move it to
 % cooresponding grid
-% edgeLen = l2 + l1 + t + l4 + l4 + delta
+% edgeLen = l1 + 2*l4 + l2
 
 %% Generate optimised bistable unit for each triangular grid
 % Create standards bistable unit(upwards and downwards)
