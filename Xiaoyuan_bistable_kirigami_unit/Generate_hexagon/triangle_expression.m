@@ -5,7 +5,6 @@ function triangle = triangle_expression(alpha_1,alpha_2,l1,l2,l3,t)
 % l1 = 2*l2+l3+l4
 % The total length of a bisatble unit: L_ = l1 + l4;
 l4 = l1 - 2*l2 - l3;
-L_ = l1 + l4;
 theta = pi/3;
 
 %% Defining the geometry of a unit

@@ -22,7 +22,7 @@ end
 
 % Solve the system
 options = optimoptions('fsolve', 'Display', 'iter', 'Algorithm', 'levenberg-marquardt');
-[alpha, fval] = fsolve(@(x) equations(x, l2, l3, t, delta), x0, options);
+[alpha, fval] = fsolve(@(x) equations(x, l2, l3, delta), x0, options);
 
 display(fval);
 
@@ -33,7 +33,7 @@ alpha_2_optimal = alpha(2);
 % Generate the final triangle
 triangle = triangle_expression(alpha_1_optimal, alpha_2_optimal,l1,l2,l3,t);
 
-function F = equations(x, l2, l3, t, delta)
+function F = equations(x, l2, l3, delta)
     
     alpha_1 = x(1);
     alpha_2 = x(2);

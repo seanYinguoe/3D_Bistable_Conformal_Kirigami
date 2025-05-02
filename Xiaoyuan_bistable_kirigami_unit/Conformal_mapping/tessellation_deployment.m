@@ -1,4 +1,4 @@
-function tessellation_target = tessellation_deployment(tessellation,tessellation_close,v_out,v_target,f_out,T)
+function tessellation_target = tessellation_deployment(tessellation,tessellation_close,v_out,v_target,f_out,T,def_facs)
 % Deploy a flattened tessellation onto the target tessellation
 % using barycentric interpolation.
 %% Modify 2D closed tessellation configuration
@@ -23,6 +23,10 @@ for i = 1:size(tessellation_close,1)
         tri = v_out(f_out(i,:),:);
         p = tessellation_close{i}(j,:);
         bc_out{i}(j,:) = cart2barycentric(tri,p);
+        bc_out{i}(j,:) = [bc_out{i}(j,1)/def_facs(1),...
+            bc_out{i}(j,2)/def_facs(2),...
+            bc_out{i}(j,3)/def_facs(3)];% Use deforme factor to modify the carycentric coordinate
+        bc_out{i}(j,:) = bc_out{i}(j,:)/sum(bc_out{i}(j,:));% enforce sum of bc_out{1} equal to 1
     end
 end
 
