@@ -13,6 +13,8 @@ l1 = 1.03;
 l2 = 0.2;
 l3 = 0.53;
 t = 0.03; 
+l4 = l1 - 2*l2 - l3;
+edgeLen = l1 + 2*l4 + l2;
 
 % Set the coulour of display
 colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
