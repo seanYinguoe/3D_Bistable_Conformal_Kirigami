@@ -2,9 +2,9 @@ function [triangle,alpha_1_optimal,alpha_2_optimal] = triangle_unit(prev_alpha_1
 % Create single bistable unit:
 % Input parameters:
 % l1: Length of flanks
-% l2: thickness of flanks
-% l3: length of filaments
-% l4: length of inner triangle
+% l2: length of filaments
+% l3: length of inner triangle
+% l4: thickness of flanks
 % t: thickness of filaments
 % theta: deploying angle
 % Output:

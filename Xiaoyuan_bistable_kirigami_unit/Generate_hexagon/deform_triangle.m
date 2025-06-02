@@ -1,8 +1,8 @@
-function deformed_triangle = deform_triangle(edge1,edge2,edge3,edgeLen,l3,l4)
+function triangle_new = deform_triangle(q1,q2,q3,edgeLen,l1,l2,l3,t)
 % Input :
-% edge1 : deformed edge1
-% edge2 : deformed edge2
-% edge3 : deformed edge3
+% p1 : unit node 1
+% p2 : unit node 2
+% p3 : unit node 3
 % edgeLen  : original length
 % Output:
 % deformed_triangle
@@ -10,8 +10,11 @@ function deformed_triangle = deform_triangle(edge1,edge2,edge3,edgeLen,l3,l4)
 % filaments are considered as soft material, their length and angles can be
 % changed to accomodate the geometric incompatibility due to non-uniform
 % deployment
+% Calculate stretch factor(figure out the location of node1,2,3)
+edge1 = norm(q1-q2);
+edge2 = norm(q2-q3);
+edge3 = norm(q1-q3);
 
-% Calculate stretch factor
 stretch_facs = [edge1/edgeLen;
     edge2/edgeLen;
     edge3/edgeLen];
@@ -23,11 +26,13 @@ prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
 
 [triangle,~,~] = triangle_unit(prev_alpha_1, prev_alpha_2, delta,l1,l2,l3,t);
-figure(1)
-plot_triangle(triangle,colour)  % Plot the results and outline triangle
-patch('Vertices', triangle([22,26,30],:), 'Faces', [1,2,3], ...
-    'FaceColor', 'none', 'FaceAlpha', 0.5, 'EdgeColor', 'black' ...
-    ,'LineWidth', 1.5);
+% figure(1)
+% % Set the coulour of display
+% colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; 
+% plot_triangle(triangle,colour)  % Plot the results and outline triangle
+% patch('Vertices', triangle([22,26,30],:), 'Faces', [1,2,3], ...
+%     'FaceColor', 'none', 'FaceAlpha', 0.5, 'EdgeColor', 'black' ...
+%     ,'LineWidth', 1.5);
 
 tri_orig = [triangle(22,:);triangle(26,:);triangle(30,:)];
 tri_orig = tri_orig(:);
@@ -69,28 +74,24 @@ flank3 = triangle(f_flank(3,:),:) + flank3_t;
 % Calculate the rotational angle
 vector1 = flank1(3,:) - flank1(4,:);
 vector2 = p2 - p1;
-flank1_r = acos(dot(vector1, vector2) / (norm(vector1) * norm(vector2)));
+%flank1_r = acos(dot(vector1, vector2) / (norm(vector1) * norm(vector2)));
+flank1_r = atan2(vector1(1)*vector2(2) - vector1(2)*vector2(1), dot(vector1, vector2));
 vector1 = flank2(3,:) - flank2(4,:);
 vector2 = p3 - p2;
-flank2_r = acos(dot(vector1, vector2) / (norm(vector1) * norm(vector2)));
+flank2_r = atan2(vector1(1)*vector2(2) - vector1(2)*vector2(1), dot(vector1, vector2));
 vector1 = flank3(3,:) - flank3(4,:);
 vector2 = p1 - p3;
-flank3_r = acos(dot(vector1, vector2) / (norm(vector1) * norm(vector2)));
+flank3_r = atan2(vector1(1)*vector2(2) - vector1(2)*vector2(1), dot(vector1, vector2));
+
+% Compute the cross product to determine the rotational direction
+
 
 % Rotate the flanks to fit the outer triangle
-flank1 = (flank1-p1)*rotation(-flank1_r) + p1;
-flank2 = (flank2-p2)*rotation(-flank2_r) + p2;
-flank3 = (flank3-p3)*rotation(-flank3_r) + p3;
+flank1 = real((flank1-p1)*rotation(-flank1_r) + p1);
+flank2 = real((flank2-p2)*rotation(-flank2_r) + p2);
+flank3 = real((flank3-p3)*rotation(-flank3_r) + p3);
 
 triangle_new(19:30,:) = [flank1;flank2;flank3];
-
-% Plot the results
-figure(2)
-plot_triangle(triangle_new,colour)  % Plot the results and outline triangle
-% Plot boundary triangle
-patch('Vertices', [p1;p2;p3], 'Faces', [1,2,3], ...
-    'FaceColor', 'none', 'FaceAlpha', 0.5, 'EdgeColor', 'black' ...
-    ,'LineWidth', 1.5);
 
 
 %% Optimise inner triangle to minimize the distortion of filaments
@@ -115,143 +116,205 @@ x0 = x0(:);  % The original vertices of triangle
 options = optimoptions('fmincon', ...
     'Algorithm', 'interior-point', ...
     'Display', 'iter', ...
-    'MaxIterations', 1000);
+    'MaxIterations', 5000);
 
 % Run optimization
 % l3 is the length of filaments and l4 is the length of triangle
-[x_opt, ~] = fmincon(@(x)objective(x, x0, fk1, fk0, tri_new, tri_orig), x0, ...
+[x_opt, ~] = fmincon(@(x)objective(x, x0), x0, ...
     [], [], [], [], [], [], ...
-    @(x)constraints(x, d1, d2, d3, l3, l4), options); 
+    @(x)constraints(x, d1, d2, d3, l3, l2), options); 
+% [x_opt, ~] = fmincon(@(x)objective(x, x0, fk1, fk0, tri_new, tri_orig), x0, ...
+%     [], [], [], [], [], [], ...
+%     @(x)constraints(x, d1, d2, d3, l3, l2), options); 
 
-% Create the new triangle(deformed)
+disp('Optimized Triangle Vertices:');
+fprintf('A_new: [%.4f, %.4f]\n', x_opt(1), x_opt(2));
+fprintf('B_new: [%.4f, %.4f]\n', x_opt(3), x_opt(4));
+fprintf('C_new: [%.4f, %.4f]\n\n', x_opt(5), x_opt(6));
 
+% Create the new inner triangle
+A_new = x_opt([1,4])';
+B_new = x_opt([2,5])';
+C_new = x_opt([3,6])';
 
-% Define the constraint function
-    function [c, ceq] = constraints(x, d1, d2, d3, l3, l4)
-        % Extract vertex coordinates
-        A = x(1:2)';
-        B = x(3:4)';
-        C = x(5:6)';
+triangle_new(43,:) = A_new;
+triangle_new(44,:) = B_new;
+triangle_new(45,:) = C_new;
 
-        % Rigidity constraints (triangle edge lengths preserved)
-        ceq_rigidity = [
-            norm(B - A)^2 - l4^2;  % AB
-            norm(C - B)^2 - l4^2;  % BC
-            norm(A - C)^2 - l4^2;  % CA
-            ];
+% Create the new filaments
+triangle_new(32,:) = triangle_new(20,:);
+triangle_new(33,:) = triangle_new(44,:);
+triangle_new(31,:) = triangle_new(32,:) + t/(norm(p1-p2))*(p1-p2);
+triangle_new(34,:) = triangle_new(33,:) + t/(norm(A_new-B_new))*(A_new-B_new);
 
-        % keep the same length of filaments l3
-        ceq_distance = [
-            norm(A - d3) - l3;  % A must be l3 from d3
-            norm(B - d1) - l3;  % B must be l3 from d1
-            norm(C - d2) - l3;  % C must be l3 from d2
-            ];
+triangle_new(37,:) = triangle_new(45,:);
+triangle_new(36,:) = triangle_new(24,:);
+triangle_new(35,:) = triangle_new(36,:) + t/(norm(p2-p3))*(p2-p3);
+triangle_new(38,:) = triangle_new(37,:) + t/(norm(B_new-C_new))*(B_new-C_new);
 
-        ceq = [ceq_rigidity; ceq_distance];
-        c = [];  % No inequality constraints
-    end
+triangle_new(40,:) = triangle_new(28,:);
+triangle_new(41,:) = triangle_new(43,:);
+triangle_new(39,:) = triangle_new(40,:) + t/(norm(p3-p1))*(p3-p1);
+triangle_new(42,:) = triangle_new(41,:) + t/(norm(C_new-A_new))*(C_new-A_new);
+triangle_new = [triangle_new,zeros(size(triangle_new,1),1)];
 
-% Difine the objective function to minimize the energy
-    function cost = objective(x, x0, fk1, fk0, tri_new, tri_orig)
-        % vertices of deformed triangle
-        current_triangle = reshape(x, 3, 2);
-        A_current = current_triangle(1, :);
-        B_current = current_triangle(2, :);
-        C_current = current_triangle(3, :);
+% Convert cartesian coordinate to barycentric coordinate
+bc_out = zeros(size(triangle_new)); % Create barycentric coordinate
+boundary_tri = [[p1,0];[p2,0];[p3,0]];
+for j = 1:size(bc_out,1)
+    p = triangle_new(j,:);
+    bc_out(j,:) = cart2barycentric(boundary_tri,p);
+end
 
-        % vertices of original triangle
-        original_triangle = reshape(x0, 3, 2);
-        A_orig = original_triangle(1, :);
-        B_orig = original_triangle(2, :);
-        C_orig = original_triangle(3, :);
-
-        % vertices of deformed flanks
-        current_flanks = reshape(fk1, 3, 2);
-        dc1 = current_flanks(1, :);
-        dc2 = current_flanks(2, :);    
-        dc3 = current_flanks(3, :);
-
-        % vertices of original flanks
-        original_flanks = reshape(fk0, 3, 2);
-        do1 = original_flanks(1, :);
-        do2 = original_flanks(2, :);    
-        do3 = original_flanks(3, :);
-
-        % Calculate rotational energy, the bending stiffness is considered
-        % as 1
-        energy = 0;
-        current_boundary = reshape(tri_new, 3, 2);
-        p1_new = current_boundary(1,:);
-        p2_new = current_boundary(2,:);
-        p3_new = current_boundary(3,:);
-        original_boundary = reshape(tri_orig, 3, 2);
-        p1_orig = original_boundary(1,:);
-        p2_orig = original_boundary(2,:);
-        p3_orig = original_boundary(3,:);        
-
-        % Filament 1
-        vec1_orig = p1_orig - p2_orig;
-        vec2_orig = B_orig - do1;
-        vec3_orig = do1 - B_orig;
-        vec4_orig = A_orig - B_orig;
-
-        vec1_new = p1_new - p2_new;
-        vec2_new = B_current - dc1;
-        vec3_new = dc1 - B_current;
-        vec4_new = A_current - B_current;
-
-        angle1_orig = acos((vec1_orig * vec2_orig')/(norm(vec1_orig) * norm(vec2_orig)));
-        angle2_orig = acos((vec3_orig * vec4_orig')/(norm(vec3_orig) * norm(vec4_orig)));
-
-        angle1_new = acos((vec1_new * vec2_new')/(norm(vec1_new) * norm(vec2_new)));
-        angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
-
-        energy = energy + 1/2*1*((angle1_new-angle1_orig)^2 + (angle2_new-angle2_orig)^2); 
-
-        % Filament 2
-        vec1_orig = p2_orig - p3_orig;
-        vec2_orig = C_orig - do2;
-        vec3_orig = do2 - C_orig;
-        vec4_orig = B_orig - C_orig;
-
-        vec1_new = p2_new - p3_new;
-        vec2_new = C_current - dc2;
-        vec3_new = dc2 - C_current;
-        vec4_new = B_current - C_current;
-
-        angle1_orig = acos((vec1_orig * vec2_orig')/(norm(vec1_orig) * norm(vec2_orig)));
-        angle2_orig = acos((vec3_orig * vec4_orig')/(norm(vec3_orig) * norm(vec4_orig)));
-
-        angle1_new = acos((vec1_new * vec2_new')/(norm(vec1_new) * norm(vec2_new)));
-        angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
-
-        energy = energy + 1/2*1*((angle1_new-angle1_orig)^2 + (angle2_new-angle2_orig)^2); 
-
-        % Filament 3
-        vec1_orig = p3_orig - p1_orig;
-        vec2_orig = A_orig - do3;
-        vec3_orig = do3 - A_orig;
-        vec4_orig = C_orig - A_orig;
-
-        vec1_new = p3_new - p1_new;
-        vec2_new = A_current - dc3;
-        vec3_new = dc3 - A_current;
-        vec4_new = C_current - A_current;
-
-        angle1_orig = acos((vec1_orig * vec2_orig')/(norm(vec1_orig) * norm(vec2_orig)));
-        angle2_orig = acos((vec3_orig * vec4_orig')/(norm(vec3_orig) * norm(vec4_orig)));
-
-        angle1_new = acos((vec1_new * vec2_new')/(norm(vec1_new) * norm(vec2_new)));
-        angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
-
-        energy = energy + 1/2*1*((angle1_new-angle1_orig)^2 + (angle2_new-angle2_orig)^2); 
-
-        cost = energy;
-    end
+% Covert barycentric coordinate to cartesian coordinate with new triangle
+boundary_tri_new = [q3;q1;q2];
+triangle_out = zeros(size(triangle_new));
+for j = 1:size(bc_out,1)
+    triangle_out(j,:) = bc_out(j,:) * boundary_tri_new ;
 end
 
 
+%[R, T] = align_triangles([p1,0], [p2,0], [p3,0], q1, q2, q3);
+%triangle_out = (R * triangle_new')' + T'; 
 
+% Plot the results
+figure()
+view(3)
+% Set the coulour of display
+colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
+plot_triangle(triangle_out,colour)  % Plot the results and outline triangle
+% Plot boundary triangle
+patch('Vertices', [q1;q2;q3], 'Faces', [1,2,3], ...
+    'FaceColor', 'none', 'FaceAlpha', 0.5, 'EdgeColor', 'black' ...
+    ,'LineWidth', 1.5);
+end
 
+%% Define the constraint function
+function [c, ceq] = constraints(x, d1, d2, d3, l3, l2)
+% Extract vertex coordinates
+A = x([1,4])';
+B = x([2,5])';
+C = x([3,6])';
+
+% Rigidity constraints (triangle edge lengths preserved)
+ceq_rigidity = [
+    norm(B - A) - l3;  % AB
+    norm(C - B) - l3;  % BC
+    norm(A - C) - l3;  % CA
+    ];
+
+% keep the same length of filaments l2
+ceq_distance = [
+    norm(A - d3) - l2;  % A must be l2 from d3
+    norm(B - d1) - l2;  % B must be l2 from d1
+    norm(C - d2) - l2;  % C must be l2 from d2
+    ];
+
+ceq = [ceq_rigidity; ceq_distance];
+c = [];  % No inequality constraints
+end
+
+%% Difine the objective function to minimize the energy
+% function cost = objective(x, x0, fk1, fk0, tri_new, tri_orig)
+% % vertices of deformed triangle
+% current_triangle = reshape(x, 2, 3)';
+% A_current = current_triangle(1, :);
+% B_current = current_triangle(2, :);
+% C_current = current_triangle(3, :);
+% 
+% % vertices of original triangle
+% original_triangle = reshape(x0, 2, 3)';
+% A_orig = original_triangle(1, :);
+% B_orig = original_triangle(2, :);
+% C_orig = original_triangle(3, :);
+% 
+% % vertices of deformed flanks
+% current_flanks = reshape(fk1, 2, 3)';
+% dc1 = current_flanks(1, :);
+% dc2 = current_flanks(2, :);
+% dc3 = current_flanks(3, :);
+% 
+% % vertices of original flanks
+% original_flanks = reshape(fk0, 2, 3)';
+% do1 = original_flanks(1, :);
+% do2 = original_flanks(2, :);
+% do3 = original_flanks(3, :);
+% 
+% % Calculate rotational energy, the bending stiffness is considered
+% % as 1
+% energy = 0;
+% current_boundary = reshape(tri_new, 2, 3)';
+% p1_new = current_boundary(1,:);
+% p2_new = current_boundary(2,:);
+% p3_new = current_boundary(3,:);
+% original_boundary = reshape(tri_orig, 2, 3)';
+% p1_orig = original_boundary(1,:);
+% p2_orig = original_boundary(2,:);
+% p3_orig = original_boundary(3,:);
+% 
+% % Filament 1
+% vec1_orig = p1_orig - p2_orig;
+% vec2_orig = B_orig - do1;
+% vec3_orig = do1 - B_orig;
+% vec4_orig = A_orig - B_orig;
+% 
+% vec1_new = p1_new - p2_new;
+% vec2_new = B_current - dc1;
+% vec3_new = dc1 - B_current;
+% vec4_new = A_current - B_current;
+% 
+% angle1_orig = acos((vec1_orig * vec2_orig')/(norm(vec1_orig) * norm(vec2_orig)));
+% angle2_orig = acos((vec3_orig * vec4_orig')/(norm(vec3_orig) * norm(vec4_orig)));
+% 
+% angle1_new = acos((vec1_new * vec2_new')/(norm(vec1_new) * norm(vec2_new)));
+% angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
+% 
+% energy = energy + 1/2*1*((angle1_new-angle1_orig)^2 + (angle2_new-angle2_orig)^2);
+% 
+% % Filament 2
+% vec1_orig = p2_orig - p3_orig;
+% vec2_orig = C_orig - do2;
+% vec3_orig = do2 - C_orig;
+% vec4_orig = B_orig - C_orig;
+% 
+% vec1_new = p2_new - p3_new;
+% vec2_new = C_current - dc2;
+% vec3_new = dc2 - C_current;
+% vec4_new = B_current - C_current;
+% 
+% angle1_orig = acos((vec1_orig * vec2_orig')/(norm(vec1_orig) * norm(vec2_orig)));
+% angle2_orig = acos((vec3_orig * vec4_orig')/(norm(vec3_orig) * norm(vec4_orig)));
+% 
+% angle1_new = acos((vec1_new * vec2_new')/(norm(vec1_new) * norm(vec2_new)));
+% angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
+% 
+% energy = energy + 1/2*1*((angle1_new-angle1_orig)^2 + (angle2_new-angle2_orig)^2);
+% 
+% % Filament 3
+% vec1_orig = p3_orig - p1_orig;
+% vec2_orig = A_orig - do3;
+% vec3_orig = do3 - A_orig;
+% vec4_orig = C_orig - A_orig;
+% 
+% vec1_new = p3_new - p1_new;
+% vec2_new = A_current - dc3;
+% vec3_new = dc3 - A_current;
+% vec4_new = C_current - A_current;
+% 
+% angle1_orig = acos((vec1_orig * vec2_orig')/(norm(vec1_orig) * norm(vec2_orig)));
+% angle2_orig = acos((vec3_orig * vec4_orig')/(norm(vec3_orig) * norm(vec4_orig)));
+% 
+% angle1_new = acos((vec1_new * vec2_new')/(norm(vec1_new) * norm(vec2_new)));
+% angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
+% 
+% energy = energy + 1/2*1*((angle1_new-angle1_orig)^2 + (angle2_new-angle2_orig)^2);
+% 
+% cost = energy;
+% end
+
+%% Difine the objective function to minimize the difference
+function cost = objective(x, x0)
+cost = sum((x-x0).^2);
+end
 
 
