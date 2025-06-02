@@ -9,12 +9,12 @@ num_x = 3;
 num_y = 3;
 
 % Set the parameters of a unit
-l1 = 1.03;
-l2 = 0.2;
-l3 = 0.53;
-t = 0.03; 
-l4 = l1 - 2*l2 - l3;
-edgeLen = l1 + 2*l4 + l2;
+l1 = 1.03; % length of flanks
+l2 = 0.2; % length of filaments
+l3 = 0.53; % length of inner triangle
+t = 0.03; % thickness of filaments
+l4 = l1 - 2*l2 - l3; % thickness of flanks
+edgeLen = l1 + 2*l4 + l2; % total length of unit
 
 % Set the coulour of display
 colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle

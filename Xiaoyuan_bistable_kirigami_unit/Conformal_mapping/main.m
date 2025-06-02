@@ -49,7 +49,8 @@ params = [edgeLen % The length of a unit
     l3            % The length of innertriangles
     t             % The thickness of ligaments
     ];
-tessellation = tessellated_triangle(f_out, c_out, i_out, params,ones(size(x_out))); % Tessellate bistable triangle into fitted grids
+tessellation = tessellated_triangle(f_out, c_out, i_out, params,v_out); % Tessellate bistable triangle into fitted grids
+%ones(size(x_out)
 
 %% Plot the original configurations
 figure()
@@ -123,7 +124,7 @@ areas_3D = triangle_area_3D(v_target, f_out);  % Deprive the area of grid in 3D
 
 scale_facs = areas_3D./areas_2D; % Calculate the scale factor. Area_3D/Area_2D
 stretch_facs = sqrt(scale_facs);
-rescale_facs = 1/min(stretch_facs);
+rescale_facs = 1.1/min(stretch_facs);
 
 stretch_facs = stretch_facs * rescale_facs;
 disp("Stretch factor min: "+num2str(min(stretch_facs)) +", max: "+num2str(max(stretch_facs)))
@@ -136,7 +137,7 @@ end
 % differently)
 def_facs = def_factor(v_out,v_target,f_out);
 
-tessellation_close = tessellated_triangle(f_out, c_out, i_out, params, stretch_facs); % Generate closed state of deployed
+tessellation_target = tessellated_triangle(f_out, c_out, i_out, params, v_target); % Generate closed state of deployed
 
 % Define parameters
-tessellation_deployment(tessellation,tessellation_close,v_out,v_target * rescale_facs,f_out,T,def_facs); % Plot deployment
+tessellation_deployment(tessellation,tessellation_target,v_out,v_target * rescale_facs,f_out,T,def_facs); % Plot deployment

@@ -25,7 +25,7 @@ for i = 1:size(tessellation_close,1)
         bc_out{i}(j,:) = cart2barycentric(tri,p);
         bc_out{i}(j,:) = [bc_out{i}(j,1)/def_facs(1),...
             bc_out{i}(j,2)/def_facs(2),...
-            bc_out{i}(j,3)/def_facs(3)];% Use deforme factor to modify the carycentric coordinate
+            bc_out{i}(j,3)/def_facs(3)];% Use deform factor to modify the barycentric coordinate
         bc_out{i}(j,:) = bc_out{i}(j,:)/sum(bc_out{i}(j,:));% enforce sum of bc_out{1} equal to 1
     end
 end
