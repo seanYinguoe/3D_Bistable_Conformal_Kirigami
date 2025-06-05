@@ -1,45 +1,10 @@
-function tessellation_target = tessellation_deployment(tessellation,tessellation_close,v_out,v_target,f_out,T,def_facs)
+function tessellation_target = tessellation_deployment(tessellation,tessellation_target,T)
 % Deploy a flattened tessellation onto the target tessellation
 % using barycentric interpolation.
-%% Modify 2D closed tessellation configuration
+%% Move 2D closed tessellation configuration(should I rotate it as well?)
 for i = 1:size(tessellation,1)
-    tessellation{i} = [tessellation{i} zeros(size(tessellation{i},1),1)]; % expanse tessellation matrix to Nx3 from Nx2
     tessellation{i} = tessellation{i} - [T(:,[1,2]),0];% Move it to the central point   
 end
-
-v_out = v_out - [T(:,[1,2]),0]; % Move the grids to match the centroid of flattened surface 
-
-%% Get 2D clsosed tessellation configuration based on stretch_facs and rescale to the same edgeLen
-for i = 1:size(tessellation_close,1)
-    tessellation_close{i} = [tessellation_close{i} zeros(size(tessellation_close{i},1),1)]; % expanse tessellation matrix to Nx3 from Nx2
-    tessellation_close{i} = tessellation_close{i} - [T(:,[1,2]),0];% Move it to the central point   
-end
-
-%% Get 3D open tessellation configuration
-% Convert coordinate system from global cartesian cooridinate to local barycentric coordinate
-bc_out = cell(size(tessellation_close));
-for i = 1:size(tessellation_close,1)
-    for j = 1:size(tessellation_close{i},1)
-        tri = v_out(f_out(i,:),:);
-        p = tessellation_close{i}(j,:);
-        bc_out{i}(j,:) = cart2barycentric(tri,p);
-        bc_out{i}(j,:) = [bc_out{i}(j,1)/def_facs(1),...
-            bc_out{i}(j,2)/def_facs(2),...
-            bc_out{i}(j,3)/def_facs(3)];% Use deform factor to modify the barycentric coordinate
-        bc_out{i}(j,:) = bc_out{i}(j,:)/sum(bc_out{i}(j,:));% enforce sum of bc_out{1} equal to 1
-    end
-end
-
-% Convert 2D tessellation surface to 3D tessellation surface based on barycentric
-% coordinate and cooresponding 3D grid cartesian coordiante
-tessellation_target = cell(size(tessellation_close)); % cartesian coordinates of deployed grid surface
-for i = 1:size(tessellation_close,1)
-    for j = 1:size(f_out,2)
-        cart_grid = bc_out{i} * v_target(f_out(i,:),:);
-    end
-    tessellation_target{i} = cart_grid;
-end
-
 
 %% Deploy the flattened grids surface on to deployed target surface
 % Create the figure and UI components

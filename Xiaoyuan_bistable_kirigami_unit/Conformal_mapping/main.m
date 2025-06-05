@@ -29,7 +29,7 @@ scale_facs = areas_3D./areas_2D; % Calculate the scale factor. Area_3D/Area_2D
 
 %% Overlay the regular triangular grids to envelop mesh surface
 % Define the size of triangular grids
-edgeLen = 40; 
+edgeLen = 20; 
 [v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_mesh, edgeLen); % Overlay regular triangular grids in a rectangle box
 [v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, ...
     i_grid, x_grid, v_mesh, f_mesh, scale_facs, edgeLen); % Remove the grids outside the mesh surface
@@ -49,7 +49,7 @@ params = [edgeLen % The length of a unit
     l3            % The length of innertriangles
     t             % The thickness of ligaments
     ];
-tessellation = tessellated_triangle(f_out, c_out, i_out, params,v_out); % Tessellate bistable triangle into fitted grids
+tessellation = tessellated_triangle(f_out, i_out, params,v_out); % Tessellate bistable triangle into fitted grids
 %ones(size(x_out)
 
 %% Plot the original configurations
@@ -111,7 +111,7 @@ hold off
 axis off
 
 %% Plot mesh deployment
-mesh_deployment(obj_2D);
+% mesh_deployment(obj_2D);
 
 %% Plot grid deployment
 [T,v_target] = grid_deployment(obj_2D,c_mesh,v_out,f_out);
@@ -137,7 +137,7 @@ end
 % differently)
 def_facs = def_factor(v_out,v_target,f_out);
 
-tessellation_target = tessellated_triangle(f_out, c_out, i_out, params, v_target); % Generate closed state of deployed
+tessellation_target = tessellated_triangle(f_out, i_out, params, v_target * rescale_facs); % Generate closed state of deployed
 
 % Define parameters
-tessellation_deployment(tessellation,tessellation_target,v_out,v_target * rescale_facs,f_out,T,def_facs); % Plot deployment
+tessellation_deployment(tessellation,tessellation_target,T); % Plot deployment
