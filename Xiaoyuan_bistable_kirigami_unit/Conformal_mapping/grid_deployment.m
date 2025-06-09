@@ -1,4 +1,4 @@
-function [T,v_target] = grid_deployment(obj_2D,c_mesh,v_out,f_out)
+function [T,v_target] = grid_deployment(obj_2D,c_mesh,v_out,f_out,modelname)
 % Deploy a flattened grids onto the deployed surface
 % using barycentric interpolation.
 
@@ -8,12 +8,15 @@ flattened_surface = obj_2D.vt;  % Flattened 2D vertex positions
 flattened_surface = [flattened_surface,zeros(size(flattened_surface,1),1)];
 deployed_surface = obj_2D.v;    % Deployed 3D vertex positions
 c_mesh = [c_mesh zeros(size(c_mesh,1),1)];
+[c_mesh, ~] = model_rotate(modelname, c_mesh,ones(1,3));
+[v_out, ~] = model_rotate(modelname, v_out,ones(1,3));
 f_mesh = obj_2D.f.v;             % Face connectivity
 
-% Move and rotate the 3D object to match the boundary
-deployed_surface = [deployed_surface(:,1), -deployed_surface(:,3),deployed_surface(:,2)]; % rotate the deployed surface 90 around x axis
+% Move and rotate the 2D and 3D object to match the boundary
+[flattened_surface, deployed_surface] = model_rotate(modelname, flattened_surface, deployed_surface);
+% deployed_surface = [deployed_surface(:,1), -deployed_surface(:,3),deployed_surface(:,2)]; % rotate the deployed surface 90 around x axis
 T = mean(flattened_surface) - mean(deployed_surface); 
-flattened_surface = flattened_surface - [T(:,[1,2]),0]; % Move to match the coorespoind node
+flattened_surface = flattened_surface - [T(:,[1,2]),0]; % Move to match the cooresponding node
 c_mesh = c_mesh - [T(:,[1,2]),0]; % Move to match the coorespoind node
 v_out = v_out - [T(:,[1,2]),0]; % Move the grids to match the centroid of flattened surface
 
@@ -83,6 +86,7 @@ fig = figure('Name', 'Deployment Control', 'Position', [100 100 800 600]);
 slider = uicontrol('Parent', fig, 'Style', 'slider', 'Position', [150 20 500 20], ...
                    'Min', 0, 'Max', 1, 'Value', 0, ...
                    'Callback', @(src,event) updatePlot(src, v_out, v_target, f_out));
+updatePlot(slider, v_out, v_target, f_out);
 
 % Function to update the plot based on slider value
 function updatePlot(src, v_out, v_target, faces)
@@ -104,9 +108,10 @@ patch('Vertices', v_deploy, 'Faces', faces, ...
 
 grid off;
 axis equal;
-xlim([-90,90]);
-ylim([-90,90]);
-zlim([-10,60]);
+% xlim([-90,90]);
+% ylim([-90,90]);
+% zlim([-10,60]);
+axis off
 xlabel('X');
 ylabel('Y');
 zlabel('Z');

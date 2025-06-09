@@ -1,17 +1,21 @@
-function tessellation_target = tessellation_deployment(tessellation,tessellation_target,T)
+function tessellation_target = tessellation_deployment(tessellation,tessellation_target,T,modelname)
 % Deploy a flattened tessellation onto the target tessellation
 % using barycentric interpolation.
 %% Move 2D closed tessellation configuration(should I rotate it as well?)
 for i = 1:size(tessellation,1)
+    [tessellation{i},~] = model_rotate(modelname, tessellation{i}, ones(1,3));
     tessellation{i} = tessellation{i} - [T(:,[1,2]),0];% Move it to the central point   
 end
 
 %% Deploy the flattened grids surface on to deployed target surface
 % Create the figure and UI components
 fig = figure('Name', 'Deployment Control', 'Position', [100 100 800 600]);
-slider = uicontrol('Parent', fig, 'Style', 'slider', 'Position', [150 20 500 20], ...
-                   'Min', 0, 'Max', 1, 'Value', 0, ...
-                   'Callback', @(src,event) updatePlot(src, tessellation, tessellation_target));
+slider = uicontrol('Parent', fig, 'Style', 'slider', ...
+    'Position', [150 20 500 20], ...
+    'Min', 0, 'Max', 1, 'Value', 0, ...
+    'Callback', @(src,event) updatePlot(src, tessellation, tessellation_target));
+
+updatePlot(slider, tessellation, tessellation_target);
 
 % Function to update the plot based on slider value
 function updatePlot(src, tessellation, tessellation_target)
@@ -36,9 +40,10 @@ for m = 1:size(tessellation,1)
 end
 grid off;
 axis equal;
-xlim([-90,90]);
-ylim([-90,90]);
-zlim([-10,60]);
+% xlim([-90,90]);
+% ylim([-90,90]);
+% zlim([-10,60]);
+axis off
 xlabel('X');
 ylabel('Y');
 zlabel('Z');
