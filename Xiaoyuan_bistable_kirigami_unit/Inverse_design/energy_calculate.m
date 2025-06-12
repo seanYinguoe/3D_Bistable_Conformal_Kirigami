@@ -1,6 +1,6 @@
 % Caculate the rotational energy of conformal tessellation during
 % deployment
-function [E_rotation,E_bending] = energy_calculate(initial_config, target_config, dihedral_angle)
+function [E_rotation,E_bending] = energy_calculate(initial_config, target_config, v_out, f_out, x_out)
 %% Clear and organise data from mat
 index = [23,36,37;
     33,37,36;
@@ -25,5 +25,6 @@ end
 E_rotation = 1/2 * k_r * angle_diff.^2;
 %% Calculate the out-of-plane bending energy caused by flanks
 % Calculate the dihedral angles between triangles
+dihedral_angle = dihedral_angle_calculate(v_out, f_out, x_out);
 E_bending = 1/2 * k_b * (dihedral_angle(:,3)).^2;
 end
