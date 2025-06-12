@@ -30,7 +30,7 @@ scale_facs = areas_3D./areas_2D; % Calculate the scale factor. Area_3D/Area_2D
 
 %% Overlay the regular triangular grids to envelop mesh surface
 % Define the size of triangular grids
-edgeLen = 20; 
+edgeLen = 15; 
 [v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_mesh, edgeLen); % Overlay regular triangular grids in a rectangle box
 [v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, ...
     i_grid, x_grid, v_mesh, f_mesh, scale_facs, edgeLen); % Remove the grids outside the mesh surface
@@ -77,7 +77,7 @@ lighting gouraud;    % Smooth lighting across surfaces
 figure(); 
 hold on;
 patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', 'none', 'EdgeColor', 'black','LineWidth',0.5); % Plot mesh surface
-patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceColor', 'none', 'EdgeColor', 'b','LineWidth',1); % Plot overlaid surface
+plotgrid(f_out,v_out)
 axis equal;
 axis off;
 hold off
@@ -139,5 +139,6 @@ def_facs = def_factor(v_out,v_target,f_out);
 
 tessellation_target = tessellated_triangle(f_out, i_out, params, v_target * rescale_facs); % Generate closed state of deployed
 
+dihedral_angle = dihedral_angle_calculate(v_target, f_out, x_out);
 % Define parameters
 tessellation_deployment(tessellation,tessellation_target,T,modelname); % Plot deployment
