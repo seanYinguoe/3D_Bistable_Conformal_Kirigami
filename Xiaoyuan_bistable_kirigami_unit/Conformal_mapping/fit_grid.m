@@ -24,18 +24,42 @@ function [v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_gr
 %% Calculate UV Mesh Face Centers
 uv_c = face_center(v_mesh,f_mesh); % find the centroids of triangular mesh
 
-%% Check regular grids validity
+%% Check regular grids validity(Remove the outside triangle)
 tri = triangulation(f_mesh, v_mesh); % Define triangulation using given faces
 grid_points = c_grid(:,[1,2]);
 inside = ~isnan(tri.pointLocation(grid_points)); % Check if points are inside the mesh
-
 
 % Replace all the outside centroid as NaN
 f_grid(~inside, :) = NaN;
 c_grid(~inside, :) = NaN;
 i_grid(~inside, :) = NaN;
-for i = find(~inside)'
-    x_grid{i} = NaN;
+
+% Clean neighbor lists for all faces, keep the order unchanged
+for xi = 1:numel(x_grid)
+    if inside(xi)  % Only process valid faces
+        % Remove neighbors that are invalid
+        x_grid{xi} = x_grid{xi}(inside(x_grid{xi}));
+        % If no neighbors left, mark as invalid
+        if isempty(x_grid{xi})
+            inside(xi) = true;
+        end
+    else
+        x_grid{xi} = NaN;
+    end
+end
+
+
+% Create index mapping
+index_map = zeros(size(f_grid,1), 1);
+index_map(inside) = (1:sum(inside))';  % Fixed dimension mismatch
+
+% Update neighbor indices for x_grid
+for xi = 1:numel(x_grid)
+    if inside(xi)
+        % Convert neighbors using index map, keep only valid ones
+        x_grid{xi} = index_map(x_grid{xi}(inside(x_grid{xi})));
+        x_grid{xi}(isnan(x_grid{xi})) = [];
+    end
 end
 
 % Remove NaN
@@ -51,8 +75,36 @@ idE = get_floppy_triangles(f_grid);
 [f_grid, idxn] = removeId(f_grid, idE); % Remove floppy polygons, replaces as NaN
 c_grid(idxn,:) = NaN;
 i_grid(idxn,:) = NaN;
-for i = find(idxn)'
-    x_grid{i} = NaN;
+
+% Clean neighbor lists for all faces, keep the order unchanged
+floppy_idx = false(size(f_grid,1),1);
+floppy_idx(idE) = true;
+non_floppy = ~floppy_idx;
+
+for xi = 1:numel(x_grid)
+    if non_floppy(xi)  % Only process valid faces
+        % Remove neighbors that are invalid
+        x_grid{xi} = x_grid{xi}(non_floppy(x_grid{xi}));
+        % If no neighbors left, mark as invalid
+        if isempty(x_grid{xi})
+            non_floppy(xi) = true;
+        end
+    else
+        x_grid{xi} = NaN;
+    end
+end
+
+% Create index mapping
+index_map = zeros(size(f_grid,1), 1);
+index_map(non_floppy) = (1:sum(non_floppy))';  % Fixed dimension mismatch
+
+% Update neighbor indices for x_grid
+for xi = 1:numel(x_grid)
+    if non_floppy(xi)
+        % Convert neighbors using index map, keep only valid ones
+        x_grid{xi} = index_map(x_grid{xi}(non_floppy(x_grid{xi})));
+        x_grid{xi}(isnan(x_grid{xi})) = [];
+    end
 end
 
 % Remove NaN and Adjust Indices
@@ -61,13 +113,6 @@ c_grid = c_grid(index(:,1),:);
 i_grid = i_grid(index(:,1),:);
 x_grid = x_grid(index(:,1),:);
 f_grid = f_grid(index(:,1),:);
-
-% Iterate over each element of x_grid (each cell represents a list of neighboring faces)
-for xi = 1:numel(x_grid)
-    current_neighbors = x_grid{xi};
-    updated_neighbors = current_neighbors(~ismember(current_neighbors, idxn));
-    x_grid{xi} = updated_neighbors;
-end
 
 %% Calculate Scale Factors Using Weighted Averaging
 scale_area = zeros(size(c_grid,1),1);
