@@ -137,8 +137,9 @@ end
 % differently)
 def_facs = def_factor(v_out,v_target,f_out);
 
-tessellation_target = tessellated_triangle(f_out, i_out, params, v_target * rescale_facs); % Generate closed state of deployed
+v_target = v_target * rescale_facs;
 
-dihedral_angle = dihedral_angle_calculate(v_target, f_out, x_out);
+tessellation_target = tessellated_triangle(f_out, i_out, params, v_target); % Generate closed state of deployed
+
 % Define parameters
 tessellation_deployment(tessellation,tessellation_target,T,modelname); % Plot deployment

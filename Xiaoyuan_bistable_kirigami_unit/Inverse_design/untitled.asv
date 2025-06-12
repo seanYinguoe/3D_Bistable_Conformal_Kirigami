@@ -1,0 +1,21 @@
+%% Plot the energy develop during the deployment(deployment using interpolation, might not be accurate)
+
+%% Generate the deploying configuration and elastic energy
+tessellation_deploy = cell(size(tessellation));
+n = 100;
+E_rotation = cell(n+1,1);
+E_bending  = cell(n+1,1);
+i = 0;
+for alpha = 0:1/n:1
+    i = i+1;
+    for m = 1:size(tessellation,1)
+        x_deploy = (1-alpha) * tessellation{m}(:,1) + alpha * tessellation_target{m}(:,1);
+        y_deploy = (1-alpha) * tessellation{m}(:,2) + alpha * tessellation_target{m}(:,2);
+        z_deploy = alpha * tessellation_target{m}(:,3);
+        tessellation_deploy{m} = [x_deploy, y_deploy, z_deploy];
+        v_deploy = (1-alpha) * v_out + alpha * v_target;
+    end
+    [E_rotation{i},E_bending{i}] = energy_calculate(tessellation, tessellation_deploy, v_out, f_out, x_out);
+end
+E_total = zeros()
+
