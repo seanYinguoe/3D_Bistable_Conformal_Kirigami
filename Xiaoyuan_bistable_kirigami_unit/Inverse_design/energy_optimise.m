@@ -61,7 +61,7 @@ ylabel('E/K', 'FontSize', 18);
 title('Energy-Displacement Curve', 'FontSize', 18);
 legend({'Theory'}, 'Location', 'southeast', 'FontSize', 18);
 grid on;
-set(gca, 'FontSize', 18)
+set(gca, 'FontSize', 18);
 
 
 
