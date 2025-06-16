@@ -30,7 +30,7 @@ end
 maximum_energy = max(energy);
 
 % Numerical differentiation to find critical points
-dE_dDelta = diff(energy) ./ diff(delta); % First derivative of energy w.r.t. delta
+dE_dDelta = diff(energy) ./ diff(delta); 
 
 bistable_energy = maximum_energy;
 bistability = NaN;
@@ -43,18 +43,18 @@ for i = 1:length(dE_dDelta)-1
 end
 
 % Plot the energy-displacement curves
-% figure;
-% hold on;
-% plot(delta, energy,'black', 'LineWidth', 1.5); % Energy vs Delta
-% %plot(simulation(:,1), simulation(:,2)/3e6,'r', 'LineWidth', 1.5); % Energy vs Delta
-% 
-% %Add labels, title, and legend
-% xlabel('Displacement (\delta)', 'FontSize', 18);
-% ylabel('E/K', 'FontSize', 18);
-% title('Energy-Displacement Curve', 'FontSize', 18);
-% legend({'Theory'}, 'Location', 'southeast', 'FontSize', 18);
-% grid on;
-% set(gca, 'FontSize', 18)
+figure;
+hold on;
+plot(delta, energy,'black', 'LineWidth', 1.5); % Energy vs Delta
+%plot(simulation(:,1), simulation(:,2)/3e6,'r', 'LineWidth', 1.5); % Energy vs Delta
+
+%Add labels, title, and legend
+xlabel('Displacement (\delta)', 'FontSize', 18);
+ylabel('E/K', 'FontSize', 18);
+title('Energy-Displacement Curve', 'FontSize', 18);
+legend({'Theory'}, 'Location', 'southeast', 'FontSize', 18);
+grid on;
+set(gca, 'FontSize', 18)
 
 end
     

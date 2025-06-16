@@ -1,5 +1,6 @@
 %% Generate the deploying configuration and elastic energy
 %tessellation_deploy = cell(size(tessellation));
+load case1.mat;
 n = 100;
 E_rotation = cell(n+1,1);
 E_bending  = cell(n+1,1);
