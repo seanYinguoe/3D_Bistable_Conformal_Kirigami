@@ -28,6 +28,7 @@ triangle_deploy = deform_triangle(q1,q2,q3,edgeLen,l1,l2,l3,t,0);
 
 
 %% Get the energy curve during deployment(uniform deployment)
+disp_bist = l3; % Analytical bistable displacement
 E_rotation = [];
 index = [23,36,37;
     33,37,36;
@@ -37,7 +38,7 @@ index = [23,36,37;
     37,41,40]; % Index to calculate the rotational energy in springs
 k = 1;
 k_r = 1;
-for delta = 0:0.1:0.55*edgeLen
+for delta = 0:0.1:0.6*edgeLen
     q1 = [0,sqrt(3)/2*(edgeLen+delta),0];
     q2 = [-1/2*(edgeLen+delta),0,0];
     q3 = [1/2*(edgeLen+delta),0,0];
@@ -53,7 +54,7 @@ end
 % Plot the results
 figure;
 hold on;
-delta = 0:0.1:0.55*edgeLen;
+delta = 0:0.1:0.6*edgeLen;
 plot(delta, E_rotation,'black', 'LineWidth', 1.5); % Energy vs Delta
 %Add labels, title, and legend
 xlabel('Displacement (\delta)', 'FontSize', 18);
