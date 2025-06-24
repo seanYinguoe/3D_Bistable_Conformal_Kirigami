@@ -37,9 +37,6 @@ function F = equations(x, l2, l3, delta)
     
     alpha_1 = x(1);
     alpha_2 = x(2);
-    %delta1 = t/sin(alpha_1)*sin(alpha_2);
-    %delta2 = -t/sin(alpha_1)*sin(alpha_1+alpha_2);
-    %l2_ = sqrt((l2 - delta2)^2 + (t - delta1)^2 + 2*(l2 - delta2)*(t - delta1)*cos(alpha_1));
     l2_ = l2;
     F = [
         l2 * (-2*sin(pi/3) + sin(2*pi/3-alpha_1) + l2_/l2*sin(alpha_1))+...
