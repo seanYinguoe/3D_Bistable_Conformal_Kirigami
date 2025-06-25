@@ -14,6 +14,7 @@ l1 = edgeLen * 0.8;
 l2 = edgeLen * 0.1;
 t  = edgeLen * 0.02;
 l3 = l1 -2*l2 - (edgeLen - l1 -l2)/2;  % stretch length
+%l4 = l1 - 2*l2 - l3; % thickness of flanks
 q10 = [0,sqrt(3)/2*edgeLen,0]; 
 q20 = [-1/2*edgeLen,0,0];
 q30 = [1/2*edgeLen,0,0];
@@ -24,7 +25,6 @@ q1 = [0,sqrt(3)/2*edgeLen*1.6,0];
 q2 = [-1/2*edgeLen*1.6,0,0];
 q3 = [1/2*edgeLen*1.6,0,0];
 triangle_deploy = deform_triangle(q1,q2,q3,edgeLen,l1,l2,l3,t,0);
-%plot_triangle(triangle_deploy,colour)
 
 
 %% Get the energy curve during deployment(uniform deployment)
