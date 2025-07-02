@@ -35,17 +35,15 @@ critical_points = struct('delta', {}, 'U', {}, 'type', {});
 % Find sign changes indicating critical points
 for i = 2:length(dU_ddelta)-1
     % Local maximum detection (positive to negative)
-    if dU_ddelta(i-1) > 0 && dU_ddelta(i) <= 0 && dU_ddelta(i+1) < 0
-        [~, idx] = min(abs(dU_ddelta(max(1,i-10):min(i+10,length(delta_range)))));
-        idx = idx + max(1,i-10) - 1;
+    if dU_ddelta(i-1) > 0 && dU_ddelta(i) < 0
+        idx = i-1;
         critical_points(end+1) = struct('delta', delta_range(idx), ...
             'U', U_vec(idx), ...
             'type', 'Local Maximum');
 
         % Local minimum detection (negative to positive)
-    elseif dU_ddelta(i-1) < 0 && dU_ddelta(i) >= 0 && dU_ddelta(i+1) > 0
-        [~, idx] = min(abs(dU_ddelta(max(1,i-10):min(i+10,length(delta_range)))));
-        idx = idx + max(1,i-10) - 1;
+    elseif dU_ddelta(i-1) < 0 && (dU_ddelta(i) >= 0 || isnan(dU_ddelta(i)))
+        idx = i;
         critical_points(end+1) = struct('delta', delta_range(idx), ...
             'U', U_vec(idx), ...
             'type', 'Local Minimum');
@@ -78,4 +76,22 @@ else
     bistability = 0;
     disp('This is not a bistable unit.');
 end
+
+% Plot the results
+figure;
+plot(delta_range, U_vec, 'b-', 'LineWidth', 1.5);
+hold on;
+for i = 1:length(critical_points)
+    plot(critical_points(i).delta, critical_points(i).U, 'ro', ...
+         'MarkerSize', 10, 'MarkerFaceColor', 'r');
+    text(critical_points(i).delta, critical_points(i).U, ...
+         sprintf('  %s\n  δ=%.3f, U=%.3f', critical_points(i).type, ...
+                 critical_points(i).delta, critical_points(i).U), ...
+         'VerticalAlignment', 'bottom', 'FontSize', 9);
+end
+xlabel('\delta');
+ylabel('U(\delta)');
+title('Energy-Displacement Curve');
+grid on;
+legend('U(\delta)', 'Critical Points', 'Location', 'best');
 end
