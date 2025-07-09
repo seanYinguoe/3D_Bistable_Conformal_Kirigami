@@ -5,7 +5,7 @@
 function [maximum_energy, bistability] = energy_displacement(disp_min,disp_max,l1,l2,l3,t)
 % load simulation.mat
 
-iter_max = 2500;
+iter_max = 2000;
 % Define the parameters
 alpha_1 = size(iter_max);
 alpha_2 = size(iter_max);

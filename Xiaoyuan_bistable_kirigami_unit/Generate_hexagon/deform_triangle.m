@@ -26,8 +26,7 @@ prev_alpha_2 = 2*pi/3;
 
 [triangle,~,~] = triangle_unit(prev_alpha_1, prev_alpha_2, delta,l1,l2,l3,t);
 % figure(1)
-% 
-% % Plot the reference(initial) triangle
+% Plot the reference(initial) triangle
 % colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; 
 % plot_triangle(triangle,colour)  % Plot the results and outline triangle
 % patch('Vertices', triangle([22,26,30],:), 'Faces', [1,2,3], ...
@@ -55,7 +54,8 @@ f_flank = [19 20 21 22;
 23 24 25 26;
 27 28 29 30];
 
-% Move the flanks to fit the outer triangle
+% Rigid conditions
+% Move the flanks to fit the outer triangle(rigid conditions)
 flank1_t = p1 - triangle(22,:);
 flank1 = triangle(f_flank(1,:),:) + flank1_t;
 flank2_t = p2 - triangle(26,:);
