@@ -13,8 +13,8 @@ counter = 1;
 for i = 1:length(r2_vec)
     for j = 1:length(r3_vec)
         % Calculate normalized ratios
-        r2 = r2_vec(i)
-        r3 = r3_vec(j)
+        r2 = r2_vec(i);
+        r3 = r3_vec(j);
         r4 = 1 - r3 - 3*r2;  % Derived from constraint
 
         % Check feasibility
@@ -23,7 +23,7 @@ for i = 1:length(r2_vec)
         end
 
         % Convert to physical lengths
-        l2 = r2 * edgeLen; 
+        l2 = r2 * edgeLen;
         l3 = r3 * edgeLen;
         l4 = r4 * edgeLen;
 
