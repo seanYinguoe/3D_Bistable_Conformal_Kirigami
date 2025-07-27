@@ -14,7 +14,7 @@ filename_2D = strcat(modelname,'_flat.obj'); % 2D model
 %obj_3D = readObj(path,filename_2D); % read 3D object, vertices, connectivity
 obj_2D = readObj(path,filename_2D); % read 2D object, vertices, connectivity
 
-% We need to change the order the nodes in vt. the connectivity doesn't match
+% We need to change the order the nodes in vt the connectivity doesn't match
 sorted_uv = vertice_sort(obj_2D.vt,obj_2D.f.v,obj_2D.f.vt);
 obj_2D.vt = sorted_uv;
 
@@ -53,52 +53,52 @@ params = [edgeLen % The length of a unit
 tessellation = tessellated_triangle(f_out, i_out, params,v_out); % Tessellate bistable triangle into fitted grids
 
 %% Plot the original configurations
-figure()
-patch('Vertices', obj_2D.v, 'Faces', obj_2D.f.v, ...
-      'FaceVertexCData', obj_2D.v(:,3),...
-      'FaceColor', 'interp', 'EdgeColor', 'none');
-axis equal;          % Equal scaling for all axes
-axis off;
-view(3);             % Set default 3D view angle
-camlight;            % Add light source
-lighting gouraud;    % Smooth lighting across surfaces
-
-figure()
-axis equal
-axis off;
-patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.v, ...
-    'FaceColor', 'none', 'EdgeColor', 'black'); % Plot 2D figure
-view(3);             % Set default 3D view angle
-camlight;            % Add a light source for better visualization
-material shiny;                % Make the surface shiny (adjustable)
-lighting gouraud;    % Smooth lighting across surfaces
+% figure()
+% patch('Vertices', obj_2D.v, 'Faces', obj_2D.f.v, ...
+%       'FaceVertexCData', obj_2D.v(:,3),...
+%       'FaceColor', 'interp', 'EdgeColor', 'none');
+% axis equal;          % Equal scaling for all axes
+% axis off;
+% view(3);             % Set default 3D view angle
+% camlight;            % Add light source
+% lighting gouraud;    % Smooth lighting across surfaces
+% 
+% figure()
+% axis equal
+% axis off;
+% patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.v, ...
+%     'FaceColor', 'none', 'EdgeColor', 'black'); % Plot 2D figure
+% view(3);             % Set default 3D view angle
+% camlight;            % Add a light source for better visualization
+% material shiny;                % Make the surface shiny (adjustable)
+% lighting gouraud;    % Smooth lighting across surfaces
 
 %% Plot the Overlaid grids
-figure(); 
-hold on;
-patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', 'none', 'EdgeColor', 'black','LineWidth',0.5); % Plot mesh surface
-plotgrid(f_out,v_out)
-axis equal;
-axis off;
-hold off
+% figure(); 
+% hold on;
+% patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', 'none', 'EdgeColor', 'black','LineWidth',0.5); % Plot mesh surface
+% plotgrid(f_out,v_out)
+% axis equal;
+% axis off;
+% hold off
 
 %% Plot the scale_factor colormap of mesh surface
-figure()
-patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceVertexCData', scale_facs, 'FaceColor', 'flat', 'EdgeColor', 'none');
-colormap summer; 
-c = colorbar; 
-c.FontSize = 18;
-axis equal; 
-axis off
+% figure()
+% patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceVertexCData', scale_facs, 'FaceColor', 'flat', 'EdgeColor', 'none');
+% colormap summer; 
+% c = colorbar; 
+% c.FontSize = 18;
+% axis equal; 
+% axis off
 
 %% Plot the scale_area colormap of overlaid grips
-figure()
-patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceVertexCData', scale_area, 'FaceColor', 'flat', 'EdgeColor', 'none');
-colormap summer; 
-c = colorbar; 
-c.FontSize = 18;
-axis equal; 
-axis off
+% figure()
+% patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceVertexCData', scale_area, 'FaceColor', 'flat', 'EdgeColor', 'none');
+% colormap summer; 
+% c = colorbar; 
+% c.FontSize = 18;
+% axis equal; 
+% axis off
 
 %% Plot the tessellated configuration
 colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle

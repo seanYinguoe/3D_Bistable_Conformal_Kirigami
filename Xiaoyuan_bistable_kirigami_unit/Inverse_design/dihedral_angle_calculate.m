@@ -1,5 +1,5 @@
 function angles = dihedral_angle_calculate(v, f, x)
-% CALCULATE_DIHEDRAL_ANGLES Computes angles between adjacent triangular faces
+% Computes angles between adjacent triangular faces
 % Inputs:
 %   v - Mx3 matrix of vertex coordinates
 %   f - Nx3 matrix of face vertex indices

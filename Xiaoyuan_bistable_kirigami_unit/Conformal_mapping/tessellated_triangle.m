@@ -19,9 +19,9 @@ for i = 1:size(f_out,1)
     q2 = v(f_out(i,2),:);
     q3 = v(f_out(i,3),:);
     if i_out(i) == 0 % upwards triangle
-        triangle = deform_triangle(q3,q1,q2,edgeLen,l1,l2,l3,t,i_out(i));
+        [triangle,~,~] = deform_triangle(q3,q1,q2,edgeLen,l1,l2,l3,t,i_out(i));
     else % downwards triangle
-        triangle = deform_triangle(q1,q3,q2,edgeLen,l1,l2,l3,t,i_out(i));
+        [triangle,~,~] = deform_triangle(q1,q3,q2,edgeLen,l1,l2,l3,t,i_out(i));
     end
     triangle_tessellation{i} = triangle;
 end

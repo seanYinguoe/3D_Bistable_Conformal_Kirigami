@@ -1,5 +1,5 @@
-% Caculate the rotational energy of conformal tessellation during
-% deployment
+% Caculate the in-plane energy and out-of-plane energy of tessellation
+% during deployment
 function [E_rotation,E_bending] = energy_calculate(initial_config, target_config, v_out, f_out, x_out)
 %% Clear and organise data from mat
 index = [23,36,37;

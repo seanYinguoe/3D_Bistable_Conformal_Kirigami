@@ -1,4 +1,5 @@
 %% Sensitivity Study with Normalized Ratios
+% See how l2 and l3 influence the bistability(monostable)
 edgeLen = 15;  % Total edge length
 
 % Define grid for independent ratios

@@ -1,4 +1,4 @@
-function triangle_out = deform_triangle(q1,q2,q3,edgeLen,l1,l2,l3,t,i_out)
+function [triangle_out,energy_b,energy_s] = deform_triangle(q1,q2,q3,edgeLen,l1,l2,l3,t,i_out)
 % DEFORM_TRIANGLE Deforms a triangle based on input node positions and edge lengths.
 %
 % Inputs:
@@ -20,14 +20,15 @@ stretch_facs = [edge1; edge2; edge3] / edgeLen;
 strain = mean(stretch_facs);
 
 %% Generate uniformaly deployed triangle
-delta = (strain-1) * edgeLen;
+%delta = (strain-1) * edgeLen;
+delta = 0;
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
 
 [triangle,~,~] = triangle_unit(prev_alpha_1, prev_alpha_2, delta,l1,l2,l3,t);
 % Plot the reference(initial) triangle
 % figure(1)
-% colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; 
+% colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255};
 % plot_triangle(triangle_new,colour)  % Plot the results and outline triangle
 % patch('Vertices', triangle_new([22,26,30],:), 'Faces', [1,2,3], ...
 %     'FaceColor', 'none', 'FaceAlpha', 0.5, 'EdgeColor', 'black' ...
@@ -52,10 +53,9 @@ triangle_new = zeros(size(triangle));
 
 % Indecies of inner triangle
 f_flank = [19 20 21 22;
-23 24 25 26;
-27 28 29 30];
+    23 24 25 26;
+    27 28 29 30];
 
-% Rigid conditions(keep the flanks, triangle as the rigid parts)
 % Move the flanks to fit the outer boundary(rigid conditions)
 flank1_t = p1 - triangle(22,:);
 flank1 = triangle(f_flank(1,:),:) + flank1_t;
@@ -82,8 +82,8 @@ flank3 = real((flank3-p3)*rotation(-flank3_r) + p3);
 triangle_new(19:30,:) = [flank1;flank2;flank3];
 
 
-%% Define the in-plane elastic energy
-% nodes in flank that connect to the inner triangle
+%% Define optimise parameters
+% Nodes in flanks
 d1 = flank1(2,:);
 d2 = flank2(2,:);
 d3 = flank3(2,:);
@@ -91,11 +91,11 @@ d1_ = flank1(1,:);
 d2_ = flank2(1,:);
 d3_ = flank3(1,:);
 
-% Rotational spring connecting flanks
+% Current rotational spring connecting flanks
 fk1 = [d1;d2;d3];
 fk1 = fk1(:);
 
-% initial rotatioanl spring connecting flanks
+% Initial rotatioanl spring connecting flanks
 fk0 = [triangle(20,:);triangle(24,:);triangle(28,:)];
 fk0 = fk0(:);
 
@@ -106,7 +106,7 @@ C_orig = triangle(45,:);
 x0 = [A_orig; B_orig; C_orig];
 
 % The original vertices of triangle
-x0 = x0(:);  
+x0 = x0(:);
 
 % Define the optimization conditions
 options = optimoptions('fmincon', ...
@@ -115,15 +115,18 @@ options = optimoptions('fmincon', ...
     'MaxIterations', 10000, ...
     'OptimalityTolerance', 1e-10, ...
     'StepTolerance', 1e-12, ...
-    'ConstraintTolerance', 1e-10);  
+    'ConstraintTolerance', 1e-10);
 
 % Run optimization
-% l3 is the length of filaments and l4 is the length of triangle
-[x_opt, ~] = fmincon(@(x)objective_energy(x, x0, fk1, fk0, tri_new, tri_orig,l2,t), x0, ...
+[x_opt, ~] = fmincon(@(x)objective_energy(x, fk1, tri_new,l2,t), x0, ...
     [], [], [], [], [], [], ...
-    @(x)constraints(x, d1, d2, d3,d1_, d2_,d3_, l3), options); 
+    @(x)constraints(x, d1, d2, d3,d1_, d2_,d3_, l3), options);
 
 
+[~,energy_b,energy_s] = objective_energy(x_opt, fk1, tri_new, l2, t);
+
+
+%% Create optimised unit
 % Create the new inner triangle
 A_new = x_opt([1,4])';
 B_new = x_opt([2,5])';
@@ -159,7 +162,7 @@ else  % Downwards unit
     boundary_tri = [boundary_tri(:,1),-boundary_tri(:,2),boundary_tri(:,3)];
 end
 
-%% Use barycentric coordinate to change the location of triangle
+%% Use barycentric coordinate system to move unit to specific grid
 bc_out = zeros(size(triangle_new)); % Create barycentric coordinate
 for j = 1:size(bc_out,1)
     p = triangle_new(j,:);
@@ -176,23 +179,23 @@ end
 %% Plot the results
 % Set the coulour of display
 % colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
-% Plot the optimised triangle
+% % Plot the optimised triangle
 % figure()
 % plot_triangle(triangle_new,colour)  % Plot the results and outline triangle
 % patch('Vertices', boundary_tri, 'Faces', [1,2,3], ...
 %     'FaceColor', 'none', 'FaceAlpha', 0.5, 'EdgeColor', 'black' ...
 %     ,'LineWidth', 1.5);
 % axis off
-% Plot the final triangle
+% Plot the spatial triangle
 % figure()
 % plot_triangle(triangle_out,colour)  % Plot the results and outline triangle
 % patch('Vertices', boundary_tri_new, 'Faces', [1,2,3], ...
 %     'FaceColor', 'none', 'FaceAlpha', 0.5, 'EdgeColor', 'black' ...
 %     ,'LineWidth', 1.5);
-%end
+end
 
 %% Define the constraint function
-function [c, ceq] = constraints(x, d1, d2, d3,d1_, d2_,d3_, l3)
+function [c, ceq] = constraints(x, d1, d2, d3,d1_, d2_, d3_, l3)
 % Extract vertex coordinates
 A = x([1,4])';
 B = x([2,5])';
@@ -214,7 +217,7 @@ ceq_rigidity = [
 
 ceq = ceq_rigidity;
 
-% No-overlapping condition 
+% No-overlapping condition
 nodes1 = [d1_;d1;B];
 nodes2 = [d2_;d2;C];
 nodes3 = [d3_;d3;A];
@@ -226,11 +229,11 @@ c = [res1; res2; res3];  % No inequality constraints
 end
 
 %% Difine the objective function to minimize the energy(stretch energy, bending energy)
-function cost = objective_energy(x, x0, fk1, fk0, tri_new, tri_orig, l2,t)
+function [cost,energy_b,energy_s] = objective_energy(x, fk1, tri_new, l2,t)
 % Define the stretch stiffness and bend stiffness
 E = 1;
 b = 0.1;
-K_b = 1/12*E*b*t^3;
+K_b = 1/12*E*b*t^3/l2;
 K_s = E*b*t/l2;
 
 % vertices of current triangle
@@ -238,90 +241,51 @@ A_current = x([1,4])';
 B_current = x([2,5])';
 C_current = x([3,6])';
 
-% vertices of original triangle
-A_orig = x0([1,4])';
-B_orig = x0([2,5])';
-C_orig = x0([3,6])';
-
 % vertices of current spring connecting to flanks
 dc1 = fk1([1,4])';
 dc2 = fk1([2,5])';
 dc3 = fk1([3,6])';
-
-% vertices of original spring connecting to flanks
-do1 = fk0([1,4])';
-do2 = fk0([2,5])';
-do3 = fk0([3,6])';
 
 % vertices of current boundary
 p1_new = tri_new([1,4])';
 p2_new = tri_new([2,5])';
 p3_new = tri_new([3,6])';
 
-% vertices of original boundary
-p1_orig = tri_orig([1,4])';
-p2_orig = tri_orig([2,5])';
-p3_orig = tri_orig([3,6])';
-
 %% Calculate bending energy
 energy_b = 0;
 
 % rotational angle at Filament 1
-vec1_orig = p1_orig - p2_orig;
-vec2_orig = B_orig - do1;
-vec3_orig = do1 - B_orig;
-vec4_orig = A_orig - B_orig;
-
 vec1_new = p1_new - p2_new;
 vec2_new = B_current - dc1;
 vec3_new = dc1 - B_current;
 vec4_new = A_current - B_current;
 
-angle1_orig = acos((vec1_orig * vec2_orig')/(norm(vec1_orig) * norm(vec2_orig)));
-angle2_orig = acos((vec3_orig * vec4_orig')/(norm(vec3_orig) * norm(vec4_orig)));
-
 angle1_new = acos((vec1_new * vec2_new')/(norm(vec1_new) * norm(vec2_new)));
 angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
 
-energy_b = energy_b + 1/2*K_b*((angle1_new-angle1_orig)^2 + (angle2_new-angle2_orig)^2);
+energy_b = energy_b + 1/2*K_b*((angle1_new-pi/3)^2 + (angle2_new-2*pi/3)^2);
 
 % rotational angle at Filament 2
-vec1_orig = p2_orig - p3_orig;
-vec2_orig = C_orig - do2;
-vec3_orig = do2 - C_orig;
-vec4_orig = B_orig - C_orig;
-
 vec1_new = p2_new - p3_new;
 vec2_new = C_current - dc2;
 vec3_new = dc2 - C_current;
 vec4_new = B_current - C_current;
 
-angle1_orig = acos((vec1_orig * vec2_orig')/(norm(vec1_orig) * norm(vec2_orig)));
-angle2_orig = acos((vec3_orig * vec4_orig')/(norm(vec3_orig) * norm(vec4_orig)));
-
 angle1_new = acos((vec1_new * vec2_new')/(norm(vec1_new) * norm(vec2_new)));
 angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
 
-energy_b = energy_b + 1/2*K_b*((angle1_new-angle1_orig)^2 + (angle2_new-angle2_orig)^2);
+energy_b = energy_b + 1/2*K_b*((angle1_new-pi/3)^2 + (angle2_new-2*pi/3)^2);
 
 % rotational angle at Filament 3
-vec1_orig = p3_orig - p1_orig;
-vec2_orig = A_orig - do3;
-vec3_orig = do3 - A_orig;
-vec4_orig = C_orig - A_orig;
-
 vec1_new = p3_new - p1_new;
 vec2_new = A_current - dc3;
 vec3_new = dc3 - A_current;
 vec4_new = C_current - A_current;
 
-angle1_orig = acos((vec1_orig * vec2_orig')/(norm(vec1_orig) * norm(vec2_orig)));
-angle2_orig = acos((vec3_orig * vec4_orig')/(norm(vec3_orig) * norm(vec4_orig)));
-
 angle1_new = acos((vec1_new * vec2_new')/(norm(vec1_new) * norm(vec2_new)));
 angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
 
-energy_b = energy_b + 1/2*K_b*((angle1_new-angle1_orig)^2 + (angle2_new-angle2_orig)^2);
+energy_b = energy_b + 1/2*K_b*((angle1_new-pi/3)^2 + (angle2_new-2*pi/3)^2);
 
 %% Calculate stretch energy
 % Calculate length change of each ligaments
@@ -337,6 +301,4 @@ energy_s = energy_s + 1/2 * K_s * (length3_new - l2)^2;
 
 % Calculate the total ealstic energy of stretch and bend
 cost = energy_b + energy_s;
-end
-
 end

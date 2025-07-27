@@ -1,4 +1,5 @@
 %% Generate the deploying configuration and elastic energy
+%% Plot the elastic energy during deployment with the deployment of whole
 %tessellation_deploy = cell(size(tessellation));
 load case1.mat;
 n = 100;
