@@ -63,8 +63,3 @@ title('Energy-Displacement Curve', 'FontSize', 18);
 legend({'Theory'}, 'Location', 'southeast', 'FontSize', 18);
 grid on;
 set(gca, 'FontSize', 18);
-
-
-
-
-% Contraints: edgeLen = l1 + 2*l4 + l2  l4 = (edgeLen - l1 - l2)/2

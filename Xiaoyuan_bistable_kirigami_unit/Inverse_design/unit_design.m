@@ -1,4 +1,6 @@
 function [opt_l2, opt_l3, max_bistability] = unit_design(desired_disp, edgeLen)
+% Design the initial l2 and l3 to obtain the maximum bistability for single
+% unit
 % Parameters
 tol = 0.1;  % Tolerance for displacement match
 options = optimoptions('patternsearch', ...

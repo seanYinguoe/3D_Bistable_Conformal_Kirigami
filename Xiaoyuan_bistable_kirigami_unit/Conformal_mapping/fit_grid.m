@@ -18,7 +18,6 @@ function [v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_gr
 %   i_out      - Orientations of valid triangles
 %   x_out      - Neighboring triangles relationships
 %   scale_area - Interpolated scale factors for each triangle
-%   uv_c       - Centroids of UV mesh faces
 
 
 %% Calculate UV Mesh Face Centers

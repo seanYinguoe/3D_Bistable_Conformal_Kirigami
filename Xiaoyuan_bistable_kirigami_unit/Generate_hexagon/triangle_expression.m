@@ -55,14 +55,6 @@ Innertriangle_x = [point_D(1),point_D_(1),point_D__(1)];
 Innertriangle_y = [point_D(2),point_D_(2),point_D__(2)];
 Innertriangle = [Innertriangle_x;Innertriangle_y]';
 
-% Defining the periodic centroid
-% point_O__ = [0, -L_+ point_B(2) + l2 + l4];
-% point_O_ = [(-L_+ point_B(2) + l2 + l4)*sin(pi/3),(-L_+ point_B(2) + l2 + l4)*cos(pi/3)];
-% triangle_x = [point_O(1),point_O_(1),point_O__(1)];
-% triangle_y = [point_O(2),point_O_(2),point_O__(2)];
-% triangle = [triangle_x;triangle_y]';
-% Rotation_centre = 1/3 * sum(triangle);
-
 % Mirror to other parts to create a triangular unit
 Rotation_centre = 1/3 * sum(Innertriangle);
 % Rotation_centre = findBisectorIntersection(point_C_, point_C, point_B, point_B_)';
