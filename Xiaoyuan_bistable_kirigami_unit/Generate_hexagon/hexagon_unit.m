@@ -3,9 +3,9 @@
 % Output: deformed hexogon unit
 
 %% Create a triangular unit
-function [hexagon,alpha_1_optimal,alpha_2_optimal] = hexagon_unit(prev_alpha_1, prev_alpha_2, delta, l1, l2, l3, t)
+function [hexagon,alpha_1_optimal,alpha_2_optimal] = hexagon_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t)
 
-[triangle_unit_1,alpha_1_optimal,alpha_2_optimal] = triangle_unit(prev_alpha_1, prev_alpha_2, delta, l1, l2, l3,t);
+[triangle_unit_1,alpha_1_optimal,alpha_2_optimal] = triangle_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
 
 % Mirror a triangular unit to a hexogon unit
 triangle_unit_3 = triangle_unit_1 * rotation(-2*pi/3);
