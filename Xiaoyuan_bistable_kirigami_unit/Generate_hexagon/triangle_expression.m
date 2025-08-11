@@ -1,5 +1,5 @@
 % Using alpha_1, alpha_2 and delta to derive the geometry information
-function triangle = triangle_expression(alpha_1,alpha_2,beta, delta, edgeLen,l1,l4,t)
+function triangle = triangle_expression(alpha_1,alpha_2,beta,edgeLen,l1,l4,t)
 % Set the size of a unit
 % Check the reference on the graph
 % Calculate the length based on gemetric conditions
@@ -21,7 +21,7 @@ D_D = rotation(-(alpha_2-(pi-pi/3)))*rotation(-(alpha_1-pi/3))*[l3*cos(pi/6+beta
 DC = rotation(-(alpha_1-pi/3))*[l2*cos(pi/6+beta),l2*sin(pi/6+beta)]'; % different length
 CB = [l5*cos(pi/6+beta),l5*sin(pi/6+beta)]';
 
-point_A = [0,-(l4+delta)]';  % fixed point, displacement control
+point_A = [0,-l4]';  % fixed point, displacement control
 point_O = [0,0]';
 point_C_ = point_A + AC_;
 point_D_ = point_C_ + C_D_;
