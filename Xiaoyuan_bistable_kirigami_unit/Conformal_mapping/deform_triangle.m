@@ -1,10 +1,11 @@
-function [triangle_out,energy_b,energy_s] = deform_triangle(q1,q2,q3,edgeLen,l1,l2,l3,t,i_out)
+function [triangle_out,energy_b,energy_s] = deform_triangle(q1,q2,q3,edgeLen,l1,l4,beta,t,i_out)
 % DEFORM_TRIANGLE Deforms a triangle based on input node positions and edge lengths.
 %
 % Inputs:
 %   q1, q2, q3   - Unit node coordinates (1x3 vectors)
 %   edgeLen      - Original triangle edge length
-%   l1, l2, l3   - l1: length of flanks l2:length of filament l3:length of inner triangle
+%   l1, l4, beta   - l1: length of flanks l4:thickness of flanks
+%   beta:tilting angle
 %   t            - Thickness of filaments
 %   i_out        - Orientation flag (0 for upwards, 1 for downwards)
 %
@@ -19,13 +20,22 @@ edge3 = norm(q1-q3);
 stretch_facs = [edge1; edge2; edge3] / edgeLen;
 strain = mean(stretch_facs);
 
+%% Calculate geometric parameters
+A = pi/3-beta;
+l2 = (2/sqrt(3)) * (edgeLen - l1 - l4) .* sin(A); % length of filament
+denom = (sqrt(3)/2) + sin(beta) .* cos(A);
+term1 = ( sin(A) .* (l1 - 0.5*l4) - (sqrt(3)/2) .* l4 .* cos(A) ) ./ denom;
+term2 = ( sin(beta) .* (l1 - 0.5*l4) + (3/4) .* (l4 ./ sin(A)) ) ./ denom;
+term3 = (edgeLen - l1 - l4) .* ( cos(A) + sqrt(3) .* sin(A) );
+l3 = term1 - term2 - term3; % length of inner triangle
+
 %% Generate uniformaly deployed triangle
-%delta = (strain-1) * edgeLen;
+% delta = (strain-1) * edgeLen;
 delta = 0;
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
 
-[triangle,~,~] = triangle_unit(prev_alpha_1, prev_alpha_2, delta,l1,l2,l3,t);
+[triangle,~,~] = triangle_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
 % Plot the reference(initial) triangle
 % figure(1)
 % colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255};

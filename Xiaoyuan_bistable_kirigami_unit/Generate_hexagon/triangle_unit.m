@@ -1,9 +1,8 @@
-function [triangle,alpha_1_optimal,alpha_2_optimal] = triangle_unit(prev_alpha_1, prev_alpha_2, beta, delta,l1,l2,l3,t)
+function [triangle,alpha_1_optimal,alpha_2_optimal] = triangle_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen,l1,l4,t)
 % Create single bistable unit:
 % Input parameters:
 % l1: Length of flanks
-% l2: length of filaments
-% l3: length of inner triangle
+% l4: Thickness of flanks
 % t: thickness of filaments
 % theta: deploying angle
 % beta: tilting angle
@@ -11,6 +10,19 @@ function [triangle,alpha_1_optimal,alpha_2_optimal] = triangle_unit(prev_alpha_1
 % Deployed unit
 % There are some implicit relationship among alpha_1, alpha_2 and delta
 % Define the desired delta
+
+% Calculate the parameters based on geometric constraints
+A = pi/3-beta;
+l2 = (2/sqrt(3)) * (edgeLen - l1 - l4) .* sin(A); % length of filament
+denom = (sqrt(3)/2) + sin(beta) .* cos(A);
+term1 = ( sin(A) .* (l1 - 0.5*l4) - (sqrt(3)/2) .* l4 .* cos(A) ) ./ denom;
+term2 = ( sin(beta) .* (l1 - 0.5*l4) + (3/4) .* (l4 ./ sin(A)) ) ./ denom;
+term3 = (edgeLen - l1 - l4) .* ( cos(A) + sqrt(3) .* sin(A) );
+l3 = term1 - term2 - term3; % length of inner triangle
+D = (sqrt(3)/2) + sin(beta) .* cos(A);
+l5 = ( sin(beta) .* (l1 - 0.5*l4) + (3/4) .* (l4 ./ sin(A)) ) ./ D;
+l6 = ( sin(A) .* (l1 - 0.5*l4) - (sqrt(3)/2) .* l4 .* cos(A) ) ./ D;
+
 
 % Use previous values if available, otherwise use default initial guess
 if nargin < 2
@@ -22,7 +34,7 @@ end
 
 % Solve the system
 options = optimoptions('fsolve', 'Display', 'iter', 'Algorithm', 'levenberg-marquardt');
-[alpha, fval] = fsolve(@(x) equations(x, l1, l2, l3, beta, delta), x0, options);
+[alpha, fval] = fsolve(@(x) equations(x, l2, l3, l5, l6, beta, delta), x0, options);
 
 display(fval);
 
@@ -31,13 +43,12 @@ alpha_1_optimal = alpha(1);
 alpha_2_optimal = alpha(2);
 
 % Generate the final triangle
-triangle = triangle_expression(alpha_1_optimal, alpha_2_optimal,l1,l2,l3,t,beta);
+triangle = triangle_expression(alpha_1_optimal, alpha_2_optimal,beta, edgeLen,l1,l4,t);
 
-function F = equations(x, l1, l2, l3, beta, delta)
+function F = equations(x, l2, l3, l5, l6, beta, delta)
     
     alpha_1 = x(1);
     alpha_2 = x(2);
-    l4 = l1 - l3 - (1+cos(pi/3)+sin(pi/3)*cos(pi/3-beta)/sin(pi/3-beta))* l2;
     % l2_ = l2;
     % F = [
     %     l2 * (-2*sin(pi/3) + sin(2*pi/3-alpha_1) + l2_/l2*sin(alpha_1))+...
@@ -46,12 +57,12 @@ function F = equations(x, l1, l2, l3, beta, delta)
     %     l3 * (-cos(pi/3) + cos(alpha_1 + alpha_2 - 2*pi/3)) + l2 + delta;
     %     ];
     F = [
-        (l4 - l1)*cos(pi/6 + beta) ...
+        (l5 - l6)*cos(pi/6 + beta) ...
         + l2*cos(beta + pi/6 - alpha_1) ...
         - l3*cos(pi/6 + beta - alpha_1 - alpha_2) ...
         + l2*cos(pi/6 + beta - alpha_1 + pi/3);                          % = 0
 
-        (l4 - l1)*sin(pi/6 + beta) ...
+        (l5 - l6)*sin(pi/6 + beta) ...
         + l2*sin(beta +pi/6 - alpha_1) ...
         - l3*sin(pi/6 + beta - alpha_1 - alpha_2) ...
         + l2*sin(pi/6 + beta - alpha_1 + pi/3) ...
