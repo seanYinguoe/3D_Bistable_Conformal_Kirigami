@@ -10,8 +10,8 @@ num_y = 3;
 
 % Set the parameters of a unit(fixed)
 edgeLen = 15; % length of a unit
-l4 = 0.1 * edgeLen; % thickness of flank
-l1 = 0.8 * edgeLen; % length of flank
+l4 = 0.05 * edgeLen; % thickness of flank
+l1 = 0.85 * edgeLen; % length of flank
 
 % Set the parameters of a unit(variable)
 beta = 0; % titling angle
@@ -26,13 +26,13 @@ prev_alpha_2 = 2*pi/3;
 delta = 0;
 
 % Generate the triangle
-[triangle,alpha_1,alpha_2] = triangle_unit(prev_alpha_1, prev_alpha_2, beta, delta, edgeLen, l1,l4,t);
+[triangle,alpha_1,alpha_2] = triangle_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
 
 % Generate the hexagon
-[hexagon,~,~] = hexagon_unit(prev_alpha_1, prev_alpha_2, delta,l1,l2,l3,t);
+[hexagon,~,~] = hexagon_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
 
 % Generate the hexagon tessellation
-tessellation = hexagonal_tessellation(num_x,num_y,l1,l2,l3,t);
+tessellation = hexagonal_tessellation(num_x,num_y,beta,edgeLen,l1,l4,t);
 
 
 %% Plot the result
@@ -45,7 +45,7 @@ figure(2)
 plot_hexagon(hexagon,colour)
 
 % Plot the interactive hexagon unit
-interactive_hexagon(l1,l2,l3,t)
+interactive_hexagon(edgeLen,l1,l2,l3,l4,beta,t)
 
 % Plot hexagon tessellation
 for i = 1:num_x

@@ -39,16 +39,15 @@ disp("Scale area min: "+num2str(min(scale_area)) +", max: "+num2str(max(scale_ar
 
 %% Tessellate the triangular units with bistable units
 % Define the size of tessellation
-% edgeLen = l1 + 2*l4 + l2  l4 = (edgeLen - l1 - l2)/2
-l1 = edgeLen * 0.8;
-l2 = edgeLen * 0.1;
+l1 = edgeLen * 0.85;
+l4 = edgeLen * 0.05;
 t  = edgeLen * 0.02;
-l3 = l1 -2*l2 - (edgeLen - l1 -l2)/2;  % stretch length
+beta = 0;
 params = [edgeLen % The length of a unit
     l1            % The length of flanks
-    l2            % The length of ligaments           
-    l3            % The length of innertriangles
+    l4            % The thickness of flanks         
     t             % The thickness of ligaments
+    beta          % Tilting angle of flanks
     ];
 tessellation = tessellated_triangle(f_out, i_out, params,v_out); % Tessellate bistable triangle into fitted grids
 

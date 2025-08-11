@@ -1,12 +1,8 @@
 % Create an interactive figure for deploying hexagon unit depending on
 % deploying angle phi
-function interactive_hexagon(l1,l2,l3,t)
+function interactive_hexagon(edgeLen,l1,l2,l3,l4,beta,t)
     % Create a figure
     fig = figure('Position', [100, 100, 800, 800]); % Set figure size: left, bottom, width, height
-
-    l4 = l1 - 2*l2 - l3;
-
-    edgeLen = l1 + 2*l4 + l2;
 
     xlim([-l1*3, l1*3]); 
     ylim([-l1*3, l1*3]); 
@@ -25,7 +21,7 @@ function interactive_hexagon(l1,l2,l3,t)
     colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255};
 
     % Create the hexagon unit
-    [hexagon,alpha_1_optimal,alpha_2_optimal] = hexagon_unit(prev_alpha_1, prev_alpha_2, delta,l1,l2,l3,t);
+    [hexagon,alpha_1_optimal,alpha_2_optimal] = hexagon_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
 
     % Add slider in the bottom half
     slider_handle = uicontrol(fig, 'Style', 'slider', 'Min', strain_min*edgeLen, 'Max', strain_max*edgeLen, 'Value', delta, ...
@@ -40,7 +36,7 @@ function interactive_hexagon(l1,l2,l3,t)
         delta = get(hObject, 'Value');
 
         % Create the updated hexagon unit
-        hexagon = hexagon_unit(alpha_1_optimal, alpha_2_optimal,delta,l1,l2,l3,t);
+        hexagon = hexagon_unit(alpha_1_optimal, alpha_2_optimal,delta, beta, edgeLen, l1,l4,t);
 
         % Clear the current plot and redraw
         clf(fig);
@@ -62,7 +58,7 @@ function interactive_hexagon(l1,l2,l3,t)
     end
 
     % Plot initial hexagon
-    plot_hexagon(hexagon_unit(alpha_1_optimal, alpha_2_optimal,delta,l1,l2,l3,t),colour);
+    plot_hexagon(hexagon_unit(alpha_1_optimal, alpha_2_optimal,delta, beta, edgeLen, l1,l4,t),colour);
 end
 
 
