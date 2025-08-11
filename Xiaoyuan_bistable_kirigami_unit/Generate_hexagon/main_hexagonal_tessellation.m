@@ -45,7 +45,14 @@ figure(2)
 plot_hexagon(hexagon,colour)
 
 % Plot the interactive hexagon unit
+<<<<<<< Updated upstream
 interactive_hexagon(edgeLen,l1,l2,l3,l4,beta,t)
+=======
+interactive_triangle(edgeLen,l1,l4,beta,t)
+
+% Plot the interactive hexagon unit
+interactive_hexagon(edgeLen,l1,l4,beta,t)
+>>>>>>> Stashed changes
 
 % Plot hexagon tessellation
 for i = 1:num_x
