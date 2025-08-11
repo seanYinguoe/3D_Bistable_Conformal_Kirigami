@@ -1,20 +1,27 @@
 % Using alpha_1, alpha_2 and delta to derive the geometry information
-function triangle = triangle_expression(alpha_1,alpha_2,l1,l2,l3,t)
+function triangle = triangle_expression(alpha_1,alpha_2,beta, delta, edgeLen,l1,l4,t)
 % Set the size of a unit
 % Check the reference on the graph
-% l1 = 2*l2+l3+l4
-% The total length of a bisatble unit: L_ = l1 + l4;
-l4 = l1 - 2*l2 - l3;
-theta = pi/3;
+% Calculate the length based on gemetric conditions
+A = pi/3-beta;
+l2 = (2/sqrt(3)) * (edgeLen - l1 - l4) .* sin(A); % length of filament
+denom = (sqrt(3)/2) + sin(beta) .* cos(A);
+term1 = ( sin(A) .* (l1 - 0.5*l4) - (sqrt(3)/2) .* l4 .* cos(A) ) ./ denom;
+term2 = ( sin(beta) .* (l1 - 0.5*l4) + (3/4) .* (l4 ./ sin(A)) ) ./ denom;
+term3 = (edgeLen - l1 - l4) .* ( cos(A) + sqrt(3) .* sin(A) );
+l3 = term1 - term2 - term3; % length of inner triangle
+D = (sqrt(3)/2) + sin(beta) .* cos(A);
+l5 = ( sin(beta) .* (l1 - 0.5*l4) + (3/4) .* (l4 ./ sin(A)) ) ./ D;
+l6 = ( sin(A) .* (l1 - 0.5*l4) - (sqrt(3)/2) .* l4 .* cos(A) ) ./ D;
 
 %% Defining the geometry of a unit
-AC_ = [-l1*sin(theta),-l1*cos(theta)]';
-C_D_ = rotation(-(alpha_1-theta))*[l2*sin(theta),-l2*cos(theta)]';
-D_D = rotation(-(alpha_2-(pi-theta)))*rotation(-(alpha_1-theta))*[l3*sin(theta),l3*cos(theta)]'; 
-DC = rotation(-(alpha_1-theta))*[l2*sin(theta),l2*cos(theta)]'; % different length
-CB = [l4*sin(theta),l4*cos(theta)]';
+AC_ = [-l6*cos(pi/6+beta),-l6*sin(pi/6+beta)]';
+C_D_ = rotation(-(alpha_1-pi/3))*[l2*cos(pi/6-beta),-l2*sin(pi/6-beta)]';
+D_D = rotation(-(alpha_2-(pi-pi/3)))*rotation(-(alpha_1-pi/3))*[l3*cos(pi/6+beta),l3*sin(pi/6+beta)]'; 
+DC = rotation(-(alpha_1-pi/3))*[l2*cos(pi/6+beta),l2*sin(pi/6+beta)]'; % different length
+CB = [l5*cos(pi/6+beta),l5*sin(pi/6+beta)]';
 
-point_A = [0,-l4]';  % fixed point, displacement control
+point_A = [0,-(l4+delta)]';  % fixed point, displacement control
 point_O = [0,0]';
 point_C_ = point_A + AC_;
 point_D_ = point_C_ + C_D_;
@@ -23,7 +30,7 @@ point_C = point_D + DC;
 point_B = point_C + CB; % the x coordinate of B should be 0
 
 D_E = t/l3 * D_D;
-C_F = t/l1 * (-AC_);
+C_F = t/l6 * (-AC_);
 
 point_E = point_D_ + D_E;
 point_F = point_C_ + C_F;
@@ -40,7 +47,7 @@ filament_1y = [point_F(2),point_C_(2),point_D_(2),point_E(2)];
 filament_1 = [filament_1x;filament_1y]';
 
 % Defining the geometry of a flank
-C_B_ = [-l4*sin(theta),l4*cos(theta)]';
+C_B_ = [-l5*sin(pi/3+beta),l5*cos(pi/3+beta)]';
 point_B_ = point_C_ +C_B_;
 
 flank_1x = [point_A(1),point_C_(1),point_B_(1),point_O(1)];

@@ -12,7 +12,7 @@ function [strain_bist, bistability] = bistability_analysis(l1, l2, l3, t, edgeLe
 %   bistability  : Energy barrier between local max and local min
 
 %% Parameters
-n_step = 500; % Number of interpolation steps
+n_step = 800; % Number of interpolation steps
 strain = zeros(1,n_step);        % Physical strain
 U_vec = nan(1, n_step);          % Total energy
 energy_b_vec = nan(1, n_step);   % Bending energy
@@ -87,23 +87,23 @@ if ~isempty(first_max_idx) && ~isempty(first_min_idx)
 end
 
 %% Plot energy vs physical displacement
-% figure;
-% plot(strain, U_vec, 'b-', 'LineWidth', 2); hold on;
-% plot(strain, energy_b_vec, '--r', 'LineWidth', 1.5);
-% plot(strain, energy_s_vec, '--g', 'LineWidth', 1.5);
-% xlabel('Mean Strain');
-% ylabel('Energy');
-% title('Energy-Strain Curve');
-% grid on;
-% 
-% % Mark only max1 and min1
-% if exist('max1', 'var') && exist('min1', 'var')
-%     plot(max1.strain, max1.U, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 8);
-%     text(max1.strain, max1.U, ' localmax', 'VerticalAlignment', 'bottom', 'FontSize', 8);
-% 
-%     plot(min1.strain, min1.U, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 8);
-%     text(min1.strain, min1.U, ' localmin', 'VerticalAlignment', 'bottom', 'FontSize', 8);
-% end
-% 
-% legend({'Total Energy','Bending Energy','Stretch Energy'}, 'Location', 'best');
+figure;
+plot(strain, U_vec, 'b-', 'LineWidth', 2); hold on;
+plot(strain, energy_b_vec, '--r', 'LineWidth', 1.5);
+plot(strain, energy_s_vec, '--g', 'LineWidth', 1.5);
+xlabel('Mean Strain');
+ylabel('Energy');
+title('Energy-Strain Curve');
+grid on;
+
+% Mark only max1 and min1
+if exist('max1', 'var') && exist('min1', 'var')
+    plot(max1.strain, max1.U, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 8);
+    text(max1.strain, max1.U, ' localmax', 'VerticalAlignment', 'bottom', 'FontSize', 8);
+
+    plot(min1.strain, min1.U, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 8);
+    text(min1.strain, min1.U, ' localmin', 'VerticalAlignment', 'bottom', 'FontSize', 8);
+end
+
+legend({'Total Energy','Bending Energy','Stretch Energy'}, 'Location', 'best');
 end
