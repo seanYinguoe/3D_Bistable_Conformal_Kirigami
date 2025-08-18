@@ -1,3 +1,4 @@
+function create_gif(tessellation, tessellation_target)
 % Define the filename for the GIF
 filename = 'deployment_progress.gif';
 
@@ -9,7 +10,7 @@ fig = figure('Name', 'Deployment Control', 'Position', [100, 100, 800, 600]);
 
 for k = 0:numFrames
     alpha = k / numFrames;
-    
+
     % Compute interpolated deployment shape
     tessellation_deploy = cell(size(tessellation));
     for m = 1:size(tessellation,1)
@@ -50,3 +51,4 @@ for k = 0:numFrames
 end
 
 close(fig);
+end

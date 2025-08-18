@@ -1,6 +1,4 @@
-% Define the filename for the GIF
-filename = 'double_dome_deployment_progress.gif';
-
+function generate_gif(tessellation, tessellation_target, T, modelname, filename)
 % Number of frames for the GIF
 numFrames = 50;
 
@@ -58,3 +56,4 @@ for k = 0:numFrames
 end
 
 close(fig);
+end

@@ -23,12 +23,11 @@ strain = mean(stretch_facs);
 %% Calculate geometric parameters
 A = pi/3-beta;
 l2 = (2/sqrt(3)) * (edgeLen - l1 - l4) .* sin(A); % length of filament
-denom = (sqrt(3)/2) + sin(beta) .* cos(A);
-term1 = ( sin(A) .* (l1 - 0.5*l4) - (sqrt(3)/2) .* l4 .* cos(A) ) ./ denom;
-term2 = ( sin(beta) .* (l1 - 0.5*l4) + (3/4) .* (l4 ./ sin(A)) ) ./ denom;
-term3 = (edgeLen - l1 - l4) .* ( cos(A) + sqrt(3) .* sin(A) );
-l3 = term1 - term2 - term3; % length of inner triangle
-
+l6 = (2/sqrt(3)) .* sin(pi/3 - beta) .* (l1 - 0.5*l4) ...
+     - cos(pi/3 - beta) .* l4;
+l5 = ( (sqrt(3)/2) .* l4 + sin(beta) .* l6 ) ./ sin(pi/3 - beta);
+l3 = l6 - l5 - 1.5*l2 ...
+     - l2 .* ( (sqrt(3)/2) .* (cos(pi/3 - beta) ./ sin(pi/3 - beta)) );
 %% Generate uniformaly deployed triangle
 % delta = (strain-1) * edgeLen;
 delta = 0;
@@ -104,10 +103,8 @@ d3_ = flank3(1,:);
 % Current rotational spring connecting flanks
 fk1 = [d1;d2;d3];
 fk1 = fk1(:);
-
-% Initial rotatioanl spring connecting flanks
-fk0 = [triangle(20,:);triangle(24,:);triangle(28,:)];
-fk0 = fk0(:);
+fk1_ = [d1_;d2_;d3_];
+fk1_ = fk1_(:);
 
 % Extract original inner triangle vertices as initial guess
 A_orig = triangle(43,:);
@@ -128,12 +125,12 @@ options = optimoptions('fmincon', ...
     'ConstraintTolerance', 1e-10);
 
 % Run optimization
-[x_opt, ~] = fmincon(@(x)objective_energy(x, fk1, tri_new,l2,t), x0, ...
+[x_opt, ~] = fmincon(@(x)objective_energy(x, fk1, fk1_, l2,t), x0, ...
     [], [], [], [], [], [], ...
     @(x)constraints(x, d1, d2, d3,d1_, d2_,d3_, l3), options);
 
 
-[~,energy_b,energy_s] = objective_energy(x_opt, fk1, tri_new, l2, t);
+[~,energy_b,energy_s] = objective_energy(x_opt, fk1, fk1_, l2,t);
 
 
 %% Create optimised unit
@@ -239,7 +236,7 @@ c = [res1; res2; res3];  % No inequality constraints
 end
 
 %% Difine the objective function to minimize the energy(stretch energy, bending energy)
-function [cost,energy_b,energy_s] = objective_energy(x, fk1, tri_new, l2,t)
+function [cost,energy_b,energy_s] = objective_energy(x, fk1, fk1_,l2,t)
 % Define the stretch stiffness and bend stiffness
 E = 1;
 b = 0.1;
@@ -256,16 +253,15 @@ dc1 = fk1([1,4])';
 dc2 = fk1([2,5])';
 dc3 = fk1([3,6])';
 
-% vertices of current boundary
-p1_new = tri_new([1,4])';
-p2_new = tri_new([2,5])';
-p3_new = tri_new([3,6])';
+dc1_ = fk1_([1,4])';
+dc2_ = fk1_([2,5])';
+dc3_ = fk1_([3,6])';
 
 %% Calculate bending energy
 energy_b = 0;
 
 % rotational angle at Filament 1
-vec1_new = p1_new - p2_new;
+vec1_new = dc1_ - dc1;
 vec2_new = B_current - dc1;
 vec3_new = dc1 - B_current;
 vec4_new = A_current - B_current;
@@ -276,7 +272,7 @@ angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
 energy_b = energy_b + 1/2*K_b*((angle1_new-pi/3)^2 + (angle2_new-2*pi/3)^2);
 
 % rotational angle at Filament 2
-vec1_new = p2_new - p3_new;
+vec1_new = dc2_ - dc2;
 vec2_new = C_current - dc2;
 vec3_new = dc2 - C_current;
 vec4_new = B_current - C_current;
@@ -287,7 +283,7 @@ angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
 energy_b = energy_b + 1/2*K_b*((angle1_new-pi/3)^2 + (angle2_new-2*pi/3)^2);
 
 % rotational angle at Filament 3
-vec1_new = p3_new - p1_new;
+vec1_new = dc3_ - dc3;
 vec2_new = A_current - dc3;
 vec3_new = dc3 - A_current;
 vec4_new = C_current - A_current;

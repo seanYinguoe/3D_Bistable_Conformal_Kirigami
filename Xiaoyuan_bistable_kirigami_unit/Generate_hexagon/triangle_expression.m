@@ -5,14 +5,11 @@ function triangle = triangle_expression(alpha_1,alpha_2,beta,edgeLen,l1,l4,t)
 % Calculate the length based on gemetric conditions
 A = pi/3-beta;
 l2 = (2/sqrt(3)) * (edgeLen - l1 - l4) .* sin(A); % length of filament
-denom = (sqrt(3)/2) + sin(beta) .* cos(A);
-term1 = ( sin(A) .* (l1 - 0.5*l4) - (sqrt(3)/2) .* l4 .* cos(A) ) ./ denom;
-term2 = ( sin(beta) .* (l1 - 0.5*l4) + (3/4) .* (l4 ./ sin(A)) ) ./ denom;
-term3 = (edgeLen - l1 - l4) .* ( cos(A) + sqrt(3) .* sin(A) );
-l3 = term1 - term2 - term3; % length of inner triangle
-D = (sqrt(3)/2) + sin(beta) .* cos(A);
-l5 = ( sin(beta) .* (l1 - 0.5*l4) + (3/4) .* (l4 ./ sin(A)) ) ./ D;
-l6 = ( sin(A) .* (l1 - 0.5*l4) - (sqrt(3)/2) .* l4 .* cos(A) ) ./ D;
+l6 = (2/sqrt(3)) .* sin(pi/3 - beta) .* (l1 - 0.5*l4) ...
+     - cos(pi/3 - beta) .* l4;
+l5 = ( (sqrt(3)/2) .* l4 + sin(beta) .* l6 ) ./ sin(pi/3 - beta);
+l3 = l6 - l5 - 1.5*l2 ...
+     - l2 .* ( (sqrt(3)/2) .* (cos(pi/3 - beta) ./ sin(pi/3 - beta)) );
 
 %% Defining the geometry of a unit
 AC_ = [-l6*cos(pi/6+beta),-l6*sin(pi/6+beta)]';

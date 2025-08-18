@@ -4,8 +4,8 @@ function interactive_triangle(edgeLen,l1,l4,beta,t)
     % Create a figure
     fig = figure('Position', [100, 100, 800, 800]); % Set figure size: left, bottom, width, height
 
-    xlim([-l1*3, l1*3]); 
-    ylim([-l1*3, l1*3]); 
+    xlim([-1.6*edgeLen, 0.4*edgeLen]);
+    ylim([-edgeLen, edgeLen]);
 
     % Initial delta value
     delta = 0;
@@ -42,8 +42,8 @@ function interactive_triangle(edgeLen,l1,l4,beta,t)
         clf(fig);
         axis equal;
         hold on;
-        xlim([-l1, l1]);
-        ylim([-l1, l1]);
+        xlim([-1.6*edgeLen, 0.4*edgeLen]);
+        ylim([-edgeLen, edgeLen]);
 
         % Plot the updated triangle unit
         plot_triangle(triangle,colour);
