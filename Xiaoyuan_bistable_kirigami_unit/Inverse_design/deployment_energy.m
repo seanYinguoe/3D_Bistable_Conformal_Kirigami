@@ -1,7 +1,7 @@
-%% Generate the deploying configuration and elastic energy
-%% Plot the elastic energy during deployment with the deployment of whole
-%tessellation_deploy = cell(size(tessellation));
-load case1.mat;
+function [E_rotation, E_bending] = deployment_energy(tessellation, tessellation_target, v_out, v_target, f_out, x_out)
+% Generate the deploying configuration and elastic energy
+
+% Plot the elastic energy during deployment with the deployment of whole
 n = 100;
 E_rotation = cell(n+1,1);
 E_bending  = cell(n+1,1);
@@ -19,7 +19,7 @@ for alpha = 0:1/n:1
     [E_rotation{i},E_bending{i}] = energy_calculate(tessellation, tessellation_deploy{i}, v_deploy, f_out, x_out);
 end
 
-%% Calculate the rotation and bending energy during deployment
+% Calculate the rotation and bending energy during deployment
 E_rt = zeros(n+1,1);
 E_bt = zeros(n+1,1);
 E_total = zeros(n+1,1);
@@ -29,14 +29,14 @@ for j = 1:n+1
     E_total(j) = E_rt(j) + E_bt(j);
 end
 
-%% Plot the total energy during deployment curve
+% Plot the total energy during deployment curve
 alpha_values = linspace(0, 1, n+1);
 
 figure('Name','Energy Curve','Position',[200 200 900 600]);
 hold on
 plot(alpha_values, E_total, 'b-', 'LineWidth', 2, 'DisplayName', 'Total Energy');
-plot(alpha_values, E_rt, 'r--', 'LineWidth', 1.5, 'DisplayName', 'Rotation Energy');
-plot(alpha_values, E_bt, 'g-.', 'LineWidth', 1.5, 'DisplayName', 'Bending Energy');
+plot(alpha_values, E_rt, 'r--', 'LineWidth', 1.5, 'DisplayName', 'In-plane Energy');
+plot(alpha_values, E_bt, 'g-.', 'LineWidth', 1.5, 'DisplayName', 'Out-of-plane Energy');
 xlabel('Deployment Parameter \alpha');
 ylabel('Energy');
 title('Energy During Deployment');

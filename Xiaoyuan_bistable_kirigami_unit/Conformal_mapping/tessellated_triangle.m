@@ -1,4 +1,4 @@
-function triangle_tessellation = tessellated_triangle(f_out, i_out, params, v)
+function triangle_tessellation = tessellated_triangle(f_out, i_out, params, v,beta)
 % Find the optimised bistable unit for each triangular unit, and move it to
 % cooresponding grid
 
@@ -8,7 +8,6 @@ edgeLen = params(1);
 l1 = params(2);
 l4 = params(3);
 t = params(4);
-beta = params(5);
 
 %% Generate optimised bistable unit for each grid and move bistable unit to responding grid
 triangle_tessellation = cell(size(f_out,1),1);
@@ -18,9 +17,9 @@ for i = 1:size(f_out,1)
     q2 = v(f_out(i,2),:);
     q3 = v(f_out(i,3),:);
     if i_out(i) == 0 % upwards triangle
-        [triangle,~,~] = deform_triangle(q3,q1,q2,edgeLen,l1,l4,beta,t,i_out(i));
+        [triangle,~,~] = deform_triangle(q3,q1,q2,edgeLen,l1,l4,beta(i),t,i_out(i));
     else % downwards triangle
-        [triangle,~,~] = deform_triangle(q1,q3,q2,edgeLen,l1,l4,beta,t,i_out(i));
+        [triangle,~,~] = deform_triangle(q1,q3,q2,edgeLen,l1,l4,beta(i),t,i_out(i));
     end
     triangle_tessellation{i} = triangle;
 end

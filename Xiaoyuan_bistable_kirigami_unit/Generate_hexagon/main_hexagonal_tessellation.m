@@ -11,7 +11,7 @@ num_y = 3;
 % Set the parameters of a unit(fixed)
 edgeLen = 15; % length of a unit
 l4 = 0.05 * edgeLen; % thickness of flank
-l1 = 0.85 * edgeLen; % length of flank
+l1 = 0.85 * edgeLen; % length of flank(not correct)
 
 % Set the parameters of a unit(variable)
 beta = 0; % titling angle
@@ -45,14 +45,10 @@ figure(2)
 plot_hexagon(hexagon,colour)
 
 % Plot the interactive hexagon unit
-<<<<<<< Updated upstream
-interactive_hexagon(edgeLen,l1,l2,l3,l4,beta,t)
-=======
 interactive_triangle(edgeLen,l1,l4,beta,t)
 
 % Plot the interactive hexagon unit
 interactive_hexagon(edgeLen,l1,l4,beta,t)
->>>>>>> Stashed changes
 
 % Plot hexagon tessellation
 for i = 1:num_x

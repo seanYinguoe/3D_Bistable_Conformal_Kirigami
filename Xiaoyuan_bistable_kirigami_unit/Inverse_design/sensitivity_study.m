@@ -1,94 +1,87 @@
 %% Sensitivity Study: Influence of t and l2 on Bistability
 % Analyze how ligament width t and length l2 influence bistability
-% We fix r4 = 0.05, r1 = 0.8
+% We fix r4 = 0.05, r1 = 0.85
+clc; clear;
+
 edgeLen = 15;  % Base triangle edge length
 
-% Sweep ranges for l2 (via r2) and filament thickness t (via rt)
-r2_vec = linspace(0.05, 0.3, 5);         % r2 = l2 / edgeLen
-rt_vec = linspace(0.01, 0.04, 5);        % rt = t / edgeLen
+% Sweep ranges for beta(beta is the tilting angle)
+beta_vec = linspace(0, pi/15, 200);         % r2 = l2 / edgeLen
 
-% Initialize result storage
 results = struct();
 counter = 1;
 
 % Loop over design parameters
-for i = 1:length(r2_vec)
-    for j = 1:length(rt_vec)
-        r2 = r2_vec(i);
-        rt = rt_vec(j);
+for i = 1:length(beta_vec)
+    % Convert to physical lengths
+    l1 = 0.85 * edgeLen;
+    l4 = 0.05 * edgeLen;
+    t = 0.02 * edgeLen;
+    beta = beta_vec(i);
+    % Calculate te length of inner triangle
+    A = pi/3-beta;
+    l2 = (2/sqrt(3)) * (edgeLen - l1 - l4) .* sin(A); % length of filament
+    l6 = (2/sqrt(3)) .* sin(pi/3 - beta) .* (l1 - 0.5*l4) ...
+        - cos(pi/3 - beta) .* l4;
+    l5 = ( (sqrt(3)/2) .* l4 + sin(beta) .* l6 ) ./ sin(pi/3 - beta);
+    l3 = l6 - l5 - 1.5*l2 ...
+        - l2 .* ( (sqrt(3)/2) .* (cos(pi/3 - beta) ./ sin(pi/3 - beta)) );
 
-        % Compute r3 from geometric constraint: r3 + 2*r2 = 0.85
-        r3 = (0.85 - 2*r2);
+    % Target final shape (boundary nodes)
+    scale = (1 + l3/edgeLen) * 1.1;
+    q1 = [0, 0, 0] * scale;
+    q3 = [0, -edgeLen, 0] * scale;
+    q2 = [-sqrt(3)/2 * edgeLen, -0.5 * edgeLen, 0] * scale;
 
-        % Compute remaining parameters
-        r4 = (1 - r3 - 3*r2)/3;  % from constraint
-        r1 = r3 + 2*r2 + r4;
-
-        % Skip infeasible configurations
-        if r3 <= 0 || r4 <= 0 || r1 <= 0
-            continue;
-        end
-
-        % Convert to physical lengths
-        l1 = r1 * edgeLen;
-        l2 = r2 * edgeLen;
-        l3 = r3 * edgeLen;
-        t = rt * edgeLen;
-
-        % Target final shape (boundary nodes)
-        scale = (1 + r3) * 1.05;
-        q1 = [0, 0, 0] * scale;
-        q3 = [0, -edgeLen, 0] * scale;
-        q2 = [-sqrt(3)/2 * edgeLen, -0.5 * edgeLen, 0] * scale;
-
-        % Run bistability analysis
-        try
-            [strain_bist, bistability] = bistability_analysis(l1, l2, l3, t, edgeLen, q1, q2, q3);
-        catch
-            strain_bist = NaN;
-            bistability = NaN;
-        end
-
-        % Store result
-        results(counter).r1 = r1;
-        results(counter).r2 = r2;
-        results(counter).r3 = r3;
-        results(counter).l1 = l1;
-        results(counter).l2 = l2;
-        results(counter).l3 = l3;
-        results(counter).t = t;
-        results(counter).strain_bist = strain_bist;
-        results(counter).bistability = bistability;
-        results(counter).is_bistable = ~isnan(strain_bist);
-
-        counter = counter + 1;
+    % Run bistability analysis
+    try
+        [strain_bist, bistability] = bistability_analysis(l1, l4, beta, t, edgeLen, q1, q2, q3);
+    catch
+        strain_bist = NaN;
+        bistability = NaN;
     end
+
+    % Store result
+    results(counter).beta = beta;
+    results(counter).l1 = l1;
+    results(counter).l4 = l4;
+    results(counter).strain_bist = strain_bist;
+    results(counter).bistability = bistability;
+    results(counter).is_bistable = ~isnan(strain_bist);
+    counter = counter + 1;
 end
 
-% %% Visualize Feasible Design Space
-figure;
-feas_idx = [results.is_bistable];
-scatter([results(feas_idx).r2], [results(feas_idx).t], 50, [results(feas_idx).bistability], 'filled');
-colorbar;
-xlabel('r_2 = l_2 / edgeLen');
-ylabel('t = t / edgeLen');
-title('Bistability Map (Normalized Geometry)');
-grid on;
+%% Save results to T
+T = struct2table(results);
+writetable(T, 'bistability_sweep.csv'); 
 
-% %% Triangular Surface for Energy Barrier
-% figure;
-% tri = delaunay([results.r2], [results.r3]);
-% trisurf(tri, [results.r2], [results.r3], [results.bistability], 'EdgeColor', 'none');
-% xlabel('r_2'); ylabel('r_3'); zlabel('Energy Barrier');
-% title('Energy Barrier Surface');
-% colorbar;
-% view(-30, 30);
-% grid on;
-% 
-% %% Print Summary
-% fprintf('Total tested configurations: %d\n', numel(results));
-% fprintf('Bistable configurations: %d\n', sum([results.is_bistable]));
-% 
-% %% Save results to table
-% T = struct2table(results);
-% writetable(T, 'bistability_sweep.mat');
+
+%% Visualize Feasible Design Space
+% ==== Extract directly from T ====
+beta       = T.beta;         % tilt angle
+strain_bist= T.strain_bist;  % bistable strain
+bistability= T.bistability;  % energy barrier
+
+% ==== Clean and sort ====
+mask = ~isnan(beta) & ~isnan(strain_bist) & ~isnan(bistability);
+beta        = beta(mask);
+strain_bist = strain_bist(mask);
+bistability = bistability(mask);
+
+[beta, idx] = sort(beta);
+strain_bist = strain_bist(idx);
+bistability = bistability(idx);
+
+% ==== Plot 1: bistable strain vs beta ====
+figure; hold on; grid on;
+plot(beta, strain_bist, '-', 'LineWidth', 2);
+xlabel('\beta (rad)');
+ylabel('Bistable strain \epsilon^*');
+title('Bistable strain vs \beta');
+
+% ==== Plot 2: bistability (energy barrier) vs beta ====
+figure; hold on; grid on;
+plot(beta, bistability, '-', 'LineWidth', 2);
+xlabel('\beta (rad)');
+ylabel('Energy barrier');
+title('Bistability vs \beta');

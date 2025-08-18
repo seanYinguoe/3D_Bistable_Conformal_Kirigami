@@ -1,8 +1,8 @@
-function [strain_bist, bistability] = bistability_analysis(l1, l2, l3, t, edgeLen, q1, q2, q3)
+function [strain_bist, bistability] = bistability_analysis(l1, l4, beta, t, edgeLen, q1, q2, q3)
 % Compute bistable displacement and energy barrier of single unit using deform_triangle energy model
 %
 % Inputs:
-%   l1, l2, l3 : Geometric parameters (flank, filament, inner triangle lengths)
+%   l1, l4, beta : Geometric parameters (check reference graph)
 %   q1, q2, q3 : Target deformed boundary vertices
 %   t          : Filament width
 %   edgeLen    : Original edge length of outer triangle
@@ -12,7 +12,7 @@ function [strain_bist, bistability] = bistability_analysis(l1, l2, l3, t, edgeLe
 %   bistability  : Energy barrier between local max and local min
 
 %% Parameters
-n_step = 800; % Number of interpolation steps
+n_step = 1000; % Number of interpolation steps
 strain = zeros(1,n_step);        % Physical strain
 U_vec = nan(1, n_step);          % Total energy
 energy_b_vec = nan(1, n_step);   % Bending energy
@@ -50,7 +50,7 @@ for i = 1:n_step
 
     % Compute energy for current configuration
     try
-        [~, energy_b, energy_s] = deform_triangle(p1, p2, p3, edgeLen, l1, l2, l3, t, 0);
+        [~, energy_b, energy_s] = deform_triangle(p1, p2, p3, edgeLen, l1, l4, beta,t,0);
         U_vec(i) = energy_b + energy_s;
         energy_b_vec(i) = energy_b;
         energy_s_vec(i) = energy_s;
@@ -88,21 +88,22 @@ end
 
 %% Plot energy vs physical displacement
 figure;
+set(gca, 'FontSize', 18);  % applies to both x and y tick labels
 plot(strain, U_vec, 'b-', 'LineWidth', 2); hold on;
 plot(strain, energy_b_vec, '--r', 'LineWidth', 1.5);
 plot(strain, energy_s_vec, '--g', 'LineWidth', 1.5);
-xlabel('Mean Strain');
-ylabel('Energy');
-title('Energy-Strain Curve');
+xlabel('Mean Strain','FontSize', 20);
+ylabel('Energy','FontSize', 20);
+title('Energy-Strain Curve','FontSize', 20);
 grid on;
 
 % Mark only max1 and min1
 if exist('max1', 'var') && exist('min1', 'var')
-    plot(max1.strain, max1.U, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 8);
-    text(max1.strain, max1.U, ' localmax', 'VerticalAlignment', 'bottom', 'FontSize', 8);
+    plot(max1.strain, max1.U, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 12);
+    text(max1.strain, max1.U, ' localmax', 'VerticalAlignment', 'bottom', 'FontSize', 12);
 
-    plot(min1.strain, min1.U, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 8);
-    text(min1.strain, min1.U, ' localmin', 'VerticalAlignment', 'bottom', 'FontSize', 8);
+    plot(min1.strain, min1.U, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 12);
+    text(min1.strain, min1.U, ' localmin', 'VerticalAlignment', 'bottom', 'FontSize', 12);
 end
 
 legend({'Total Energy','Bending Energy','Stretch Energy'}, 'Location', 'best');
