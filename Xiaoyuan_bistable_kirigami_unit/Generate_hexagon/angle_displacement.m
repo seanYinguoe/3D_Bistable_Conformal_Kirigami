@@ -1,9 +1,7 @@
 % Plot the angle_displacement curve in deployment process
-function angle_displacement(disp_min,disp_max)
-if nargin < 2
-    disp_min = 0;
-    disp_max = 0.4;
-end
+%function angle_displacement(disp_min,disp_max)
+disp_min = 0;
+disp_max = 0.55*edgeLen;
 % Define the parameters
 alpha_1 = [];
 alpha_2 = [];
@@ -16,7 +14,7 @@ prev_alpha_2 = 2*pi/3;
 % Get the alpha_1 and alpha_2 from the displacement range
 for i = 1:500
     pre_delta = disp_min + (disp_max - disp_min)/500*(i-1);
-    [~,alpha_1_optimal,alpha_2_optimal] = triangle_unit(prev_alpha_1, prev_alpha_2, pre_delta);
+    [~,alpha_1_optimal,alpha_2_optimal] = triangle_unit(prev_alpha_1, prev_alpha_2, pre_delta, beta, edgeLen,l1,l4,t);
     delta(i) = pre_delta;
     alpha_1(i) = alpha_1_optimal;
     alpha_2(i) = alpha_2_optimal;
@@ -41,5 +39,5 @@ legend({'\alpha_1 vs \delta', '\alpha_2 vs \delta'}, 'Location', 'southeast', 'F
 grid on;
 set(gca, 'FontSize', 14)
 
-end
+%end
     

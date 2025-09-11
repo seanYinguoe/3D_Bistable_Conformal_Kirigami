@@ -29,7 +29,7 @@ l5 = ( (sqrt(3)/2) .* l4 + sin(beta) .* l6 ) ./ sin(pi/3 - beta);
 l3 = l6 - l5 - 1.5*l2 ...
      - l2 .* ( (sqrt(3)/2) .* (cos(pi/3 - beta) ./ sin(pi/3 - beta)) );
 %% Generate uniformaly deployed triangle
-% delta = (strain-1) * edgeLen;
+%delta = (strain-1) * edgeLen;
 delta = 0;
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
@@ -238,10 +238,17 @@ end
 %% Difine the objective function to minimize the energy(stretch energy, bending energy)
 function [cost,energy_b,energy_s] = objective_energy(x, fk1, fk1_,l2,t)
 % Define the stretch stiffness and bend stiffness
-E = 1;
-b = 0.1;
-K_b = 1/12*E*b*t^3/l2;
-K_s = E*b*t/l2;
+E = 1; % large E could pollute the results
+b = 1;
+nu = 0.2;
+I  = b*t^3/12;
+A  = b*t;
+G  = E/(2*(1+nu));
+%k  = 5/6;                    % shear coeff for rectangle
+%k_euler = E*I/(l2/2);
+%K_b  = k_euler / (1 + (12*E*I)/(k*G*A*(l2/2)^2)); % Use Timoshenko hinge
+K_b = 1/12*E*b*t^3/(l2/2);
+K_s = E*b*t/(l2/2);
 
 % vertices of current triangle
 A_current = x([1,4])';
@@ -307,4 +314,5 @@ energy_s = energy_s + 1/2 * K_s * (length3_new - l2)^2;
 
 % Calculate the total ealstic energy of stretch and bend
 cost = energy_b + energy_s;
+
 end

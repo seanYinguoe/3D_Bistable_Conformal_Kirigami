@@ -6,7 +6,9 @@ clc; clear;
 edgeLen = 15;  % Base triangle edge length
 
 % Sweep ranges for beta(beta is the tilting angle)
-beta_vec = linspace(0, pi/15, 200);         % r2 = l2 / edgeLen
+%beta_vec = linspace(0, pi/15, 200);         % r2 = l2 / edgeLen
+
+beta_vec = pi/40;
 
 results = struct();
 counter = 1;
