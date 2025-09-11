@@ -2,10 +2,10 @@
 % filaments, flanks and inner triangle as rigid body, and the connecting
 % points between filaments and flanks as rotational springs. Using Eular
 % beam theory to calculate the energy
-function [maximum_energy, bistability] = energy_displacement(disp_min,disp_max,l1,l2,l3,t)
+function [delta, energy] = energy_displacement(disp_min,disp_max,l1,l4,t,beta,edgeLen)
 % load simulation.mat
 
-iter_max = 2000;
+iter_max = 3000;
 % Define the parameters
 alpha_1 = size(iter_max);
 alpha_2 = size(iter_max);
@@ -18,8 +18,8 @@ prev_alpha_2 = 2*pi/3;
 
 % Get the alpha_1 and alpha_2 from the displacement range
 for i = 1:iter_max
-    pre_delta = disp_min + (disp_max - disp_min)/2000*(i-1);
-    [~,alpha_1_optimal,alpha_2_optimal] = triangle_unit(prev_alpha_1, prev_alpha_2, pre_delta,l1,l2,l3,t);
+    pre_delta = disp_min + (disp_max - disp_min)/iter_max*(i-1);
+    [~,alpha_1_optimal,alpha_2_optimal] = triangle_unit(prev_alpha_1, prev_alpha_2, pre_delta, beta, edgeLen,l1,l4,t);
     delta(i) = pre_delta;
     alpha_1(i) = alpha_1_optimal;
     alpha_2(i) = alpha_2_optimal;
@@ -43,18 +43,18 @@ for i = 1:length(dE_dDelta)-1
 end
 
 % Plot the energy-displacement curves
-figure;
-hold on;
-plot(delta, energy,'black', 'LineWidth', 1.5); % Energy vs Delta
-%plot(simulation(:,1), simulation(:,2)/3e6,'r', 'LineWidth', 1.5); % Energy vs Delta
-
-%Add labels, title, and legend
-xlabel('Displacement (\delta)', 'FontSize', 18);
-ylabel('E/K', 'FontSize', 18);
-title('Energy-Displacement Curve', 'FontSize', 18);
-legend({'Theory'}, 'Location', 'southeast', 'FontSize', 18);
-grid on;
-set(gca, 'FontSize', 18)
+% figure;
+% hold on;
+% plot(delta, energy,'black', 'LineWidth', 1.5); % Energy vs Delta
+% %plot(simulation(:,1), simulation(:,2)/3e6,'r', 'LineWidth', 1.5); % Energy vs Delta
+% 
+% %Add labels, title, and legend
+% xlabel('Displacement (\delta)', 'FontSize', 18);
+% ylabel('E/K', 'FontSize', 18);
+% title('Energy-Displacement Curve', 'FontSize', 18);
+% legend({'Theory'}, 'Location', 'southeast', 'FontSize', 18);
+% grid on;
+% set(gca, 'FontSize', 18)
 
 end
     
