@@ -1,5 +1,5 @@
 %% Read the data from the txt
-fname = 'pi:40.txt';  % <- change to your actual file
+fname = 'pi:40G0.txt';  % <- change to your actual file
 
 raw = fileread(fname);
 
@@ -23,7 +23,12 @@ E = 4.33e11;
 eps_fem = delta_fem ./ edgeLen;
 
 %% Get the energy-displacement curve based on rigid body model
+disp_min = 0;
+disp_max = edgeLen*0.57;
+beta = pi/40;
 [delta1, energy1] = energy_displacement(disp_min,disp_max,l1,l4,t,beta,edgeLen);
+A = pi/3-beta;
+l2 = (2/sqrt(3)) * (edgeLen - l1 - l4) .* sin(A); % length of filament(effective length)
 K_r = E*(t^3/12)/(l2/2);
 eps_r = delta1 / edgeLen;
 U_r = K_r * energy1';

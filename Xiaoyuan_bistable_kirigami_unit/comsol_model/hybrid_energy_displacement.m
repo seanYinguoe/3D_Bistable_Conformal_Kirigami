@@ -42,7 +42,7 @@ for i = 1:n_step
 
     % Compute energy for current configuration
     try
-        [~, energy_b, energy_s] = deform_triangle(p1, p2, p3, edgeLen, l1, l4, beta,t,0);
+        [~, energy_b, energy_s] = deform_triangle(p1, p2, p3, edgeLen, l1, l4, beta, t, 0);
         U_vec(i) = energy_b + energy_s;
         energy_b_vec(i) = energy_b;
         energy_s_vec(i) = energy_s;
