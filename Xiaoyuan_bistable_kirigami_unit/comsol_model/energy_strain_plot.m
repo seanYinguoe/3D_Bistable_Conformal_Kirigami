@@ -1,6 +1,5 @@
 %% Read the data from the txt
 fname = 'pi:40G0.txt';  % <- change to your actual file
-
 raw = fileread(fname);
 
 % capture lines that contain exactly two numbers (delta, energy)
@@ -18,6 +17,7 @@ delta_fem = data(:,1);             % displacement (m)
 U_fem     = data(:,2);             % total stored energy (J)
 
 
+
 %% Get the energy-displacement curve based on simulation results
 E = 4.33e11;
 eps_fem = delta_fem ./ edgeLen;
@@ -29,7 +29,7 @@ beta = pi/40;
 [delta1, energy1] = energy_displacement(disp_min,disp_max,l1,l4,t,beta,edgeLen);
 A = pi/3-beta;
 l2 = (2/sqrt(3)) * (edgeLen - l1 - l4) .* sin(A); % length of filament(effective length)
-K_r = E*(t^3/12)/(l2/2);
+K_r = E*(t^3/12)/(l2);
 eps_r = delta1 / edgeLen;
 U_r = K_r * energy1';
 
@@ -42,8 +42,8 @@ figure('Color','w');
 hold on; box on;
 
 % rotational spring model
-plot(eps_r, U_r, 'r-', 'LineWidth', 2, ...
-     'DisplayName','Rotational spring model');
+% plot(eps_r, U_r, 'r-', 'LineWidth', 2, ...
+%      'DisplayName','Rotational spring model');
 
 % hybrid spring model
 plot(eps_hybrid, U_hybrid, 'g-', 'LineWidth', 2, ...
@@ -52,7 +52,6 @@ plot(eps_hybrid, U_hybrid, 'g-', 'LineWidth', 2, ...
 % FEM
 plot(eps_fem, U_fem, 'b-', 'LineWidth', 2, ...
      'DisplayName','FEM simulation');
-
 xlabel('\epsilon (strain)', 'Interpreter','tex', ...
        'FontSize',16);
 ylabel('U', 'Interpreter','tex', ...
