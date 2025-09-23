@@ -235,20 +235,14 @@ res3 = ifoverlapping(nodes3);
 c = [res1; res2; res3];  % No inequality constraints
 end
 
-%% Difine the objective function to minimize the energy(stretch energy, bending energy)
+%% Difine the objective function to minimize the energy(Hencky bar-chain model)
 function [cost,energy_b,energy_s] = objective_energy(x, fk1, fk1_,l2,t)
 % Define the stretch stiffness and bend stiffness
 E = 1; % large E could pollute the results
 b = 1;
-nu = 0.2;
-I  = b*t^3/12;
-A  = b*t;
-G  = E/(2*(1+nu));
-%k  = 5/6;                    % shear coeff for rectangle
-%k_euler = E*I/(l2/2);
-%K_b  = k_euler / (1 + (12*E*I)/(k*G*A*(l2/2)^2)); % Use Timoshenko hinge
-K_b = 1/12*E*b*t^3/(l2/2);
-K_s = E*b*t/(l2/2);
+n = 2;
+K_b = 1/12*E*b*t^3/(l2/(n+1)); % internal rotational spring stiffness
+K_s = E*b*t/(l2/(n+1)); % internal longitudinal spring stiffness
 
 % vertices of current triangle
 A_current = x([1,4])';
@@ -276,7 +270,9 @@ vec4_new = A_current - B_current;
 angle1_new = acos((vec1_new * vec2_new')/(norm(vec1_new) * norm(vec2_new)));
 angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
 
-energy_b = energy_b + 1/2*K_b*((angle1_new-pi/3)^2 + (angle2_new-2*pi/3)^2);
+% energy_b = energy_b + 1/2*K_b*((angle1_new-pi/3)^2 + (angle2_new-2*pi/3)^2);
+
+energy_b = energy_b + 1/2*K_b*((angle1_new + angle2_new - pi)^2);
 
 % rotational angle at Filament 2
 vec1_new = dc2_ - dc2;
@@ -287,7 +283,8 @@ vec4_new = B_current - C_current;
 angle1_new = acos((vec1_new * vec2_new')/(norm(vec1_new) * norm(vec2_new)));
 angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
 
-energy_b = energy_b + 1/2*K_b*((angle1_new-pi/3)^2 + (angle2_new-2*pi/3)^2);
+% energy_b = energy_b + 1/2*K_b*((angle1_new-pi/3)^2 + (angle2_new-2*pi/3)^2);
+energy_b = energy_b + 1/2*K_b*((angle1_new + angle2_new - pi)^2);
 
 % rotational angle at Filament 3
 vec1_new = dc3_ - dc3;
@@ -298,7 +295,8 @@ vec4_new = C_current - A_current;
 angle1_new = acos((vec1_new * vec2_new')/(norm(vec1_new) * norm(vec2_new)));
 angle2_new = acos((vec3_new * vec4_new')/(norm(vec3_new) * norm(vec4_new)));
 
-energy_b = energy_b + 1/2*K_b*((angle1_new-pi/3)^2 + (angle2_new-2*pi/3)^2);
+% energy_b = energy_b + 1/2*K_b*((angle1_new-pi/3)^2 + (angle2_new-2*pi/3)^2);
+energy_b = energy_b + 1/2*K_b*((angle1_new + angle2_new - pi)^2);
 
 %% Calculate stretch energy
 % Calculate length change of each ligaments
