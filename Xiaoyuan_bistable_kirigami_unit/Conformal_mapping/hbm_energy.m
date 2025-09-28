@@ -19,7 +19,6 @@ addParameter(p,'VectorsAreNormals',true,@islogical);
 addParameter(p,'StretchBounds',[],@(x)isnumeric(x) && (isscalar(x) || (isvector(x)&&numel(x)==2)));
 parse(p,varargin{:});
 vectorsAreNormals = p.Results.VectorsAreNormals;
-stretchBounds     = p.Results.StretchBounds;
 
 % helpers
 wrap  = @(th) atan2(sin(th),cos(th)); % wrap angles to [-pi,pi]
@@ -45,7 +44,7 @@ EA = E * b * t;
 
 % solve the deformed configuration
 [phi, XY, kappa, ell, Eb, Ex] = ...
-    solve_chain_axial(A1,B1,thetaA1,thetaB1,N,a0,EI,EA,wrap,stretchBounds);
+    solve_chain_axial(A1,B1,thetaA1,thetaB1,N,a0,EI,EA,wrap);
 
 % outputs
 Etotal = Eb + Ex;
@@ -58,8 +57,9 @@ springs.rotational = XY(2:end-1,:);                                    % (N-1) x
 dxdy   = XY(end,:).' - B1(:);              % [dx; dy]
 dtheta = wrap(phi(end) - thetaB1);         % angle residual
 
-fprintf('ceq residuals: dx=%.3e, dy=%.3e, dtheta=%.3e rad \n', ...
-        dxdy(1), dxdy(2), dtheta);
+fprintf('ceq residuals: dx=%.3e, dy=%.3e, dtheta=%.3e rad (||pos||=%.3e)\n', ...
+        dxdy(1), dxdy(2), dtheta, norm(dxdy));
+
 end
 
 %% minimize Ebend + Eax with end position & end angle constraints
@@ -67,17 +67,18 @@ end
 % axial energy per segment: (1/2)*(EA/a0)*(ell_i - a0)^2  (k=EA/a0)
 % bending energy per hinge : (1/2)*(EI/a0)*(kappa_i)^2    (k=EI/a0)
 function [phi, XY, kappa_opt, ell_opt, Eb, Ex, exitflag, output] = ...
-    solve_chain_axial(A, B, thetaA, thetaB, N, a0, EI, EA, wrap,~)
+    solve_chain_axial(A, B, thetaA, thetaB, N, a0, EI, EA, wrap)
 
 K  = N-1;
 % initial guess
 k0 = (wrap(thetaB - thetaA)/K) * ones(K,1) + 1e-6*randn(K,1); % initial curvature
 e0 = a0*ones(N,1); % initial elongation
 z0 = [k0; e0]; % initial optimised variables
+stretch = 0.3;
 
-% bounds on lengths
-lb = [-inf(K,1);  1e-9*ones(N,1)];
-ub = [];
+% bounds on curvatures and lengths
+lb = [-inf(K,1);  e0*(1-stretch)];
+ub = [inf(K,1);  e0*(1+stretch)];
 
 % objective and constraints
 obj  = @(z) obj_total(z, K, EI, EA, a0);
@@ -86,8 +87,12 @@ nonl = @(z) cons_end(z, A, B, thetaA, thetaB, N);
 opts = optimoptions('fmincon', 'Algorithm','sqp', ...
     'SpecifyObjectiveGradient',true, 'SpecifyConstraintGradient',true, ...
     'Display','off', ...
-    'MaxIterations',2000, 'MaxFunctionEvaluations',2e6,...
-    'ConstraintTolerance',1e-12, 'OptimalityTolerance',1e-6, 'StepTolerance',1e-10);
+    'MaxIterations',2000, ...
+    'MaxFunctionEvaluations',2e6,...
+    'ConstraintTolerance',1e-14, ...
+    'OptimalityTolerance',1e-6, ...
+    'StepTolerance',1e-10,...
+    'HessianApproximation','lbfgs');       % robust with analytic J;
 
 [z, ~, exitflag, output] = fmincon(obj, z0, [],[],[],[], lb, ub, nonl, opts);
 
@@ -105,11 +110,13 @@ end
 
 %% Define the objective function(energy function)
 function [f, g] = obj_total(z, K, EI, EA, a0)
-% f = 0.5*(EI/a0)*sum(kappa.^2) + 0.5*(EA/a0)*sum((ell-a0).^2)
 kappa = z(1:K);
 ell   = z(K+1:end);
-f     = 0.5*(EI/a0)*sum(kappa.^2) + 0.5*(EA/a0)*sum((ell - a0).^2);
+Eb    = 0.5*(EI/a0)*sum(kappa.^2);
+Es    = 0.5*(EA/a0)*sum((ell - a0).^2);
+f     = Eb + Es;
 if nargout>1
+    % gradients for end-spring terms
     g = [ (EI/a0)*kappa ; (EA/a0)*(ell - a0) ];
 end
 end
@@ -127,6 +134,7 @@ XYend = A + sum(ell(:).*t, 1);
 pos_err = XYend.' - B(:);
 ang_err = atan2(sin(phi(end)-thetaB), cos(phi(end)-thetaB));
 
+% scale by span
 ceq = [pos_err; ang_err];
 c   = [];
 
