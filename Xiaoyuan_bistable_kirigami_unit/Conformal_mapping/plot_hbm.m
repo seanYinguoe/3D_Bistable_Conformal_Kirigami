@@ -5,7 +5,7 @@ vecA0 = [0,1];
 vecB0 = [0,1];
 vecA1=[cos(pi/2-pi/10),sin(pi/2-pi/10)]; vecB1=[cos(pi/2+pi/10),sin(pi/2+pi/10)];      % clamped end directions (normals)
 %vecA1=[cos(pi/2),sin(pi/2)]; vecB1=[cos(pi/2),sin(pi/2)];      % clamped end directions (normals)
-N=40; E=7.3e9; b=1.0; t=0.01;
+N=50; E=7.3e9; b=1.0; t=0.01;I = b*t^3/12;EI = E*I;
 
 % Run solver (returns deformed config only)
 [Etotal, XYdef, springs] = hbm_energy(A0,B0,[0,1],[0,1], A1,B1, vecA1,vecB1, N, E,b, t, ...

@@ -5,7 +5,7 @@
 function [delta, energy] = energy_displacement(disp_min,disp_max,l1,l4,t,beta,edgeLen)
 % load simulation.mat
 
-iter_max = 3000;
+iter_max = 2000;
 % Define the parameters
 alpha_1 = size(iter_max);
 alpha_2 = size(iter_max);

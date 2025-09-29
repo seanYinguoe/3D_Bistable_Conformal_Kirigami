@@ -74,11 +74,11 @@ K  = N-1;
 k0 = (wrap(thetaB - thetaA)/K) * ones(K,1) + 1e-6*randn(K,1); % initial curvature
 e0 = a0*ones(N,1); % initial elongation
 z0 = [k0; e0]; % initial optimised variables
-stretch = 0.3;
+stretch = 0.4;
 
 % bounds on curvatures and lengths
-lb = [-inf(K,1);  e0*(1-stretch)];
-ub = [inf(K,1);  e0*(1+stretch)];
+lb = [-ones(K,1)*pi;  e0*(1-stretch)];
+ub = [ones(K,1)*pi;  e0*(1+stretch)];
 
 % objective and constraints
 obj  = @(z) obj_total(z, K, EI, EA, a0);
@@ -88,8 +88,7 @@ opts = optimoptions('fmincon', 'Algorithm','sqp', ...
     'SpecifyObjectiveGradient',true, 'SpecifyConstraintGradient',true, ...
     'Display','off', ...
     'MaxIterations',2000, ...
-    'MaxFunctionEvaluations',2e6,...
-    'ConstraintTolerance',1e-14, ...
+    'ConstraintTolerance',1e-6, ...
     'OptimalityTolerance',1e-6, ...
     'StepTolerance',1e-10,...
     'HessianApproximation','lbfgs');       % robust with analytic J;
@@ -112,9 +111,7 @@ end
 function [f, g] = obj_total(z, K, EI, EA, a0)
 kappa = z(1:K);
 ell   = z(K+1:end);
-Eb    = 0.5*(EI/a0)*sum(kappa.^2);
-Es    = 0.5*(EA/a0)*sum((ell - a0).^2);
-f     = Eb + Es;
+f     = 0.5*(EI/a0)*sum(kappa.^2) + 0.5*(EA/a0)*sum((ell - a0).^2);
 if nargout>1
     % gradients for end-spring terms
     g = [ (EI/a0)*kappa ; (EA/a0)*(ell - a0) ];
@@ -133,9 +130,10 @@ t   = [cos(phi), sin(phi)];             % N x 2
 XYend = A + sum(ell(:).*t, 1);
 pos_err = XYend.' - B(:);
 ang_err = atan2(sin(phi(end)-thetaB), cos(phi(end)-thetaB));
-
-% scale by span
-ceq = [pos_err; ang_err];
+a0 = max(norm(B - A)/N, 1e-12);
+% scaled constraints 
+%ceq = [pos_err*1e2; ang_err*1e2];
+ceq = [pos_err / a0; ang_err * 1e2];
 c   = [];
 
 if nargout>2
