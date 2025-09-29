@@ -1,4 +1,4 @@
-function [Etotal, XY, springs] = hbm_energy(A0,B0, vecA0, vecB0,  A1,B1, vecA1,vecB1,  N, E, b, t, varargin)
+function [Etotal, XY, springs, error] = hbm_energy(L0, A1,B1, vecA1,vecB1,  N, E, b, t, varargin)
 % Hencky bar-chain with bending + axial springs
 %   Etotal  : total elastic energy (bending + axial)
 %   XY      : (N+1)x2 node coordinates of the deformed centerline
@@ -36,7 +36,6 @@ thetaA1 = v2ang(vecA1);  thetaB1 = v2ang(vecB1);
 
 % reference length per segment from undeformed geometry
 if N < 2, error('N must be >= 2.'); end
-L0 = norm(B0 - A0);  if L0<=0, error('A0 and B0 must be distinct.'); end
 a0 = L0 / N;
 
 EI = E * b * t^3 / 12;
@@ -55,6 +54,7 @@ springs.rotational = XY(2:end-1,:);                                    % (N-1) x
 
 % compute and print equality-constraint residuals
 dxdy   = XY(end,:).' - B1(:);              % [dx; dy]
+error = norm(dxdy);
 dtheta = wrap(phi(end) - thetaB1);         % angle residual
 
 fprintf('ceq residuals: dx=%.3e, dy=%.3e, dtheta=%.3e rad (||pos||=%.3e)\n', ...
