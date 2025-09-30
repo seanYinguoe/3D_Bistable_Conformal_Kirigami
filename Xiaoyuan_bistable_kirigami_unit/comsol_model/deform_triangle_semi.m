@@ -15,18 +15,11 @@ function [triangle,E_total] = deform_triangle_semi(delta,edgeLen,l1,l4,beta,t)
 %% Define helpers
 rotation = @(theta) [cos(theta),-sin(theta);sin(theta),cos(theta)]; % rotation matrix  
 rotrow = @(v, ang) (rotation(ang) * v(:))';   % row -> column -> rotate -> row
-nrm1   = @(v) v / norm(v);          % normalize
+nrm1   = @(v) v./norm(v);          % normalize
+angle = @(v1,v2) acos(dot(v1,v2)/(norm(v1)*norm(v2))); 
 
 %% Calculate geometric parameters
-A = pi/3-beta;
-l2 = (2/sqrt(3)) * (edgeLen - l1 - l4) .* sin(A); % length of filament
-l6 = (2/sqrt(3)) .* sin(pi/3 - beta) .* (l1 - 0.5*l4) ...
-     - cos(pi/3 - beta) .* l4;
-l5 = ( (sqrt(3)/2) .* l4 + sin(beta) .* l6 ) ./ sin(pi/3 - beta);
-l3 = l6 - l5 - 1.5*l2 ...
-     - l2 .* ( (sqrt(3)/2) .* (cos(pi/3 - beta) ./ sin(pi/3 - beta)) );
-R = sqrt(3)/3 * l3;
-N=50; E=4.3e11; b=1.0;
+N=20; E=4.3e11; b=1.0;
 %% Generate uniformaly deployed triangle as initial guess
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
@@ -42,12 +35,27 @@ A = triangle(43,:);
 % Ratate beam end direction as energy free state
 vecA0 = (d1_ - d1);   % normal at the fixed flank end
 vecB0 = (A  - B );    % edge-normal at inner triangle vertex
-deltaTilt = (pi/6);    % rotate to initial state as zero energy state
-vecA  = nrm1( rotrow(vecA0,  deltaTilt) );
-vecB  = nrm1( rotrow(vecB0,  deltaTilt) );
+% norm_beam = nrm1(B-d1)*rotation(-pi/2);
+% tilt_A = angle(vecA0,norm_beam);
+% tilt_B = angle(vecB0,norm_beam);
+tilt_A = pi/6;
+tilt_B = pi/6;
+vecA  = nrm1( rotrow(vecA0,  tilt_A) );
+vecB  = nrm1( rotrow(vecB0,  tilt_B) );
 % Calculate single ligament energy from hbm_energy (L0 = l2)
 L0 = norm(B-d1);
-[E_lig, ~, ~, ~] = hbm_energy(L0, d1, B, vecA, vecB, N, E, b, t, ...
+[E_lig,XYdef,springs] = hbm_energy(L0, d1, B, vecA, vecB, N, E, b, t, ...
     'VectorsAreNormals', true);
 E_total = E_lig*3;
+
+%% Plot the results
+% figure(); axis equal;
+% title('Hencky bar-chain: deformed');
+% 
+% % deformed beam
+% plot(XYdef(:,1),XYdef(:,2),'-o','Color',[1 0 0],'DisplayName','Deformed');
+% plot_triangle(triangle);
+% 
+% legend show
+% xlabel('x'); ylabel('y');
 end

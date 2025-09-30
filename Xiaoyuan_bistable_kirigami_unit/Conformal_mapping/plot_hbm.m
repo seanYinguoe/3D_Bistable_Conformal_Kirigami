@@ -9,7 +9,6 @@ triangle_test = triangle;
 A1 = triangle_test(20,:); B1 = triangle_test(44,:);
 vecA0 = nrm1(triangle_test(19,:) - triangle_test(20,:));
 vecB0 = nrm1(triangle_test(43,:) - triangle_test(44,:));
-tangent_beam = nrm1(B1-A1);
 norm_beam = nrm1(B1-A1)*rotation(-pi/2);
 tilt_A1 = angle(vecA0,norm_beam);
 tilt_B1 = angle(vecB0,norm_beam);
@@ -21,13 +20,13 @@ L0 = norm(B1-A1);
 % A1=[0,0]; B1=[1,0];
 %vecA1=[cos(pi/2-pi/10),sin(pi/2-pi/10)]; vecB1=[cos(pi/2+pi/10),sin(pi/2+pi/10)];      % clamped end directions (normals)
 %vecA1=[cos(pi/2),sin(pi/2)]; vecB1=[cos(pi/2),sin(pi/2)];      % clamped end directions (normals)
-N=20; E=4.3e11; b=1.0; t=0.015*edgeLen;I = b*t^3/12;EI = E*I;
+N=30; E=4.3e11; b=1.0; t=0.015*edgeLen;I = b*t^3/12;EI = E*I;
 
 % Run solver (returns deformed config only)
 [Etotal, XYdef, springs] = hbm_energy(L0, A1,B1, vecA1,vecB1, N, E,b, t, ...
                                       'VectorsAreNormals', true);
 
-fprintf('N = %d and Total elastic energy = %.4f J\n', N, Etotal);
+fprintf('N = %d and Total elastic energy = %g J\n', N, Etotal*3);
 
 % ---- build undeformed geometry ----
 % L0 = norm(B0 - A0);
@@ -40,14 +39,15 @@ fprintf('N = %d and Total elastic energy = %.4f J\n', N, Etotal);
 % end
 
 % ---- plot ----
-figure(1); axis equal;
-title('Hencky bar-chain: undeformed vs deformed');
+figure(); axis equal;
+title('Hencky bar-chain: deformed');
 
 % undeformed beam
 % plot(XYund(:,1),XYund(:,2),'-o','Color',[0 0.4 1],'DisplayName','Undeformed');
 
 % deformed beam
 plot(XYdef(:,1),XYdef(:,2),'-o','Color',[1 0 0],'DisplayName','Deformed');
+plot_triangle(triangle);
 
 legend show
 xlabel('x'); ylabel('y');

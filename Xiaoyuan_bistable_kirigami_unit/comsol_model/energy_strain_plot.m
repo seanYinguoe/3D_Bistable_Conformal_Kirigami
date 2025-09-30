@@ -29,12 +29,13 @@ eps_fem = delta_fem ./ edgeLen;
 % [delta1, energy1] = energy_displacement(disp_min,disp_max,l1,l4,t,beta,edgeLen);
 % A = pi/3-beta;
 % l2 = (2/sqrt(3)) * (edgeLen - l1 - l4) .* sin(A); % length of filament(effective length)
-% K_r = E*(t^3/12)/(l2);
+% K_r = E*(t^3/12)/(l2/2);
 % eps_r = delta1 / edgeLen;
 % U_r = K_r * energy1';
 
 %% Get the energy-displacement curve based on hybrid spring model
-%[eps_hybrid, U_hybrid] = hybrid_energy_displacement(l1,l4,t,beta,edgeLen);
+[eps_hybrid, U_hybrid] = hybrid_energy_displacement(l1,l4,t,beta,edgeLen);
+
 [eps_hbm, U_hbm] = hbm_energy_displacement(edgeLen*0.57,l1,l4,t,beta,edgeLen);
 
 %% Plot: strain vs dimensionless energy
@@ -42,8 +43,8 @@ figure('Color','w');
 hold on; box on;
 
 % rotational spring model
-% plot(eps_r, U_r, 'r-', 'LineWidth', 2, ...
-%      'DisplayName','Rotational spring model');
+plot(eps_r, U_r, 'r-', 'LineWidth', 2, ...
+     'DisplayName','Rotational spring model');
 
 % hybrid spring model
 plot(eps_hbm, U_hbm, 'g-', 'LineWidth', 2, ...
