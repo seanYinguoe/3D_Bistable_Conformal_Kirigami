@@ -12,7 +12,7 @@ function [triangle_new,E_total] = deform_triangle_isotropic(delta,edgeLen,l1,l4,
 % Output:
 %   triangle_new - Deformed triangle coordinates
 
-%% Define local function
+%% Define helpers
 rotation = @(theta) [cos(theta),-sin(theta);sin(theta),cos(theta)]; % rotation matrix  
 rotrow = @(v, ang) (rotation(ang) * v(:))';   % row -> column -> rotate -> row
 nrm1   = @(v) v / norm(v);          % normalize
@@ -55,7 +55,7 @@ theta0 = atan2(B_orig(2)-centroid(2), B_orig(1)-centroid(1));
         % build boundary vectors as
         vecA0 = (d1_ - d1);   % normal at the fixed flank end
         vecB0 = (A  - B );    % edge-normal at inner triangle vertex
-        deltaTilt = -pi/3;    % rotate to initial state
+        deltaTilt = (pi/3-2*beta);    % rotate to initial state
         vecA  = nrm1( rotrow(vecA0,  deltaTilt) );
         vecB  = nrm1( rotrow(vecB0,  deltaTilt) );
         % single ligament energy from hbm_energy (L0 = l2)
