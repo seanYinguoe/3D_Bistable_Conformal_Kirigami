@@ -1,8 +1,22 @@
+% Helpers
+nrm1  = @(v) v./norm(v); % normlize vectors
+rotation = @(theta) [cos(theta),-sin(theta);sin(theta),cos(theta)]; % rotation matrix  
+angle = @(v1,v2) acos(dot(v1,v2)/(norm(v1)*norm(v2)));
+rotrow = @(v, ang) (rotation(ang) * v(:))';   % rotate a vector
+
+% In bisatble unit
+triangle_test = triangle;
+A1 = triangle_test(20,:); B1 = triangle_test(44,:);
+vecA0 = nrm1(triangle_test(19,:) - triangle_test(20,:));
+vecB0 = nrm1(triangle_test(43,:) - triangle_test(44,:));
+tangent_beam = nrm1(B1-A1);
+norm_beam = nrm1(B1-A1)*rotation(-pi/2);
+tilt_A1 = angle(vecA0,norm_beam);
+tilt_B1 = angle(vecB0,norm_beam);
+vecA1  = nrm1( rotrow(vecA0,  tilt) );
+vecB1  = nrm1( rotrow(vecB0,  tilt) );
+L0 = norm(B1-A1);
 % Example data
-L0 = l2;
-A1 = triangle(20,:); B1 = triangle(44,:);
-vecA1 = triangle(19,:) - triangle(20,:);
-vecB1 = triangle(43,:) - triangle(44,:);
 % L0 = 1;
 % A1=[0,0]; B1=[1,0];
 %vecA1=[cos(pi/2-pi/10),sin(pi/2-pi/10)]; vecB1=[cos(pi/2+pi/10),sin(pi/2+pi/10)];      % clamped end directions (normals)
@@ -26,7 +40,7 @@ fprintf('N = %d and Total elastic energy = %.4f J\n', N, Etotal);
 % end
 
 % ---- plot ----
-figure; hold on; axis equal;
+figure(1); axis equal;
 title('Hencky bar-chain: undeformed vs deformed');
 
 % undeformed beam
