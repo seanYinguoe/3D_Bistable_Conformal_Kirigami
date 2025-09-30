@@ -55,7 +55,7 @@ theta0 = atan2(B_orig(2)-centroid(2), B_orig(1)-centroid(1));
         % build boundary vectors as
         vecA0 = (d1_ - d1);   % normal at the fixed flank end
         vecB0 = (A  - B );    % edge-normal at inner triangle vertex
-        deltaTilt = (pi/3-2*beta);    % rotate to initial state
+        deltaTilt = (pi/6);    % rotate to initial state
         vecA  = nrm1( rotrow(vecA0,  deltaTilt) );
         vecB  = nrm1( rotrow(vecB0,  deltaTilt) );
         % single ligament energy from hbm_energy (L0 = l2)

@@ -13,8 +13,8 @@ tangent_beam = nrm1(B1-A1);
 norm_beam = nrm1(B1-A1)*rotation(-pi/2);
 tilt_A1 = angle(vecA0,norm_beam);
 tilt_B1 = angle(vecB0,norm_beam);
-vecA1  = nrm1( rotrow(vecA0,  tilt) );
-vecB1  = nrm1( rotrow(vecB0,  tilt) );
+vecA1  = nrm1( rotrow(vecA0,  tilt_A1) );
+vecB1  = nrm1( rotrow(vecB0,  tilt_B1) );
 L0 = norm(B1-A1);
 % Example data
 % L0 = 1;
