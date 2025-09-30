@@ -16,7 +16,6 @@ function [Etotal, XY, springs, error] = hbm_energy(L0, A1,B1, vecA1,vecB1,  N, E
 
 p = inputParser;
 addParameter(p,'VectorsAreNormals',true,@islogical);
-addParameter(p,'StretchBounds',[],@(x)isnumeric(x) && (isscalar(x) || (isvector(x)&&numel(x)==2)));
 parse(p,varargin{:});
 vectorsAreNormals = p.Results.VectorsAreNormals;
 
@@ -57,8 +56,8 @@ dxdy   = XY(end,:).' - B1(:);              % [dx; dy]
 error = norm(dxdy);
 dtheta = wrap(phi(end) - thetaB1);         % angle residual
 
-fprintf('ceq residuals: dx=%.3e, dy=%.3e, dtheta=%.3e rad (||pos||=%.3e)\n', ...
-        dxdy(1), dxdy(2), dtheta, norm(dxdy));
+% fprintf('ceq residuals: dx=%.3e, dy=%.3e, dtheta=%.3e rad (||pos||=%.3e)\n', ...
+%         dxdy(1), dxdy(2), dtheta, norm(dxdy));
 
 end
 
