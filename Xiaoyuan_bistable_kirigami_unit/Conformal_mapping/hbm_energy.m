@@ -47,6 +47,7 @@ EA = E * b * t;
 % outputs
 Etotal = Eb + Ex;
 
+
 % springs geometry for plotting
 springs.axial = [XY(1:end-1,1) XY(1:end-1,2) XY(2:end,1) XY(2:end,2)]; % N x 4
 springs.rotational = XY(2:end-1,:);                                    % (N-1) x 2
