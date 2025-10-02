@@ -35,6 +35,7 @@ eps_fem = delta_fem ./ edgeLen;
 
 %% Get the energy-displacement curve based on hybrid spring model
 [eps_hybrid, U_hybrid] = hybrid_energy_displacement(l1,l4,t,beta,edgeLen);
+U_hybrid = E*U_hybrid;
 
 [eps_hbm, U_hbm] = hbm_energy_displacement(edgeLen*0.57,l1,l4,t,beta,edgeLen);
 
@@ -42,11 +43,11 @@ eps_fem = delta_fem ./ edgeLen;
 figure('Color','w'); 
 hold on; box on;
 
-% rotational spring model
-plot(eps_r, U_r, 'r-', 'LineWidth', 2, ...
+% hybrid energy model
+plot(eps_hybrid, U_hybrid, 'r-', 'LineWidth', 2, ...
      'DisplayName','Rotational spring model');
 
-% hybrid spring model
+% HBM
 plot(eps_hbm, U_hbm, 'g-', 'LineWidth', 2, ...
      'DisplayName','Hybrid spring model');
 

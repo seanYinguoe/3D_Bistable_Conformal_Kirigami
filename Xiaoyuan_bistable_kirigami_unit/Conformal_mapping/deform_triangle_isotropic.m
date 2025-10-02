@@ -26,7 +26,7 @@ l5 = ( (sqrt(3)/2) .* l4 + sin(beta) .* l6 ) ./ sin(pi/3 - beta);
 l3 = l6 - l5 - 1.5*l2 ...
      - l2 .* ( (sqrt(3)/2) .* (cos(pi/3 - beta) ./ sin(pi/3 - beta)) );
 R = sqrt(3)/3 * l3;
-N=20; E=4.3e11; b=1.0;
+N=30; E=4.3e11; b=1.0;
 %% Generate uniformaly deployed triangle as initial guess
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
@@ -77,6 +77,7 @@ theta0 = atan2(B_orig(2)-centroid(2), B_orig(1)-centroid(1));
 
 % search a window around theta0; widen if needed
 [theta_opt, E_total, ~] = fminbnd(@(th) energy(th), theta0 - pi/4, theta0 + pi/4);
+E_total = E_total*3;
 
 %% Create optimised unit
 % rebuild final geometry at theta_opt

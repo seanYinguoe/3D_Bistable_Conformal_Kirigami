@@ -240,8 +240,8 @@ function [cost,energy_b,energy_s] = objective_energy(x, fk1, fk1_,l2,t)
 % Define the stretch stiffness and bend stiffness
 E = 1; % large E could pollute the results
 b = 1;
-K_b = 1/12*E*b*t^3/(l2); % internal rotational spring stiffness
-K_s = E*b*t/(l2); % internal longitudinal spring stiffness
+K_b = 1/12*E*b*t^3/(l2/2); % internal rotational spring stiffness
+K_s = E*b*t/(l2/2); % internal longitudinal spring stiffness
 
 % vertices of current triangle
 A_current = x([1,4])';
