@@ -1,144 +1,73 @@
-function [Etotal, XY, springs, error] = hbm_energy(L0, A1,B1, vecA1,vecB1,  N, E, b, t, varargin)
-% Hencky bar-chain with bending + axial springs
-%   Etotal  : total elastic energy (bending + axial)
-%   XY      : (N+1)x2 node coordinates of the deformed centerline
-%   springs : struct with coordinates to plot springs
-%             - springs.axial       : N x 4  -> [x_i y_i x_{i+1} y_{i+1}]
-%             - springs.rotational  : (N-1) x 2 -> joint points [x y]
-%
-% Inputs:
-%   A0,B0        : undeformed end points (for reference length a0 = |B0-A0|/N)
-%   vecA0,vecB0  : undeformed end vectors (only used if you set 'VectorsAreNormals', true)
-%   A1,B1        : deformed end points (constraints)
-%   vecA1,vecB1  : deformed end vectors (clamped directions at ends)
-%   N            : number of links (>=2)
-%   E,b,t        : material/section (EI = E*b*t^3/12, EA = E*b*t)
+function [Etotal, XY, springs, err, info] = hbm_energy(L0, A1,B1, vecA1,vecB1, N, E, b, t, varargin)
+% Newton-KKT solver for Hencky bar-chain (bending + axial)
+% Replaces fmincon with stiffness + constraints linear solve
 
 p = inputParser;
 addParameter(p,'VectorsAreNormals',true,@islogical);
+addParameter(p,'MaxIter',1000,@(x)isnumeric(x)&&x>0);
+addParameter(p,'TolC',1e-10,@(x)x>0);
+addParameter(p,'TolStep',1e-12,@(x)x>0);
+addParameter(p,'Damping',1.0,@(x)x>0);    % line-search damping
 parse(p,varargin{:});
-vectorsAreNormals = p.Results.VectorsAreNormals;
+opt = p.Results;
 
-% helpers
-wrap  = @(th) atan2(sin(th),cos(th)); % wrap angles to [-pi,pi]
-v2ang = @(v) atan2(v(2),v(1)); % compute angle of 2D vector
-nrm1  = @(v) v./max(norm(v),eps); % normalize vector
+wrap  = @(th) atan2(sin(th),cos(th));
+v2ang = @(v) atan2(v(2),v(1));
+nrm1  = @(v) v./max(norm(v),eps);
 
-% convert normals
-if vectorsAreNormals
+
+% convert normals -> tangents
+if opt.VectorsAreNormals
     vecA1 = normal_to_tangent(vecA1, A1, B1);
     vecB1 = normal_to_tangent(vecB1, A1, B1);
 else
     vecA1 = nrm1(vecA1); vecB1 = nrm1(vecB1);
 end
-thetaA1 = v2ang(vecA1);  thetaB1 = v2ang(vecB1);
+thetaA = v2ang(vecA1);  thetaB = v2ang(vecB1);
 
-% reference length per segment from undeformed geometry
-if N < 2, error('N must be >= 2.'); end
-a0 = L0 / N;
+% constants
+a0  = L0/N;
+EI  = E*b*t^3/12;
+EA  = E*b*t;
 
-EI = E * b * t^3 / 12;
-EA = E * b * t;
+K = N-1;                % number of hinges
+kr = (EI/a0);           % rotational spring stiffness per hinge
+ka = (EA/a0);           % axial spring stiffness per segment
 
-% solve the deformed configuration
-[phi, XY, kappa, ell, Eb, Ex] = ...
-    solve_chain_axial(A1,B1,thetaA1,thetaB1,N,a0,EI,EA,wrap);
+% Hessian of energy (constant diagonal)
+H  = diag([kr*ones(K,1); ka*ones(N,1)]);
 
-% outputs
-Etotal = Eb + Ex;
+% initial guess (same as your fmincon version)
+kappa = (wrap(thetaB-thetaA)/K)*ones(K,1);
+ell   = a0*ones(N,1);
+z     = [kappa; ell];
 
+% Newton iterations
+for it = 1:opt.MaxIter
+    % unpack
+    kappa = z(1:K);
+    ell   = z(K+1:end);
 
-% springs geometry for plotting
-springs.axial = [XY(1:end-1,1) XY(1:end-1,2) XY(2:end,1) XY(2:end,2)]; % N x 4
-springs.rotational = XY(2:end-1,:);                                    % (N-1) x 2
+    % angles and tangents
+    phi = thetaA + [0; cumsum(kappa(:))];    % N x 1
+    txy = [cos(phi), sin(phi)];              % N x 2
 
-% compute and print equality-constraint residuals
-dxdy   = XY(end,:).' - B1(:);              % [dx; dy]
-error = norm(dxdy);
-dtheta = wrap(phi(end) - thetaB1);         % angle residual
+    % forward kinematics
+    XY = forward_chain(A1, phi, ell);
 
-fprintf('ceq residuals: dx=%.3e, dy=%.3e, dtheta=%.3e rad (||pos||=%.3e)\n', ...
-        dxdy(1), dxdy(2), dtheta, norm(dxdy));
+    % constraints g(z) = 0
+    pos_err = (A1(:) + sum(ell(:).*txy,1).' - B1(:));     % 2x1
+    ang_err = wrap(phi(end) - thetaB);                     % 1x1
+    g = [pos_err/a0; 1e2*ang_err];                         % scaling 与你一致
 
-end
+    % gradients of E
+    gradE = [kr*kappa; ka*(ell - a0)];
 
-%% minimize Ebend + Eax with end position & end angle constraints
-% solve: z = [kappa(1..N-1); ell(1..N)] curvature;elongation
-% axial energy per segment: (1/2)*(EA/a0)*(ell_i - a0)^2  (k=EA/a0)
-% bending energy per hinge : (1/2)*(EI/a0)*(kappa_i)^2    (k=EI/a0)
-function [phi, XY, kappa_opt, ell_opt, Eb, Ex, exitflag, output] = ...
-    solve_chain_axial(A, B, thetaA, thetaB, N, a0, EI, EA, wrap)
-
-K  = N-1;
-% initial guess
-k0 = (wrap(thetaB - thetaA)/K) * ones(K,1) + 1e-6*randn(K,1); % initial curvature
-e0 = a0*ones(N,1); % initial elongation
-z0 = [k0; e0]; % initial optimised variables
-stretch = 0.4;
-
-% bounds on curvatures and lengths
-lb = [-ones(K,1)*pi;  e0*(1-stretch)];
-ub = [ones(K,1)*pi;  e0*(1+stretch)];
-
-% objective and constraints
-obj  = @(z) obj_total(z, K, EI, EA, a0);
-nonl = @(z) cons_end(z, A, B, thetaA, thetaB, N);
-
-opts = optimoptions('fmincon', 'Algorithm','sqp', ...
-    'SpecifyObjectiveGradient',true, 'SpecifyConstraintGradient',true, ...
-    'Display','off', ...
-    'MaxIterations',2000, ...
-    'ConstraintTolerance',1e-8, ...
-    'OptimalityTolerance',1e-8, ...
-    'StepTolerance',1e-10,...
-    'HessianApproximation','lbfgs');       % robust with analytic J;
-
-[z, ~, exitflag, output] = fmincon(obj, z0, [],[],[],[], lb, ub, nonl, opts);
-
-kappa_opt = z(1:K);
-ell_opt   = z(K+1:end);
-
-% geometry
-phi = thetaA + [0; cumsum(kappa_opt(:))];  % N x 1 (segment angles)
-XY  = forward_chain(A, phi, ell_opt);
-
-% energies (report)
-Eb = 0.5*(EI/a0) * sum(kappa_opt.^2);
-Ex = 0.5*(EA/a0) * sum((ell_opt - a0).^2);
-end
-
-%% Define the objective function(energy function)
-function [f, g] = obj_total(z, K, EI, EA, a0)
-kappa = z(1:K);
-ell   = z(K+1:end);
-f     = 0.5*(EI/a0)*sum(kappa.^2) + 0.5*(EA/a0)*sum((ell - a0).^2);
-if nargout>1
-    % gradients for end-spring terms
-    g = [ (EI/a0)*kappa ; (EA/a0)*(ell - a0) ];
-end
-end
-
-%% Define the constraints function(boundary conditions)
-function [c, ceq, gc, gceq] = cons_end(z, A, B, thetaA, thetaB, N)
-K     = N-1;
-kappa = z(1:K);
-ell   = z(K+1:end);
-
-phi = thetaA + [0; cumsum(kappa(:))];   % N x 1
-t   = [cos(phi), sin(phi)];             % N x 2
-
-XYend = A + sum(ell(:).*t, 1);
-pos_err = XYend.' - B(:);
-ang_err = atan2(sin(phi(end)-thetaB), cos(phi(end)-thetaB));
-a0 = max(norm(B - A)/N, 1e-12);
-% scaled constraints 
-%ceq = [pos_err*1e2; ang_err*1e2];
-ceq = [pos_err / a0; ang_err * 1e2];
-c   = [];
-
-if nargout>2
-    dPos_dell = t.';                    % 2 x N
-    dPos_dk   = zeros(2,K);
+    % Jacobian A = dg/dz  (与您 cons_end 里推导一致)
+    % dPos/dell = t^T
+    dPos_dell = txy.';             % 2 x N
+    % dPos/dkappa
+    dPos_dk = zeros(2,K);
     for k = 1:K
         idx = (k+1):N;
         if ~isempty(idx)
@@ -148,10 +77,55 @@ if nargout>2
     dAng_dk   = ones(1,K);
     dAng_dell = zeros(1,N);
 
-    G    = [dPos_dk, dPos_dell; dAng_dk, dAng_dell]; % 3 x (K+N)
-    gceq = G.';                                      % (K+N) x 3
-    gc   = [];
+    A = [ dPos_dk/a0,  dPos_dell/a0;    % 2 x (K+N)
+          1e2*dAng_dk, 1e2*dAng_dell ]; % 1 x (K+N)
+
+    % KKT system
+    KKT = [H, A'; A, zeros(3,3)];
+    rhs = [-gradE; -g];
+
+    % solve (prefer sparse backslash or LDL^T)
+    sol = KKT \ rhs;
+    dz  = sol(1:K+N);
+    %lambda = sol(K+N+1:end); %#ok<NASGU>
+
+    % line search (simple damping)
+    z_new = z + opt.Damping*dz;
+
+    % convergence checks
+    step_norm = norm(dz);
+    c_norm    = norm(g);
+
+    z = z_new;
+
+    if step_norm < opt.TolStep && c_norm < opt.TolC
+        break;
+    end
 end
+
+% final geometry & energy
+kappa = z(1:K); ell = z(K+1:end);
+phi = thetaA + [0; cumsum(kappa(:))];
+XY  = forward_chain(A1, phi, ell);
+Eb = 0.5*kr * sum(kappa.^2);
+Ex = 0.5*ka * sum((ell - a0).^2);
+Etotal = Eb + Ex;
+
+springs.axial      = [XY(1:end-1,1) XY(1:end-1,2) XY(2:end,1) XY(2:end,2)];
+springs.rotational = XY(2:end-1,:);
+err = norm([ (A1(:) + sum(ell(:).*[cos(phi),sin(phi)],1).' - B1(:))/a0 ; 1e2*wrap(phi(end)-thetaB) ]);
+
+info.iters   = it;
+info.kr      = kr;
+info.ka      = ka;
+info.a0      = a0;
+info.kappa   = kappa;
+info.ell     = ell;
+info.constr  = g;
+
+fprintf('KKT-Newton: it=%d, ||g||=%.3e, step=%.3e, E=%.6g (Eb=%.6g, Ex=%.6g)\n',...
+    it, norm(g), norm(dz), Etotal, Eb, Ex);
+
 end
 
 function XY = forward_chain(A, phi, ell)

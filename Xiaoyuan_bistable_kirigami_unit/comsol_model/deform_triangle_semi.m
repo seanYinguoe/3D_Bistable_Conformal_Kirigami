@@ -47,7 +47,7 @@ vecB  = nrm1( rotrow(vecB0,  tilt_B) );
 L0 = norm(B-d1);
 [E_lig,XYdef,springs] = hbm_energy(L0, d1, B, vecA, vecB, N, E, b, t, ...
     'VectorsAreNormals', true);
-E_total = E_lig;
+E_total = E_lig*3;
 
 %% Plot the results
 % figure(); axis equal;
