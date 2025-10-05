@@ -20,7 +20,7 @@ angle = @(v1,v2) acos(dot(v1,v2)/(norm(v1)*norm(v2)));
 
 %% Calculate geometric parameters
 l2 = (2/sqrt(3)) * (edgeLen - l1 - l4) .* sin(pi/3-beta); % length of filament
-N=30; E=4.3e11; b=1.0;
+N=10; E=4.3e11; b=1.0;
 %% Generate uniformaly deployed triangle as initial guess
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
