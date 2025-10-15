@@ -42,7 +42,7 @@ disp("Scale area min: "+num2str(min(scale_area)) +", max: "+num2str(max(scale_ar
 % Define the size of tessellation
 l1 = edgeLen * 0.85;
 l4 = edgeLen * 0.05;
-t  = edgeLen * 0.02;
+t  = edgeLen * 0.015;
 beta = zeros(size(i_out)); % tilting angle
 params = [edgeLen % The length of a unit
     l1            % The length of flanks

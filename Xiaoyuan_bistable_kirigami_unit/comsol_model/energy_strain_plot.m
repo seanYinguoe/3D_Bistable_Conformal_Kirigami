@@ -49,7 +49,7 @@ hold on; box on;
 
 % HBM
 plot(eps_hbm, U_hbm, 'g-', 'LineWidth', 2, ...
-     'DisplayName','Hybrid spring model');
+     'DisplayName','HBM model');
 
 % FEM
 plot(eps_fem, U_fem, 'b-', 'LineWidth', 2, ...
