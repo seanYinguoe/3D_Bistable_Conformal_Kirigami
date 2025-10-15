@@ -1,56 +1,55 @@
 function [Etotal, XY, springs, err, info] = hbm_energy(L0, A1,B1, vecA1,vecB1, N, E, b, t, varargin)
-% HENCKY BAR-CHAIN (bending + axial) with TRUE end clustering.
-% - Shorter segments near both clamps (end clustering) -> denser hinges.
-% - Per-hinge (bending) and per-segment (axial) stiffness use local lengths.
-% - Augmented Lagrangian (AL) Newton-KKT solver with box bounds.
+% Hencky bar-chain (bending + axial) with end clustering and EXACT right-end angle.
+% - Keeps your AL-Newton KKT structure (Augmented Lagrangian with bounds).
+% - Exact enforcement of right-end angle: phi_N == thetaB (last hinge eliminated).
+% - Position constraints are tightened via:
+%     * stronger penalty schedule,
+%     * Second-Order Correction (SOC),
+%     * optional feasibility projection on lengths only (minimal-norm).
+% - Consistent discrete energy: bending Kb_i = EI / hhinge_i, axial Ka_i = EA / h_i.
 %
 % Inputs:
 %   L0          : undeformed centerline length
-%   A1,B1       : end-point positions in the deformed configuration (2x1 each)
+%   A1,B1       : end positions in the deformed configuration (2x1 each)
 %   vecA1,vecB1 : end directions (normals if 'VectorsAreNormals'==true; else tangents)
 %   N           : number of links (>=2). Hinges K = N-1
 %   E,b,t       : material & section (EI = E*b*t^3/12, EA = E*b*t)
 %
 % Name-Value options:
-%   'VectorsAreNormals' (true) : if true, convert given normals to tangents
-%   'MaxIter' (1000)           : max Newton iterations
-%   'TolC' (1e-10)             : constraint norm tolerance
-%   'TolStep' (1e-12)          : step norm tolerance
-%   'Damping' (0.6)            : base step damping (0<Damping<=1)
-%   'KappaMax' (2*pi)          : bound |kappa_i| <= KappaMax
-%   'Stretch' (0.6)            : per-segment stretch bound: ell_i in [h_i*(1-..), h_i*(1+..)]
-%   'AngScale' (20)            : scaling for angle residual sin(Δ)
-%   'Penalty' (1e11)           : initial AL penalty ρ
-%   'EndCluster' (true)        : use end clustering (shorter segments near ends)
-%   'ClusterRatio' (0.85)      : geometric ratio r in (0,1); smaller -> stronger end clustering
-%
-% Outputs:
-%   Etotal      : total energy (Eb + Ex)
-%   XY          : (N+1) x 2 node coordinates
-%   springs     : struct with plotting helpers
-%   err         : final (unscaled) constraint norm
-%   info        : diagnostics and internal arrays
+%   'VectorsAreNormals' (true)
+%   'MaxIter' (1000)
+%   'TolC' (1e-14)          : target norm for end-position constraint (unscaled)
+%   'TolStep' (1e-12)
+%   'Damping' (0.9)         : base step damping
+%   'KappaMax' (2*pi)
+%   'Stretch' (0.6)
+%   'Penalty' (1e10)        : initial AL penalty
+%   'EndCluster' (true)
+%   'ClusterRatio' (0.85)   : smaller -> stronger end clustering (both ends denser)
+%   'DoSOC' (true)          : apply Second-Order Correction each accepted step
+%   'DoLenProjection' (true): apply minimal-norm feasibility projection on lengths
 
 % ---------- options ----------
 p = inputParser;
 addParameter(p,'VectorsAreNormals',true);
 addParameter(p,'MaxIter',1000);
-addParameter(p,'TolC',1e-10);
+addParameter(p,'TolC',1e-14);
 addParameter(p,'TolStep',1e-12);
-addParameter(p,'Damping',0.6);
+addParameter(p,'Damping',0.9);
 addParameter(p,'KappaMax',2*pi);
 addParameter(p,'Stretch',0.6);
-addParameter(p,'AngScale',20);
-addParameter(p,'Penalty',1e11);
+addParameter(p,'Penalty',1e10);
 addParameter(p,'EndCluster',true);
-addParameter(p,'ClusterRatio',0.85);
+addParameter(p,'ClusterRatio',0.8);
+addParameter(p,'DoSOC',true);
+addParameter(p,'DoLenProjection',true);
 parse(p,varargin{:});
 opt = p.Results;
 
 % ---------- helpers ----------
-wrap  = @(th) atan2(sin(th),cos(th));  % wrap angle to [-pi,pi]
-v2ang = @(v) atan2(v(2),v(1));         % angle of a 2D vector
-nrm1  = @(v) v./max(norm(v),eps);      % safe normalization
+wrap  = @(th) atan2(sin(th),cos(th));
+v2ang = @(v) atan2(v(2),v(1));
+nrm1  = @(v) v./max(norm(v),eps);
 
 % ---------- convert normals -> tangents if requested ----------
 if opt.VectorsAreNormals
@@ -63,106 +62,116 @@ thetaA = v2ang(vecA1);  thetaB = v2ang(vecB1);
 
 % ---------- constants ----------
 if N < 2, error('N must be >= 2.'); end
-K  = N-1;                 % number of hinges
-EI = E*b*t^3/12;          % bending rigidity
-EA = E*b*t;               % axial rigidity
+K  = N-1;                 % total hinges
+Kv = K-1;                 % free hinges after eliminating the last one
+EI = E*b*t^3/12;
+EA = E*b*t;
 
 % ---------- reference segmentation (TRUE end clustering) ----------
 if opt.EndCluster
-    a0vec = href_end_cluster(L0, N, opt.ClusterRatio); % N x 1, ends are shortest
+    a0vec = href_end_cluster(L0, N, opt.ClusterRatio); % N x 1; ends shortest
 else
     a0vec = (L0/N)*ones(N,1);
 end
-% representative hinge length = average of adjacent segments
 hhinge = 0.5*(a0vec(1:end-1) + a0vec(2:end));          % K x 1
 
-% ---------- local stiffness (consistent discrete energy) ----------
-kr_vec = EI ./ hhinge;    % bending torsional stiffness per hinge:   Kb_i = EI / h̄_i
-ka_vec = EA ./ a0vec;     % axial stiffness per segment:              Ka_i = EA / h_i
-
-% Hessian (pure energy), diagonal
-H = diag([kr_vec; ka_vec]);  % size (K+N) x (K+N)
+% ---------- local stiffness ----------
+kr_vec = EI ./ hhinge;          % K x 1 (bending)
+ka_vec = EA ./ a0vec;           % N x 1 (axial)
+krK    = kr_vec(end);           % last hinge stiffness (eliminated one)
+Dk     = diag(kr_vec(1:end-1)); % Kv x Kv
 
 % ---------- initial guess ----------
-kappa = (wrap(thetaB-thetaA)/K)*ones(K,1);   % uniform curvature
-ell   = a0vec;                               % start at reference lengths
-z     = [kappa; ell];
+DeltaTot = wrap(thetaB - thetaA);
+kfree = (DeltaTot/K)*ones(Kv,1);         % uniform over free hinges
+kK    = DeltaTot - sum(kfree);           % exact: kK = thetaB - thetaA - sum(kfree)
+ell   = a0vec;
+z     = [kfree; ell];                    % unknowns: Kv + N
 
-% ---------- box bounds ----------
+% ---------- bounds ----------
 stretch = opt.Stretch;
-lb = [ -opt.KappaMax*ones(K,1);  a0vec.*(1 - stretch) ];
-ub = [  opt.KappaMax*ones(K,1);  a0vec.*(1 + stretch) ];
+lb = [ -opt.KappaMax*ones(Kv,1);  a0vec.*(1 - stretch) ];
+ub = [  opt.KappaMax*ones(Kv,1);  a0vec.*(1 + stretch) ];
 epsb = 1e-12;
-z = min(max(z, lb+epsb), ub-epsb);           % feasible start
+z = min(max(z, lb+epsb), ub-epsb);
 
 % ---------- AL multipliers & penalty ----------
-m      = 3;                  % constraints: gx, gy, gtheta(sin)
+m      = 2;                          % gx, gy (angle is exact now)
 lambda = zeros(m,1);
 rho    = opt.Penalty;
 
-ascale = L0;                 % position constraint scaling
+% Slightly safer scaling for position constraints
+ascale = max(L0, norm(B1 - A1));
 
-% ---------- AL Newton-KKT iteration ----------
+% ---------- iteration ----------
 step_norm = NaN;  c_norm = NaN;
 for it = 1:opt.MaxIter
-
     % unpack
-    kappa = z(1:K);
-    ell   = z(K+1:end);
+    kfree = z(1:Kv); 
+    ell   = z(Kv+1:end);
+    kK    = DeltaTot - sum(kfree);   % exact last hinge
+    kappa = [kfree; kK];             % K x 1
 
-    % geometry: angles, tangents, chain coordinates
-    phi = thetaA + [0; cumsum(kappa(:))];  % N x 1 angles for segments
-    txy = [cos(phi), sin(phi)];            % N x 2 tangents
-    XY  = forward_chain(A1, phi, ell);     % (N+1) x 2 nodes
+    % geometry
+    phi = thetaA + [0; cumsum(kappa)];     % N x 1
+    txy = [cos(phi), sin(phi)];
+    XY  = forward_chain(A1, phi, ell);
 
-    % constraints g(z) = [gx; gy; s_ang*sin(Delta)]
+    % constraints (position only)
     pos_err = (A1(:) + sum(ell(:).*txy,1).' - B1(:));   % 2x1
-    Delta   = phi(end) - thetaB;                        % scalar
-    s_ang   = opt.AngScale;
-    g       = [ pos_err/ascale;  s_ang * sin(Delta) ];  % 3x1
+    g = pos_err/ascale;                                  % scaled 2x1
 
-    % energy gradient ∇E = [Kb.*kappa; Ka.*(ell - a0)]
-    gradE = [kr_vec .* kappa;  ka_vec .* (ell - a0vec)];
+    % ---- energy and gradient (with elimination coupling) ----
+    % Eb = 1/2 * (kfree' Dk kfree + krK*kK^2)
+    % dEb/dkfree = Dk*kfree - krK*kK*1
+    % Hessian wrt kfree: Hk = Dk + krK*(1*1')
+    onesv = ones(Kv,1);
+    gradEb_k = Dk*kfree - krK*kK*onesv;
+    Hk = Dk + krK*(onesv*onesv.');
+    % axial part
+    gradEx_l = ka_vec .* (ell - a0vec);
+    Hl = diag(ka_vec);
+    % total gradient and Hessian (block diagonal)
+    gradE = [gradEb_k; gradEx_l];
+    H     = blkdiag(Hk, Hl);
 
-    % Jacobian A = dg/dz
-    % dPos/dell = t^T
-    dPos_dell = txy.';                    % 2 x N
-    % dPos/dkappa (accumulated downstream effect)
-    dPos_dk = zeros(2,K);
+    % ---- Jacobian A = dg/dz ----
+    % First build dPos/dkappa for all K hinges (like standard HBC)
+    dPos_dk_full = zeros(2,K);
     for k = 1:K
         idx = (k+1):N;
         if ~isempty(idx)
-            dPos_dk(:,k) = [ -sum(ell(idx).*sin(phi(idx)));  sum(ell(idx).*cos(phi(idx))) ];
+            dPos_dk_full(:,k) = [ -sum(ell(idx).*sin(phi(idx)));  sum(ell(idx).*cos(phi(idx))) ];
         end
     end
-    % angle row
-    cD        = cos(Delta);
-    dAng_dk   = s_ang * cD * ones(1,K);
-    dAng_dell = zeros(1,N);
+    % Because kK = DeltaTot - sum(kfree), dkK/dkfree = -1.
+    % Reduced Jacobian wrt kfree: dPos/dkfree = dPos/dk(1:Kv) + dPos/dkK * (-1)
+    dPos_dk = dPos_dk_full(:,1:Kv) - dPos_dk_full(:,end);
+    % dPos/dell = t^T
+    dPos_dell = txy.';                    % 2 x N
 
-    A = [ dPos_dk/ascale,  dPos_dell/ascale;    % 2 x (K+N)
-          dAng_dk,         dAng_dell ];         % 1 x (K+N)
+    A = [ dPos_dk/ascale,  dPos_dell/ascale ];   % 2 x (Kv+N)
 
-    % Augmented Lagrangian KKT system
+    % ---- Augmented Lagrangian KKT system ----
     gradL = gradE + A.'*lambda;
-    KKT  = [ H + rho*(A.'*A),  A.' ;
-             A,                zeros(m,m) ];
-    rhs  = -[ gradL + rho*A.'*g ; g ];
+    KKT = [ H + rho*(A.'*A),  A.' ;
+            A,                zeros(m,m) ];
+    rhs = -[ gradL + rho*A.'*g ; g ];
 
-    sol  = KKT \ rhs;                 % for large N, switch to sparse
-    dz   = sol(1:K+N);
-    dl   = sol(K+N+1:end); %#ok<NASGU>
+    sol = KKT \ rhs;
+    dz  = sol(1:Kv+N);
+    % dl = sol(Kv+N+1:end);   % not used explicitly here
 
     % fraction-to-the-boundary step
     alpha_bd = 1.0;
-    pos = dz > 0;
-    if any(pos), alpha_bd = min(alpha_bd, min( (ub(pos) - z(pos))./dz(pos) )); end
-    neg = dz < 0;
-    if any(neg), alpha_bd = min(alpha_bd, min( (lb(neg) - z(neg))./dz(neg) )); end
+    posmask = dz > 0;
+    if any(posmask), alpha_bd = min(alpha_bd, min( (ub(posmask) - z(posmask))./dz(posmask) )); end
+    negmask = dz < 0;
+    if any(negmask), alpha_bd = min(alpha_bd, min( (lb(negmask) - z(negmask))./dz(negmask) )); end
     if ~isfinite(alpha_bd), alpha_bd = 1.0; end
     alpha_bd = max(0, 0.99*alpha_bd);
 
-    % backtracking on AL merit φ(z) = E(z) + (ρ/2)||g(z)||^2
+    % backtracking on AL merit
     alpha   = min(opt.Damping, alpha_bd);
     [E0, g0] = eval_state(z);
     phi0 = E0 + 0.5*rho*(g0.'*g0);
@@ -173,51 +182,119 @@ for it = 1:opt.MaxIter
         z_try = min(max(z_try, lb+epsb), ub-epsb);
         [E1, g1] = eval_state(z_try);
         phi1 = E1 + 0.5*rho*(g1.'*g1);
-
-        suff_dec = phi1 <= phi0 - c1*alpha*(dz.'*(H + rho*(A.'*A))*dz);
-        if suff_dec || alpha < 1e-8, break; end
+        suff_dec = (phi1 <= phi0 - c1*alpha*(dz.'*(H + rho*(A.'*A))*dz)) || (alpha < 1e-10);
+        if suff_dec, break; end
         alpha = 0.5*alpha;
     end
 
     % accept
-    z = z_try;
+    z = z_try; g = g1; % update to accepted state
 
-    % multiplier update
-    lambda = lambda + rho * g1;
-
-    % diagnostics
-    step_norm = norm(alpha*dz);
-    c_norm    = norm(g1);
-
-    % adapt penalty if constraints stagnate
-    if norm(g1) > 0.7*norm(g0)
-        rho = min(1e8, 5*rho);
+    % ---- stronger penalty growth if constraints stall ----
+    if norm(g1) > 0.25*norm(g0)
+        rho = min(1e12, 10*rho);
     end
 
-    % stopping
+    % === Second-Order Correction (SOC) to drive constraints tighter ===
+    if opt.DoSOC
+        % Recompute Jacobian A and residual g at the accepted point
+        kfree = z(1:Kv); ell = z(Kv+1:end);
+        kK    = DeltaTot - sum(kfree);
+        kappa = [kfree; kK];
+        phi   = thetaA + [0; cumsum(kappa)];
+        txy   = [cos(phi), sin(phi)];
+        pos_err = (A1(:) + sum(ell(:).*txy,1).' - B1(:));
+        g_soc   = pos_err/ascale;
+
+        dPos_dk_full = zeros(2,K);
+        for k = 1:K
+            idx = (k+1):N;
+            if ~isempty(idx)
+                dPos_dk_full(:,k) = [ -sum(ell(idx).*sin(phi(idx)));  sum(ell(idx).*cos(phi(idx))) ];
+            end
+        end
+        dPos_dk   = dPos_dk_full(:,1:Kv) - dPos_dk_full(:,end);
+        dPos_dell = txy.';
+        A_soc     = [ dPos_dk/ascale,  dPos_dell/ascale ];  % 2 x (Kv+N)
+
+        % Minimal-norm correction: solve min ||d|| s.t. A_soc d = -g_soc
+        G   = (A_soc*A_soc.');     % 2x2
+        rhs_soc = -g_soc;
+        dlam = G \ rhs_soc;        % multipliers of LS problem
+        d_soc = A_soc.' * dlam;    % minimal-norm step
+
+        % Bound-safe SOC step
+        alpha_bd2 = 1.0;
+        pos2 = d_soc > 0;
+        if any(pos2), alpha_bd2 = min(alpha_bd2, min( (ub(pos2) - z(pos2))./d_soc(pos2) )); end
+        neg2 = d_soc < 0;
+        if any(neg2), alpha_bd2 = min(alpha_bd2, min( (lb(neg2) - z(neg2))./d_soc(neg2) )); end
+        if ~isfinite(alpha_bd2), alpha_bd2 = 1.0; end
+        alpha_bd2 = max(0, 0.99*alpha_bd2);
+
+        z = z + 0.9*alpha_bd2 * d_soc;
+    end
+
+    % === Optional feasibility projection on lengths only (minimal-norm) ===
+    if opt.DoLenProjection
+        kfree = z(1:Kv); ell = z(Kv+1:end);
+        kK    = DeltaTot - sum(kfree);
+        phi   = thetaA + [0; cumsum([kfree; kK])];
+        txy   = [cos(phi), sin(phi)];
+        pos_err = (A1(:) + sum(ell(:).*txy,1).' - B1(:));   % unscaled
+        if norm(pos_err) > opt.TolC
+            J = txy.';   % 2 x N = d pos / d ell
+            % Minimal-norm correction: solve min ||dell|| s.t. J*dell = -pos_err
+            dell = - J.' * ((J*J.') \ pos_err);
+            % bounds on lengths
+            alpha_bd3 = 1.0;
+            pos3 = dell > 0;
+            if any(pos3), alpha_bd3 = min(alpha_bd3, min( (ub(Kv+1:end) - ell(pos3))./dell(pos3) )); end
+            neg3 = dell < 0;
+            if any(neg3), alpha_bd3 = min(alpha_bd3, min( (lb(Kv+1:end) - ell(neg3))./dell(neg3) )); end
+            if ~isfinite(alpha_bd3), alpha_bd3 = 1.0; end
+            alpha_bd3 = max(0, 0.99*alpha_bd3);
+            ell = ell + 0.95*alpha_bd3 * dell;
+            z(Kv+1:end) = ell;
+        end
+    end
+
+    % diagnostics for stopping
+    step_norm = norm(alpha*dz);
+    kfree = z(1:Kv); ell = z(Kv+1:end);
+    kK    = DeltaTot - sum(kfree);
+    kappa = [kfree; kK];
+    phi = thetaA + [0; cumsum(kappa)];
+    txy = [cos(phi), sin(phi)];
+    pos_err = (A1(:) + sum(ell(:).*txy,1).' - B1(:));
+    c_norm  = norm(pos_err);   % unscaled for stopping
+
     if step_norm < opt.TolStep && c_norm < opt.TolC
         break;
     end
 end
 
-% ---------- final geometry and energy ----------
-kappa = z(1:K); ell = z(K+1:end);
-phi = thetaA + [0; cumsum(kappa(:))];
+% ---------- final geometry & energies ----------
+kfree = z(1:Kv);
+ell   = z(Kv+1:end);
+kK    = DeltaTot - sum(kfree);
+kappa = [kfree; kK];
+
+phi = thetaA + [0; cumsum(kappa)];
 txy = [cos(phi), sin(phi)];
 XY  = forward_chain(A1, phi, ell);
 
-Eb = 0.5*sum( kr_vec .* (kappa.^2) );
+Eb = 0.5*( kfree.'*Dk*kfree + krK*kK^2 );
 Ex = 0.5*sum( ka_vec .* ((ell - a0vec).^2) );
 Etotal = Eb + Ex;
 
 springs.axial      = [XY(1:end-1,1) XY(1:end-1,2) XY(2:end,1) XY(2:end,2)];
 springs.rotational = XY(2:end-1,:);
 
-% final (unscaled) constraint
+% report (both unscaled and scaled)
 pos_err = (A1(:) + sum(ell(:).*txy,1).' - B1(:));
-Delta   = phi(end) - thetaB;
-g_final = [ pos_err;  opt.AngScale * sin(Delta) ];
-err = norm(g_final);
+err = norm(pos_err);
+g_scaled = pos_err/ascale;
 
 % info
 info.iters    = it;
@@ -229,24 +306,25 @@ info.kappa    = kappa;
 info.ell      = ell;
 info.lambda   = lambda;
 info.rho      = rho;
-info.lb       = lb;
-info.ub       = ub;
-info.constr   = g_final;
+info.constr_unscaled = pos_err;
+info.constr_scaled   = g_scaled;
 
-fprintf('HBC(AL): it=%d, ||g||=%.3e, step=%.3e, E=%.6g (Eb=%.6g, Ex=%.6g), rho=%g\n',...
-    it, err, step_norm, Etotal, Eb, Ex, rho);
+fprintf('HBC exact-angle + AL: it=%d, ||g_pos||=%.3e (scaled=%.3e), step=%.3e, E=%.6g (Eb=%.6g, Ex=%.6g), rho=%g\n',...
+    it, err, norm(g_scaled), step_norm, Etotal, Eb, Ex, rho);
 
 % ---------- nested: evaluate E(z) & g(z) ----------
     function [E, gvec] = eval_state(zvec)
-        k = zvec(1:K); L = zvec(K+1:end);
-        ph = thetaA + [0; cumsum(k(:))];
+        kf = zvec(1:Kv); L = zvec(Kv+1:end);
+        kKloc = DeltaTot - sum(kf);
+        kvec  = [kf; kKloc];
+        ph = thetaA + [0; cumsum(kvec)];
         tx = [cos(ph), sin(ph)];
         pos_loc = (A1(:) + sum(L(:).*tx,1).' - B1(:));
-        dlt     = ph(end) - thetaB;
-        gvec    = [ pos_loc/ascale;  opt.AngScale * sin(dlt) ];
-        Eb_ = 0.5*sum( kr_vec .* (k.^2) );
+        % energy
+        Eb_ = 0.5*( kf.'*Dk*kf + krK*kKloc^2 );
         Ex_ = 0.5*sum( ka_vec .* ((L - a0vec).^2) );
         E   = Eb_ + Ex_;
+        gvec = pos_loc/ascale;  % scaled position constraints
     end
 end
 
