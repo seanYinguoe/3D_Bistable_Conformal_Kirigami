@@ -1,10 +1,6 @@
 % Create an interactive figure for deploying hexagon unit depending on
 % deploying angle phi
-<<<<<<< Updated upstream
-function interactive_hexagon(edgeLen,l1,l2,l3,l4,beta,t)
-=======
 function interactive_hexagon(edgeLen,l1,l4,beta,t)
->>>>>>> Stashed changes
     % Create a figure
     fig = figure('Position', [100, 100, 800, 800]); % Set figure size: left, bottom, width, height
 

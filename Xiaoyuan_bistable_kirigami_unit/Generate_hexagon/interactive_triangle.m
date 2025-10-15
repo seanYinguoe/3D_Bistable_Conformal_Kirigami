@@ -20,8 +20,9 @@ function interactive_triangle(edgeLen,l1,l4,beta,t)
     % colour = {'white', 'black', 'black', 'black'};
     colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255};
 
-    % Create the hexagon unit
-    [triangle,alpha_1_optimal,alpha_2_optimal] = triangle_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
+    % Create the triangle unit
+    %[triangle,alpha_1_optimal,alpha_2_optimal] = triangle_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
+    [triangle,~] = deform_triangle_isotropic(delta,edgeLen,l1,l4,beta,t);
 
     % Add slider in the bottom half
     slider_handle = uicontrol(fig, 'Style', 'slider', 'Min', strain_min*edgeLen, 'Max', strain_max*edgeLen, 'Value', delta, ...
@@ -36,7 +37,8 @@ function interactive_triangle(edgeLen,l1,l4,beta,t)
         delta = get(hObject, 'Value');
 
         % Create the updated hexagon unit
-        triangle = triangle_unit(alpha_1_optimal, alpha_2_optimal,delta, beta, edgeLen, l1,l4,t);
+        %triangle = triangle_unit(alpha_1_optimal, alpha_2_optimal,delta, beta, edgeLen, l1,l4,t);
+        [triangle,~] = deform_triangle_isotropic(delta,edgeLen,l1,l4,beta,t);
 
         % Clear the current plot and redraw
         clf(fig);
@@ -58,7 +60,8 @@ function interactive_triangle(edgeLen,l1,l4,beta,t)
     end
 
     % Plot initial hexagon
-    plot_triangle(triangle_unit(alpha_1_optimal, alpha_2_optimal,delta, beta, edgeLen, l1,l4,t),colour);
+    %plot_triangle(triangle_unit(alpha_1_optimal, alpha_2_optimal,delta, beta, edgeLen, l1,l4,t),colour);
+    plot_triangle(triangle,colour);
 end
 
 

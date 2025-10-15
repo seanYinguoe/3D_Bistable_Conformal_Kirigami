@@ -12,7 +12,7 @@ for i = 1:n_step
     strain(i) = delta(i)/edgeLen;
     % Compute energy for current configuration
     try
-        [~, E] = deform_triangle_semi(delta(i),edgeLen,l1,l4,beta,t);
+        [~, E] = deform_triangle_isotropic(delta(i),edgeLen,l1,l4,beta,t);
         U_total(i) = E;
     catch ME
         warning('Step %.3f failed: %s', delta(i), ME.message);

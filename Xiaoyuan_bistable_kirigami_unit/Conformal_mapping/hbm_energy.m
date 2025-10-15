@@ -1,7 +1,6 @@
 function [Etotal, XY, springs, err, info] = hbm_energy(L0, A1,B1, vecA1,vecB1, N, E, b, t, varargin)
 % Hencky bar-chain (bending + axial) with end clustering and EXACT right-end angle.
-% - Keeps your AL-Newton KKT structure (Augmented Lagrangian with bounds).
-% - Exact enforcement of right-end angle: phi_N == thetaB (last hinge eliminated).
+% - Augmented Lagrangian with bounds.
 % - Position constraints are tightened via:
 %     * stronger penalty schedule,
 %     * Second-Order Correction (SOC),
@@ -12,7 +11,7 @@ function [Etotal, XY, springs, err, info] = hbm_energy(L0, A1,B1, vecA1,vecB1, N
 %   L0          : undeformed centerline length
 %   A1,B1       : end positions in the deformed configuration (2x1 each)
 %   vecA1,vecB1 : end directions (normals if 'VectorsAreNormals'==true; else tangents)
-%   N           : number of links (>=2). Hinges K = N-1
+%   N           : number of links (>=2). number of hinges K = N-1
 %   E,b,t       : material & section (EI = E*b*t^3/12, EA = E*b*t)
 %
 % Name-Value options:
@@ -29,7 +28,9 @@ function [Etotal, XY, springs, err, info] = hbm_energy(L0, A1,B1, vecA1,vecB1, N
 %   'DoSOC' (true)          : apply Second-Order Correction each accepted step
 %   'DoLenProjection' (true): apply minimal-norm feasibility projection on lengths
 
-% ---------- options ----------
+
+%% Define parameters
+% options
 p = inputParser;
 addParameter(p,'VectorsAreNormals',true);
 addParameter(p,'MaxIter',1000);
@@ -40,18 +41,18 @@ addParameter(p,'KappaMax',2*pi);
 addParameter(p,'Stretch',0.6);
 addParameter(p,'Penalty',1e10);
 addParameter(p,'EndCluster',true);
-addParameter(p,'ClusterRatio',0.8);
+addParameter(p,'ClusterRatio',0.93); % 0.7 - 0.9
 addParameter(p,'DoSOC',true);
-addParameter(p,'DoLenProjection',true);
+addParameter(p,'DoLenProjection',false);
 parse(p,varargin{:});
 opt = p.Results;
 
-% ---------- helpers ----------
+% helpers
 wrap  = @(th) atan2(sin(th),cos(th));
 v2ang = @(v) atan2(v(2),v(1));
 nrm1  = @(v) v./max(norm(v),eps);
 
-% ---------- convert normals -> tangents if requested ----------
+% convert normals -> tangents if requested
 if opt.VectorsAreNormals
     vecA1 = normal_to_tangent(vecA1, A1, B1);
     vecB1 = normal_to_tangent(vecB1, A1, B1);
@@ -60,54 +61,52 @@ else
 end
 thetaA = v2ang(vecA1);  thetaB = v2ang(vecB1);
 
-% ---------- constants ----------
+% constants
 if N < 2, error('N must be >= 2.'); end
 K  = N-1;                 % total hinges
 Kv = K-1;                 % free hinges after eliminating the last one
 EI = E*b*t^3/12;
 EA = E*b*t;
 
-% ---------- reference segmentation (TRUE end clustering) ----------
-if opt.EndCluster
+% reference segmentation
+if opt.EndCluster % end clustering
     a0vec = href_end_cluster(L0, N, opt.ClusterRatio); % N x 1; ends shortest
-else
+else % distrubuted evenly
     a0vec = (L0/N)*ones(N,1);
 end
 hhinge = 0.5*(a0vec(1:end-1) + a0vec(2:end));          % K x 1
 
-% ---------- local stiffness ----------
+% local stiffness
 kr_vec = EI ./ hhinge;          % K x 1 (bending)
 ka_vec = EA ./ a0vec;           % N x 1 (axial)
 krK    = kr_vec(end);           % last hinge stiffness (eliminated one)
 Dk     = diag(kr_vec(1:end-1)); % Kv x Kv
 
-% ---------- initial guess ----------
+% initial guess
 DeltaTot = wrap(thetaB - thetaA);
 kfree = (DeltaTot/K)*ones(Kv,1);         % uniform over free hinges
 kK    = DeltaTot - sum(kfree);           % exact: kK = thetaB - thetaA - sum(kfree)
 ell   = a0vec;
-z     = [kfree; ell];                    % unknowns: Kv + N
+z     = [kfree; ell];                    % optimised variables(rotatioanl angle; elongations)
 
-% ---------- bounds ----------
+% upper and lower bounds
 stretch = opt.Stretch;
 lb = [ -opt.KappaMax*ones(Kv,1);  a0vec.*(1 - stretch) ];
 ub = [  opt.KappaMax*ones(Kv,1);  a0vec.*(1 + stretch) ];
 epsb = 1e-12;
 z = min(max(z, lb+epsb), ub-epsb);
 
-% ---------- AL multipliers & penalty ----------
+% AL multipliers & penalty
 m      = 2;                          % gx, gy (angle is exact now)
 lambda = zeros(m,1);
 rho    = opt.Penalty;
-
-% Slightly safer scaling for position constraints
 ascale = max(L0, norm(B1 - A1));
 
-% ---------- iteration ----------
+%% optimisation
 step_norm = NaN;  c_norm = NaN;
 for it = 1:opt.MaxIter
     % unpack
-    kfree = z(1:Kv); 
+    kfree = z(1:Kv);
     ell   = z(Kv+1:end);
     kK    = DeltaTot - sum(kfree);   % exact last hinge
     kappa = [kfree; kK];             % K x 1
@@ -117,11 +116,11 @@ for it = 1:opt.MaxIter
     txy = [cos(phi), sin(phi)];
     XY  = forward_chain(A1, phi, ell);
 
-    % constraints (position only)
+    % constraints(angle has already been considered)
     pos_err = (A1(:) + sum(ell(:).*txy,1).' - B1(:));   % 2x1
     g = pos_err/ascale;                                  % scaled 2x1
 
-    % ---- energy and gradient (with elimination coupling) ----
+    % energy and gradient (with elimination coupling)
     % Eb = 1/2 * (kfree' Dk kfree + krK*kK^2)
     % dEb/dkfree = Dk*kfree - krK*kK*1
     % Hessian wrt kfree: Hk = Dk + krK*(1*1')
@@ -135,7 +134,7 @@ for it = 1:opt.MaxIter
     gradE = [gradEb_k; gradEx_l];
     H     = blkdiag(Hk, Hl);
 
-    % ---- Jacobian A = dg/dz ----
+    % Jacobian A = dg/dz
     % First build dPos/dkappa for all K hinges (like standard HBC)
     dPos_dk_full = zeros(2,K);
     for k = 1:K
@@ -152,10 +151,10 @@ for it = 1:opt.MaxIter
 
     A = [ dPos_dk/ascale,  dPos_dell/ascale ];   % 2 x (Kv+N)
 
-    % ---- Augmented Lagrangian KKT system ----
+    % Augmented Lagrangian KKT system
     gradL = gradE + A.'*lambda;
     KKT = [ H + rho*(A.'*A),  A.' ;
-            A,                zeros(m,m) ];
+        A,                zeros(m,m) ];
     rhs = -[ gradL + rho*A.'*g ; g ];
 
     sol = KKT \ rhs;
@@ -235,26 +234,57 @@ for it = 1:opt.MaxIter
         z = z + 0.9*alpha_bd2 * d_soc;
     end
 
-    % === Optional feasibility projection on lengths only (minimal-norm) ===
+    % Optional feasibility projection on lengths only (minimal-norm)
     if opt.DoLenProjection
         kfree = z(1:Kv); ell = z(Kv+1:end);
         kK    = DeltaTot - sum(kfree);
         phi   = thetaA + [0; cumsum([kfree; kK])];
         txy   = [cos(phi), sin(phi)];
         pos_err = (A1(:) + sum(ell(:).*txy,1).' - B1(:));   % unscaled
+
         if norm(pos_err) > opt.TolC
             J = txy.';   % 2 x N = d pos / d ell
+
             % Minimal-norm correction: solve min ||dell|| s.t. J*dell = -pos_err
-            dell = - J.' * ((J*J.') \ pos_err);
-            % bounds on lengths
+            % Stabilize the 2x2 normal equations with a tiny Tikhonov term.
+            JJt = J*J.';                  % 2x2
+            reg = 1e-15 * trace(JJt);
+            dlam = (JJt + reg*eye(2)) \ (-pos_err);
+
+            dell = J.' * dlam;            % N x 1
+            % Make sure everything is column vectors
+            ell  = ell(:);  dell = dell(:);
+
+            % Bound-safe step length (fraction-to-the-boundary) on lengths only
+            ubL = ub(Kv+1:end);  ubL = ubL(:);
+            lbL = lb(Kv+1:end);  lbL = lbL(:);
+
             alpha_bd3 = 1.0;
-            pos3 = dell > 0;
-            if any(pos3), alpha_bd3 = min(alpha_bd3, min( (ub(Kv+1:end) - ell(pos3))./dell(pos3) )); end
-            neg3 = dell < 0;
-            if any(neg3), alpha_bd3 = min(alpha_bd3, min( (lb(Kv+1:end) - ell(neg3))./dell(neg3) )); end
+
+            idxP = dell > 0;                  % moving up -> check upper bound
+            if any(idxP)
+                num = ubL(idxP) - ell(idxP);
+                den = dell(idxP);
+                % avoid division by ~0
+                den = max(den, 1e-16);
+                alpha_bd3 = min(alpha_bd3, min(num ./ den));
+            end
+
+            idxN = dell < 0;                  % moving down -> check lower bound
+            if any(idxN)
+                num = lbL(idxN) - ell(idxN);
+                den = dell(idxN);
+                den = min(den, -1e-16);
+                alpha_bd3 = min(alpha_bd3, min(num ./ den));
+            end
+
             if ~isfinite(alpha_bd3), alpha_bd3 = 1.0; end
             alpha_bd3 = max(0, 0.99*alpha_bd3);
+
+            % apply a conservative projection
             ell = ell + 0.95*alpha_bd3 * dell;
+
+            % write back
             z(Kv+1:end) = ell;
         end
     end
@@ -365,10 +395,10 @@ eps = (1 - r);                   % small epsilon; smaller r => smaller eps
 
 % segment centers in (0,1)
 s = ((1:N)' - 0.5)/N;
-d = min(s, 1 - s);               % distance to nearest end
+d = min(s, 1 - s);               % distance to nearest end(left or right)
 
 % KEY: weight small at ends, large in middle
-w = (eps + d).^p;                % <-- NOT inverse power
+w = (eps + d).^p;
 
 % normalize to total length L0
 href = (w / sum(w)) * L0;
