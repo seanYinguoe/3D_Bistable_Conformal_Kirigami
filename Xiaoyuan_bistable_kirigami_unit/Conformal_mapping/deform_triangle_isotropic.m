@@ -24,9 +24,9 @@ l6 = (2/sqrt(3)) .* sin(pi/3 - beta) .* (l1 - 0.5*l4) ...
      - cos(pi/3 - beta) .* l4;
 l5 = ( (sqrt(3)/2) .* l4 + sin(beta) .* l6 ) ./ sin(pi/3 - beta);
 l3 = l6 - l5 - 1.5*l2 ...
-     - l2 .* ( (sqrt(3)/2) .* (cos(pi/3 - beta) ./ sin(pi/3 - beta)) );
+     - l2 .* ( (sqrt(3)/2) .* (cos(pi/3 - beta) ./ sin(pi/3 - beta)) ); % length of inner triangle
 R = sqrt(3)/3 * l3;
-N=30; E=4.3e11; b=1.0;
+N=10; E=4.3e11; b=1.0;
 %% Generate uniformaly deployed triangle as initial guess
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
@@ -59,7 +59,7 @@ theta0 = atan2(B_orig(2)-centroid(2), B_orig(1)-centroid(1));
         vecA  = nrm1( rotrow(vecA0,  deltaTilt) );
         vecB  = nrm1( rotrow(vecB0,  deltaTilt) );
         % single ligament energy from hbm_energy (L0 = l2)
-        [E_lig, ~, ~, ~] = hbm_energy(l2, d1, B, vecA, vecB, N, E, b, t, ...
+        [E_lig] = hbm_energy(l2, d1, B, vecA, vecB, N, E, b, t, ...
                 'VectorsAreNormals', true);
 
         % non-overlap penalty
