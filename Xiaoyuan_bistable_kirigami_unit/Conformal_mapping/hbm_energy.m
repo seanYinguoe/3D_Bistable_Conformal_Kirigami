@@ -41,7 +41,7 @@ addParameter(p,'KappaMax',2*pi);
 addParameter(p,'Stretch',0.6);
 addParameter(p,'Penalty',1e10);
 addParameter(p,'EndCluster',true);
-addParameter(p,'ClusterRatio',0.93); % 0.7 - 0.9
+addParameter(p,'ClusterRatio',0.9); % 0.7 - 0.9
 addParameter(p,'DoSOC',true);
 addParameter(p,'DoLenProjection',false);
 parse(p,varargin{:});
