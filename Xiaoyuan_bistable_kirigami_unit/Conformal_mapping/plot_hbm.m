@@ -17,8 +17,6 @@
 % vecB1  = nrm1( rotrow(vecB0,  tilt_B1) );
 % L0 = norm(B1-A1);
 % N=20; E=4.3e11; b=1.0; t=0.015*edgeLen;I = b*t^3/12;EI = E*I;
-% i = 1;
-% for N = 150:5:200
 %% simply support beam
 % Example data
 L0 = 1;
@@ -26,9 +24,9 @@ A0=[0,0]; B0=[1,0];
 A1=[0,0]; B1=[1,0];
 vecA0 = [0,1];
 vecB0 = [0,1];
-vecA1=[cos(pi/2-pi/10),sin(pi/2-pi/10)]; vecB1=[cos(pi/2-pi/10),sin(pi/2-pi/10)];      % clamped end directions (normals)
+vecA1=[cos(pi/2-pi/10),sin(pi/2-pi/10)]; vecB1=[cos(pi/2+pi/10),sin(pi/2+pi/10)];      % clamped end directions (normals)
 %vecA1=[cos(pi/2),sin(pi/2)]; vecB1=[cos(pi/2),sin(pi/2)];      % clamped end directions (normals)
-N=20;
+N=30;
 E=4.3e11; b=1.0; t=0.01;I = b*t^3/12;
 
 % Run solver (returns deformed config only)
