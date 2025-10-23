@@ -1,4 +1,4 @@
-function [Delta_out, E_total, Triangles] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t)
+function [Delta_out, E_total] = deform_triangle_isotropic2(delta, edgeLen, l1, l4, beta, t)
 % DEFORM_TRIANGLE_ISOTROPIC (warm start, N=20, triangle_unit-based clamps)
 % Inputs:
 %   delta     : scalar or vector of signed edge-length changes (+ extend, - shorten)
@@ -10,7 +10,6 @@ function [Delta_out, E_total, Triangles] = deform_triangle_isotropic(delta, edge
 % Outputs:
 %   Delta_out : the input delta as a column vector (displacements)
 %   E_total   : total energy (3 ligaments) at each step
-%   Triangles : 1 x nSteps cell; each is a 45x2 snapshot (your indexing)
 %
 % Notes:
 %   - Left clamp direction:  vecA0 = (d1_ - d1), then rotate by +pi/6.
@@ -43,7 +42,6 @@ Delta      = delta(:);
 nSteps     = numel(Delta);
 Delta_out  = Delta;
 E_total    = nan(nSteps,1);
-Triangles  = cell(1,nSteps);
 
 %% ----------------- initial theta (centroid -> base-center) -----------------
 edge0    = edgeLen + Delta(1);
@@ -125,26 +123,15 @@ for k = 1:nSteps
     % -------- finalize at converged theta_it --------
     [E_one, pack, z0] = eval_one_lig(theta_it, d1, d1_, Ck, R, ...
                                      l2, N, E, b, t, z0);
-    A_new = pack.A; B_new = pack.B;
+    B_new = pack.B;
     C_new = Ck + (B_new - Ck) * rot2(-2*pi/3);  % third inner vertex
 
-    % assemble snapshot with your indexing
-    tri(43,:) = A_new; tri(44,:) = B_new; tri(45,:) = C_new;
-    % filaments (your original pattern; thickness offset along chord)
-    tri(32,:) = tri(20,:);  tri(33,:) = tri(44,:);
-    tri(34,:) = tri(33,:) + t/(norm(A_new-B_new)+eps) * (A_new-B_new);
-    tri(37,:) = tri(45,:);  tri(36,:) = tri(24,:);
-    tri(38,:) = tri(37,:) + t/(norm(B_new-C_new)+eps) * (B_new-C_new);
-    tri(40,:) = tri(28,:);  tri(41,:) = tri(43,:);
-    tri(42,:) = tri(41,:) + t/(norm(C_new-A_new)+eps) * (C_new-A_new);
-
-    Triangles{k} = tri;
     E_total(k)   = 3 * E_one;
 
     % update warm-start history
     theta_prev2 = have_prev * theta + (~have_prev)*[];
     theta       = theta_it;
-    B_prev      = B_new;   C_prev = Ck; %#ok<NASGU>
+    B_prev      = B_new;   C_prev = C_new; %#ok<NASGU>
     have_prev   = true;
 end
 end
@@ -160,7 +147,7 @@ unit  = @(v) (v(:).'/max(norm(v),eps));
 
 % inner triangle vertices
 B = Ck + R * [cos(theta), sin(theta)];
-A = Ck + (B - Ck) * rot2( 2*pi/3);
+A = Ck + (B - Ck) * rot2(2*pi/3);
 % C3 is not needed for energy here
 
 % clamp directions AS TANGENTS (per your correction), then rotate +pi/6
