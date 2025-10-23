@@ -34,16 +34,17 @@ function [Etotal, XY, springs, err, info] = hbm_energy(L0, A1,B1, vecA1,vecB1, N
 p = inputParser;
 addParameter(p,'VectorsAreNormals',true);
 addParameter(p,'MaxIter',1000);
-addParameter(p,'TolC',1e-14);
+addParameter(p,'TolC',1e-10);
 addParameter(p,'TolStep',1e-12);
 addParameter(p,'Damping',0.9);
 addParameter(p,'KappaMax',2*pi);
 addParameter(p,'Stretch',0.6);
-addParameter(p,'Penalty',1e10);
+addParameter(p,'Penalty',1e7);
 addParameter(p,'EndCluster',true);
-addParameter(p,'ClusterRatio',0.9); % 0.7 - 0.9
+addParameter(p,'ClusterRatio',0.85); % 0.7 - 0.9
 addParameter(p,'DoSOC',true);
 addParameter(p,'DoLenProjection',false);
+addParameter(p,'z0',[]);
 parse(p,varargin{:});
 opt = p.Results;
 
@@ -83,11 +84,14 @@ krK    = kr_vec(end);           % last hinge stiffness (eliminated one)
 Dk     = diag(kr_vec(1:end-1)); % Kv x Kv
 
 % initial guess
-DeltaTot = wrap(thetaB - thetaA);
-kfree = (DeltaTot/K)*ones(Kv,1);         % uniform over free hinges
-kK    = DeltaTot - sum(kfree);           % exact: kK = thetaB - thetaA - sum(kfree)
-ell   = a0vec;
-z     = [kfree; ell];                    % optimised variables(rotatioanl angle; elongations)
+DeltaTot = wrap(thetaB - thetaA);     % total rotation needed
+if ~isempty(opt.z0) && numel(opt.z0) == (Kv + N)
+    z = opt.z0(:);                    % warm-start: [kfree; ell]
+else
+    kfree = (DeltaTot / K) * ones(Kv,1);   % distribute over free hinges
+    ell   = a0vec;                          % start at reference lengths
+    z     = [kfree; ell];
+end
 
 % upper and lower bounds
 stretch = opt.Stretch;
@@ -121,9 +125,6 @@ for it = 1:opt.MaxIter
     g = pos_err/ascale;                                  % scaled 2x1
 
     % energy and gradient (with elimination coupling)
-    % Eb = 1/2 * (kfree' Dk kfree + krK*kK^2)
-    % dEb/dkfree = Dk*kfree - krK*kK*1
-    % Hessian wrt kfree: Hk = Dk + krK*(1*1')
     onesv = ones(Kv,1);
     gradEb_k = Dk*kfree - krK*kK*onesv;
     Hk = Dk + krK*(onesv*onesv.');
@@ -159,7 +160,6 @@ for it = 1:opt.MaxIter
 
     sol = KKT \ rhs;
     dz  = sol(1:Kv+N);
-    % dl = sol(Kv+N+1:end);   % not used explicitly here
 
     % fraction-to-the-boundary step
     alpha_bd = 1.0;
