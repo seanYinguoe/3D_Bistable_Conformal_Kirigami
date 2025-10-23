@@ -46,7 +46,7 @@ theta0 = atan2(B_orig(2)-centroid(2), B_orig(1)-centroid(1));
     function [E_oneLig, pack,XYdef, springs] = energy(th)
         % place B on the circle around centroid
         B = centroid + R*[cos(th), sin(th)];
-        % get A by rotating B around centroid by -120°
+        % get C by rotating B around centroid by -120°
         C = centroid + (B - centroid) * rotation(-2*pi/3);
         % build boundary vectors as
         vecA = (d1 - d1_);   % tangent at the fixed flank end
