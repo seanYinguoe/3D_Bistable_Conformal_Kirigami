@@ -39,7 +39,7 @@ addParameter(p,'TolStep',1e-12);
 addParameter(p,'Damping',0.9);
 addParameter(p,'KappaMax',2*pi);
 addParameter(p,'Stretch',0.6);
-addParameter(p,'Penalty',1e7);
+addParameter(p,'Penalty',1e8);
 addParameter(p,'EndCluster',true);
 addParameter(p,'ClusterRatio',0.85); % 0.7 - 0.9
 addParameter(p,'DoSOC',true);
@@ -158,7 +158,7 @@ for it = 1:opt.MaxIter
         A,                zeros(m,m) ];
     rhs = -[ gradL + rho*A.'*g ; g ];
 
-    sol = KKT \ rhs;
+    sol = KKT \ rhs;  % check the matrix singularity
     dz  = sol(1:Kv+N);
 
     % fraction-to-the-boundary step
