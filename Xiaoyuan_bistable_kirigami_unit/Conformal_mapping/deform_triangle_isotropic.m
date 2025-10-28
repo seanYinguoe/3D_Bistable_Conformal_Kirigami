@@ -1,9 +1,17 @@
-function [triangle_new, E_total] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t)
+function [triangle_new, E_total] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, N)
 % DEFORM_TRIANGLE_ISOTROPIC
-% Continuous deployment using one-layer optimization per delta.
-% - Left end fixed: A = B0 (from delta=0 reference)
-% - B, C move on circle around centroid G(delta)
-% - Optimize x = [phi; e; theta] using fmincon
+% Continuous deployment using fmincon
+% input:
+% - delta: range of displacement
+% - edgeLen: length of unit
+% - l1: length of flanks
+% - l4: thickness of flanks
+% - beta: tilting angle of flanks
+% - t: thickness of filament
+% - N: number of segments we use in our HBM model
+% output:
+% - triangle_new: deformed configuration
+% - E_total: total energy of three ligaments
 
 %% Helper
 wrap  = @(th) atan2(sin(th), cos(th));
@@ -31,7 +39,13 @@ alphaL = -pi/6 + beta;                % left tangent angle
 E_total   = nan(1, nD);
 theta_all = nan(1, nD);
 theta_prev = -pi + beta;             % initial guess
-r_clust = 0.85; p_clust = 2.0;        % clustering parameters
+
+% input initial guess for optimisation
+K = N-1;  % number of torsional spring
+DeltaTot = wrap(theta_prev + pi - beta); % total angle difference
+phi_prev = (DeltaTot / K) * ones(K,1); % initial rotational angle of torsional springs
+e_prev   = zeros(N,1); % initial length change in ligaments
+x_prev = [phi_prev; e_prev; theta_prev]; % initial guess
 
 %% Loop over deltas
 for k = 1:nD
@@ -41,10 +55,13 @@ for k = 1:nD
     params = struct('t',t,'E',Emod,'b',b,'beta',beta,'G',G,'B_left',B_left,...
                     'r_vertex',r_vertex,'l2',l2,'l3',l3,'alphaL',alphaL);
 
-    [E_one, pack] = energy_lig(theta_prev, 10, params); % N=10 segments
+    [E_one, pack] = energy_lig(x_prev, N, params); % N=10 segments
     theta_all(k) = pack.theta;
     E_total(k)   = 3 * E_one;               % 3 ligaments total
     theta_prev   = pack.theta;
+    phi_prev = pack.phi;
+    e_prev = pack.e;
+    x_prev = [phi_prev; e_prev; theta_prev];
     last_pack = pack;
 end
 
@@ -79,6 +96,4 @@ figure('Color','w');
 box on;
 plot(delta, E_total, '-o');
 xlabel('\delta'); ylabel('Energy');
-figure()
-plot_triangle(triangle_new);
 end
