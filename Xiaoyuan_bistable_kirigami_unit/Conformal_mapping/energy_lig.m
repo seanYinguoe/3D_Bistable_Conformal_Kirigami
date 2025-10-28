@@ -1,4 +1,4 @@
-function [E_one, pack] = energy_lig(th, N, p)
+function [E_one, pack] = energy_lig(x0, N, p)
 %% ENERGY: Single ligament energy minimization (standalone)
 % Inputs:
 %   th : initial theta guess
@@ -19,12 +19,6 @@ K = N - 1;
 hhinge = 0.5*(a0vec(1:end-1) + a0vec(2:end));
 kb_vec = EI ./ hhinge;
 ks_vec = EA ./ a0vec;
-
-%% Initial guess
-DeltaTot = wrap(th + pi - p.beta);
-phi0 = (DeltaTot / K) * ones(K,1);
-e0   = zeros(N,1);
-x0   = [phi0; e0; th];
 
 %% Bounds
 lb = [ -pi*ones(K,1);   -0.6*a0vec;   -2*pi ];
@@ -89,7 +83,7 @@ opts = optimoptions('fmincon', ...
     'SpecifyObjectiveGradient',true, ...
     'SpecifyConstraintGradient',true, ...
     'Display','off', ...
-    'MaxIterations',200, ...
+    'MaxIterations',100, ...
     'OptimalityTolerance',1e-10, ...
     'ConstraintTolerance',1e-10, ...
     'StepTolerance',1e-12);
