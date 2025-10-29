@@ -2,7 +2,7 @@ function [E_one, pack] = energy_lig(x0, N, p)
 %% ENERGY: Single ligament energy minimization (standalone)
 % Inputs:
 %   th : initial theta guess
-%   N  : number of clustered segments
+%   N  : number of segments
 %   B0 : Left node
 %   p  : struct with fields {t, E, b, beta, G, r_vertex, l2, l3, alphaL}
 
@@ -15,6 +15,7 @@ EA = p.E * (p.b * t_eff);
 
 %% Clustering
 a0vec = href_end_cluster(p.l2, N, 0.9, 2.0);
+%a0vec = p.l2/N * ones(1,N);
 K = N - 1;
 hhinge = 0.5*(a0vec(1:end-1) + a0vec(2:end));
 kb_vec = EI ./ hhinge;
@@ -83,9 +84,9 @@ opts = optimoptions('fmincon', ...
     'SpecifyObjectiveGradient',true, ...
     'SpecifyConstraintGradient',true, ...
     'Display','off', ...
-    'MaxIterations',100, ...
-    'OptimalityTolerance',1e-10, ...
-    'ConstraintTolerance',1e-10, ...
+    'MaxIterations',300, ...
+    'OptimalityTolerance',1e-12, ...
+    'ConstraintTolerance',1e-12, ...
     'StepTolerance',1e-12);
 
 [x_opt, fval] = fmincon(@obj_fun, x0, [], [], [], [], lb, ub, @cons_fun, opts);
@@ -111,5 +112,29 @@ pack = struct('phi',phi,'e',e,'theta',theta,...
         w = ((1 - r) + d).^p;
         href = (w / sum(w)) * L0;
     end
+
+%% Plot the deformed ligament
+ell = a0vec + e;                         % current lengths 
+psi = zeros(N,1);                        % absolute segment angles
+psi(1) = p.alphaL;
+psi(2:end) = p.alphaL + cumsum(phi);
+
+% % Deformed chain
+% XY = zeros(N+1,2);
+% XY(1,:) = p.B_left(:).';
+% for i = 1:N
+%     XY(i+1,:) = XY(i,:) + ell(i)*[cos(psi(i)), sin(psi(i))];
+% end
+% % undefomred chain
+% XY0 = zeros(N+1,2);
+% XY0(1,:) = p.B_left(:).';
+% for i = 1:N
+%     XY0(i+1,:) = XY0(i,:) + a0vec(i)*[cos(p.alphaL), sin(p.alphaL)];
+% end
+% figure; hold on; box on; axis equal;
+% plot(XY(:,1),  XY(:,2),  '-o', 'LineWidth', 1.6, 'MarkerSize', 4, ...
+%     'DisplayName', 'deformed');
+% plot(XY0(:,1),  XY0(:,2),  '--', 'LineWidth', 1.0,'DisplayName', 'undeformed');
+% hold off;
 
 end

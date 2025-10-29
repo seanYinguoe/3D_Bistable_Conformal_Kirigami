@@ -38,8 +38,11 @@ B_left   = tri0(20,:);                   % left anchor
 alphaL = -pi/6 + beta;                % left tangent angle
 E_total   = nan(1, nD);
 theta_all = nan(1, nD);
-theta_prev = -pi + beta;             % initial guess
-
+theta_prev = -pi + beta;             % start with undefomred one
+% centroid = [-sqrt(3)/6*(edgeLen+delta(1)),-1/2*(edgeLen+delta(1))];
+% y = tri0(44,2) - centroid(2);
+% x = tri0(44,1) - centroid(1);
+% theta_prev = atan2(y,x); % start with deformed one
 % input initial guess for optimisation
 K = N-1;  % number of torsional spring
 DeltaTot = wrap(theta_prev + pi - beta); % total angle difference
@@ -96,4 +99,6 @@ figure('Color','w');
 box on;
 plot(delta, E_total, '-o');
 xlabel('\delta'); ylabel('Energy');
+% figure();
+% plot_triangle(triangle_new);
 end
