@@ -58,7 +58,9 @@ for k = 1:nD
     params = struct('t',t,'E',Emod,'b',b,'beta',beta,'G',G,'B_left',B_left,...
                     'r_vertex',r_vertex,'l2',l2,'l3',l3,'alphaL',alphaL);
 
-    [E_one, pack] = energy_lig(x_prev, N, params); % N=10 segments
+    [E_one, pack] = energy_lig(x_prev, N, params); % N=10 segments    
+
+    % Save the reuslt
     theta_all(k) = pack.theta;
     E_total(k)   = 3 * E_one;               % 3 ligaments total
     theta_prev   = pack.theta;
@@ -81,7 +83,6 @@ triangle_new(43,:) = A_new;
 triangle_new(44,:) = B_new;
 triangle_new(45,:) = C_new;
 
-%% Visual filaments
 triangle_new(32,:) = triangle_new(20,:);
 triangle_new(33,:) = triangle_new(44,:);
 triangle_new(34,:) = triangle_new(33,:) + t/(norm(A_new-B_new))*(A_new-B_new);
@@ -95,6 +96,7 @@ triangle_new(41,:) = triangle_new(43,:);
 triangle_new(42,:) = triangle_new(41,:) + t/(norm(C_new-A_new))*(C_new-A_new);
 
 %% Plot
+% Plot energy curve
 figure('Color','w');
 box on;
 plot(delta, E_total, '-o');

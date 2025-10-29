@@ -136,5 +136,4 @@ psi(2:end) = p.alphaL + cumsum(phi);
 %     'DisplayName', 'deformed');
 % plot(XY0(:,1),  XY0(:,2),  '--', 'LineWidth', 1.0,'DisplayName', 'undeformed');
 % hold off;
-
 end
