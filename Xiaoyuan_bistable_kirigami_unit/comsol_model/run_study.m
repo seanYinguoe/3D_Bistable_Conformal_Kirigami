@@ -1,23 +1,24 @@
-delta = 4.5;
 edgeLen = 15;
 l1 = edgeLen * 0.85;
 l4 = edgeLen * 0.05;
 t  = edgeLen * 0.015;
-beta = 0;
+beta = pi/40;
 %% Run convergence study on N
-N = 2:2:50;
-E_total = zeros(size(N));
-for i = 1:size(N,1)
-    Ni = N(i);
-    [~, E_total(i)] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, Ni);
-end
-% Plot figure
-figure;
-plot(N, E_total, '-o');
-xlabel('N');
-ylabel('Total Energy (E_{total})');
-title('Convergence Study on N');
-grid on;
+% N = 5:1:20;
+% E_cluster = zeros(size(N));
+% for i = 1:size(N,2)
+%     Ni = N(i);
+%     [~, E_cluster(i)] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, Ni); % segments cluster
+% end
+% % Plot figure
+% figure; hold on; box on; grid off;
+% plot(N, E_cluster, 'v', 'MarkerSize', 8, ...
+%     'MarkerEdgeColor', 'k', 'MarkerFaceColor', 'none', ...
+%     'LineWidth', 1.2);
+% xlabel('Number of Segments N','FontSize', 16);
+% ylabel('Total Energy','FontSize', 16);
+% title('Convergence Study on N');
+% set(gca, 'FontName', 'Times New Roman', 'FontSize', 12);
 
 %% Compare semi-analytical result with FEA
 % Read FEA result from txt delta 0:0.1:0.55*edgeLen
@@ -38,8 +39,8 @@ E = 4.33e11;
 eps_fem = delta_fem ./ edgeLen;
 
 % Run semi-analyical result
-delta = 0:0.1:0.55*edgeLen;
-N = 8;
+delta = 0:0.1:0.57*edgeLen;
+N = 10;
 [~, U_hbm] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, N);
 eps_hbm = delta./edgeLen;
 
