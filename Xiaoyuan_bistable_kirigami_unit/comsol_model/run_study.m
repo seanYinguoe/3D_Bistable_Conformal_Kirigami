@@ -96,7 +96,7 @@ beta = 0:pi/300:pi/15;
 energy_barrier = zeros(size(beta));
 d_bist = zeros(size(beta));
 for i = 1:size(beta,2)
-    delta = 0: 0.1 : 0.61*edgeLen*(1-sin(beta(i)));
+    delta = 0: 0.05 : 0.61*edgeLen*(1-sin(beta(i)));
     [~, U_hbm] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta(i), t, 8);
     [energy_barrier(i), d_bist(i)] = find_bistable(U_hbm, delta);
 end
@@ -106,7 +106,7 @@ figure()
 box on; grid on;
 plot(beta, energy_barrier, 'r-', 'LineWidth', 2);
 xlabel('Cut inclination \beta', 'FontSize',16);
-ylabel('Energy barrier (N·mm)', 'FontSize',16);
+ylabel('Energy barrier', 'FontSize',16);
 set(gca,'FontName','Times New Roman','FontSize',18,'LineWidth',1.0,'TickDir','out');
 axis square;
 
