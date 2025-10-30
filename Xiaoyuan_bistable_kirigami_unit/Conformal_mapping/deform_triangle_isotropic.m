@@ -101,6 +101,6 @@ figure('Color','w');
 box on;
 plot(delta, E_total, '-o');
 xlabel('\delta'); ylabel('Energy');
-% figure();
-% plot_triangle(triangle_new);
+figure();
+plot_triangle(triangle_new);
 end
