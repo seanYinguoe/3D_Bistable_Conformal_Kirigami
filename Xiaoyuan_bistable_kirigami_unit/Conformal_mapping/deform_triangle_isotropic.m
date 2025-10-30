@@ -97,10 +97,10 @@ triangle_new(42,:) = triangle_new(41,:) + t/(norm(C_new-A_new))*(C_new-A_new);
 
 %% Plot
 % Plot energy curve
-figure('Color','w');
-box on;
-plot(delta, E_total, '-o');
-xlabel('\delta'); ylabel('Energy');
-figure();
-plot_triangle(triangle_new);
+% figure('Color','w');
+% box on;
+% plot(delta, E_total, '-o');
+% xlabel('\delta'); ylabel('Energy');
+% figure();
+% plot_triangle(triangle_new);
 end
