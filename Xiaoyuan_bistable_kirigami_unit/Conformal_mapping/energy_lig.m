@@ -114,10 +114,10 @@ pack = struct('phi',phi,'e',e,'theta',theta,...
     end
 
 %% Plot the deformed ligament
-ell = a0vec + e;                         % current lengths 
-psi = zeros(N,1);                        % absolute segment angles
-psi(1) = p.alphaL;
-psi(2:end) = p.alphaL + cumsum(phi);
+% ell = a0vec + e;                         % current lengths 
+% psi = zeros(N,1);                        % absolute segment angles
+% psi(1) = p.alphaL;
+% psi(2:end) = p.alphaL + cumsum(phi);
 
 % % Deformed chain
 % XY = zeros(N+1,2);
