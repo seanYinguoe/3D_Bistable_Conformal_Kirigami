@@ -1,0 +1,227 @@
+function [E_one, pack] = energy_lig_anisotropic(x0, N, p)
+%% ENERGY: Single ligament energy minimization (standalone)
+% Inputs:
+%   th : initial theta guess
+%   N  : number of segments
+%   B0 : Left node
+%   p  : struct with fields {t, E, b, beta, G, r_vertex, l2, l3, alphaL}
+
+wrap = @(a) atan2(sin(a), cos(a));
+
+%% Material and stiffness
+t_eff = p.t * sqrt(3)/2;
+EI = p.E * (p.b * t_eff^3) / 12;
+EA = p.E * (p.b * t_eff);
+
+%% Clustering
+a0vec = href_end_cluster(p.l2, N, 0.9, 2.0);
+%a0vec = p.l2/N * ones(1,N);
+K = N - 1;
+hhinge = 0.5*(a0vec(1:end-1) + a0vec(2:end));
+kb_vec = EI ./ hhinge;
+ks_vec = EA ./ a0vec;
+
+%% Bounds
+lb = [ -pi*ones(K,1);   -0.6*a0vec;...
+    -pi*ones(K,1);   -0.6*a0vec;...
+    -pi*ones(K,1);   -0.6*a0vec;...
+    -2*pi;   0.8*p.xG;  0.8*p.yG];
+ub = [  pi*ones(K,1);    0.6*a0vec;...
+    pi*ones(K,1);    0.6*a0vec;...
+    pi*ones(K,1);    0.6*a0vec;...
+    2*pi;   1.2*p.xG;  1.2*p.yG];
+
+%% Objective function
+    function [f, g] = obj_fun(x)
+        phiB = x(1:K);
+        eB   = x(K+1:K+N);
+        phiA = x(K+N+1:2*K+N);
+        eA   = x(2*K+N+1:2*K+2*N);
+        phiC = x(2*K+2*N+1:3*K+2*N);
+        eC   = x(3*K+2*N+1:3*K+3*N);
+        f = 0.5*( phiB.'*(kb_vec.*phiB) + eB.'*(ks_vec.*eB) ) + ...
+            0.5*( phiC.'*(kb_vec.*phiC) + eC.'*(ks_vec.*eC) ) + ...
+            0.5*( phiA.'*(kb_vec.*phiA) + eA.'*(ks_vec.*eA) );
+        if nargout > 1
+            g = [kb_vec.*phiB; ks_vec.*eB;...
+                kb_vec.*phiC; ks_vec.*eC;...
+                kb_vec.*phiA; ks_vec.*eA;...
+                0;0;0];
+        end
+    end
+
+%% Constraint function
+    function [c, ceq, gc, gceq] = cons_fun(x)
+        phiB = x(1:K);
+        eB   = x(K+1:K+N);
+        phiA = x(K+N+1:2*K+N);
+        eA   = x(2*K+N+1:2*K+2*N);
+        phiC = x(2*K+2*N+1:3*K+2*N);
+        eC   = x(3*K+2*N+1:3*K+3*N);
+        theta = x(end-2);
+        xG = x(end-1);
+        yG = x(end);
+        G = [xG; yG];
+
+        % ---------- Geometry (几何) ----------
+        % B
+        psiB = zeros(N,1); psiB(1) = p.alphaLB; psiB(2:end) = p.alphaLB + cumsum(phiB);
+        uB  = [cos(psiB), sin(psiB)];
+        upB = [-sin(psiB), cos(psiB)];
+        % A
+        psiA = zeros(N,1); psiA(1) = p.alphaLA; psiA(2:end) = p.alphaLA + cumsum(phiA);
+        uA  = [cos(psiA), sin(psiA)];
+        upA = [-sin(psiA), cos(psiA)];
+        % C
+        psiC = zeros(N,1); psiC(1) = p.alphaLC; psiC(2:end) = p.alphaLC + cumsum(phiC);
+        uC  = [cos(psiC), sin(psiC)];
+        upC = [-sin(psiC), cos(psiC)];
+
+        % ---------- Constraints (约束) ----------
+        res_posB = sum(((a0vec + eB).*uB), 1).' - ( G(:) + p.r_vertex*[cos(theta);               sin(theta)]               - p.B_flank(:));
+        res_angB = sum(phiB) - theta - pi + p.beta;
+
+        res_posA = sum(((a0vec + eA).*uA), 1).' - ( G(:) + p.r_vertex*[cos(theta - 2*pi/3);      sin(theta - 2*pi/3)]      - p.A_flank(:));
+        res_angA = sum(phiA) - theta - pi + p.beta;
+
+        res_posC = sum(((a0vec + eC).*uC), 1).' - ( G(:) + p.r_vertex*[cos(theta + 2*pi/3);      sin(theta + 2*pi/3)]      - p.C_flank(:));
+        res_angC = sum(phiC) - theta - pi + p.beta;
+
+        ceq = [res_posB; res_angB; ...
+            res_posA; res_angA; ...
+            res_posC; res_angC];
+        c = []; gc = [];
+
+        % ---------- Jacobian (gceq = J.' for fmincon; 雅可比) ----------
+        % Column indices（列索引）
+        i_phiB = 1:K;
+        i_eB   = K + (1:N);
+        i_phiA = (K+N) + (1:K);
+        i_eA   = (K+N+K) + (1:N);
+        i_phiC = (K+N+K+N) + (1:K);
+        i_eC   = (K+N+K+N+K) + (1:N);
+        i_th   = 3*K + 3*N + 1;
+        i_xG   = 3*K + 3*N + 2;
+        i_yG   = 3*K + 3*N + 3;
+
+        % Row indices: [posB(2); angB(1); posA(2); angA(1); posC(2); angC(1)]
+        r_posB = 1:2;   r_angB = 3;
+        r_posA = 4:5;   r_angA = 6;
+        r_posC = 7:8;   r_angC = 9;
+
+        % d(pos)/d(e) = u^T
+        JposB_e = uB.';   % 2xN
+        JposA_e = uA.';   % 2xN
+        JposC_e = uC.';   % 2xN
+
+        % d(pos)/d(phi): sum_{j>i} (a0_j + e_j) * up_j
+        JposB_phi = zeros(2,K);
+        JposA_phi = zeros(2,K);
+        JposC_phi = zeros(2,K);
+        for i = 1:K
+            idx = (i+1):N;
+            JposB_phi(:,i) = sum( (a0vec(idx) + eB(idx)) .* upB(idx,:), 1 ).';
+            JposA_phi(:,i) = sum( (a0vec(idx) + eA(idx)) .* upA(idx,:), 1 ).';
+            JposC_phi(:,i) = sum( (a0vec(idx) + eC(idx)) .* upC(idx,:), 1 ).';
+        end
+
+        % d(pos)/d(theta): -r * R'(theta±shift) * [1;0]
+        uthpB = [-sin(theta);             cos(theta)];
+        uthpA = [-sin(theta - 2*pi/3);    cos(theta - 2*pi/3)];
+        uthpC = [-sin(theta + 2*pi/3);    cos(theta + 2*pi/3)];
+        JposB_th = -p.r_vertex * uthpB;   % 2x1
+        JposA_th = -p.r_vertex * uthpA;   % 2x1
+        JposC_th = -p.r_vertex * uthpC;   % 2x1
+
+        % d(ang)/d(·)
+        Jang_phiB = ones(1,K);  Jang_eB = zeros(1,N);  Jang_thB = -1;
+        Jang_phiA = ones(1,K);  Jang_eA = zeros(1,N);  Jang_thA = -1;
+        Jang_phiC = ones(1,K);  Jang_eC = zeros(1,N);  Jang_thC = -1;
+
+        % Initialize J and place blocks
+        J = zeros(9, 3*K + 3*N + 3);
+
+        % ---- B rows ----
+        J(r_posB, i_phiB) = JposB_phi;
+        J(r_posB, i_eB)   = JposB_e;
+        J(r_posB, i_th)   = JposB_th;
+        J(r_posB, [i_xG i_yG]) = -eye(2);                 % d res_posB / d(xG,yG) = -I2
+        J(r_angB, i_phiB) = Jang_phiB;
+        J(r_angB, i_eB)   = Jang_eB;
+        J(r_angB, i_th)   = Jang_thB;
+
+        % ---- A rows ----
+        J(r_posA, i_phiA) = JposA_phi;
+        J(r_posA, i_eA)   = JposA_e;
+        J(r_posA, i_th)   = JposA_th;
+        J(r_posA, [i_xG i_yG]) = -eye(2);                 % d res_posA / d(xG,yG) = -I2
+        J(r_angA, i_phiA) = Jang_phiA;
+        J(r_angA, i_eA)   = Jang_eA;
+        J(r_angA, i_th)   = Jang_thA;
+
+        % ---- C rows ----
+        J(r_posC, i_phiC) = JposC_phi;
+        J(r_posC, i_eC)   = JposC_e;
+        J(r_posC, i_th)   = JposC_th;
+        J(r_posC, [i_xG i_yG]) = -eye(2);                 % d res_posC / d(xG,yG) = -I2
+        J(r_angC, i_phiC) = Jang_phiC;
+        J(r_angC, i_eC)   = Jang_eC;
+        J(r_angC, i_th)   = Jang_thC;
+
+        % fmincon needs nvars x neq（转置）
+        gceq = J.';
+    end
+
+%% Solve optimization
+opts = optimoptions('fmincon', ...
+    'Algorithm','interior-point', ...
+    'SpecifyObjectiveGradient',true, ...
+    'SpecifyConstraintGradient',true, ...
+    'Display','off', ...
+    'MaxIterations',300, ...
+    'OptimalityTolerance',1e-12, ...
+    'ConstraintTolerance',1e-12, ...
+    'StepTolerance',1e-12);
+
+[x_opt, fval] = fmincon(@obj_fun, x0, [], [], [], [], lb, ub, @cons_fun, opts);
+
+%% Output
+phiB  = x_opt(1:K);
+eB    = x_opt(K+1:K+N);
+phiA  = x_opt(K+N+1:2*K+N);
+eA    = x_opt(2*K+N+1:2*K+2*N);
+phiC  = x_opt(2*K+2*N+1:3*K+2*N);
+eC    = x_opt(3*K+2*N+1:3*K+3*N);
+theta = x_opt(end-2);
+xG    = x_opt(end-1);
+yG    = x_opt(end);
+G     = [xG, yG];                 % optimized centroid (质心)
+
+r = p.r_vertex;
+B = G + r * [cos(theta),               sin(theta)];
+C = G + r * [cos(theta + 2*pi/3),      sin(theta + 2*pi/3)];
+
+E_one = fval;
+pack = struct( ...
+    'phiB',  phiB, ...
+    'eB',    eB, ...
+    'phiA',  phiA, ...
+    'eA',    eA, ...
+    'phiC',  phiC, ...
+    'eC',    eC, ...
+    'theta', theta, ...
+    'B',     B, ...
+    'C',     C, ...
+    'xG',    xG, ...
+    'yG',    yG);
+
+    function href = href_end_cluster(L0, N, r, p)
+        % End-clustered segment lengths that sum to L0
+        if nargin < 4, p = 2.0; end
+        r = max(1e-6, min(0.9999, r));
+        s = ((1:N)' - 0.5)/N;
+        d = min(s, 1 - s);
+        w = ((1 - r) + d).^p;
+        href = (w / sum(w)) * L0;
+    end
+end
