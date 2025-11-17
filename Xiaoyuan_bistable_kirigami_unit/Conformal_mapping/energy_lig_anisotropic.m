@@ -25,11 +25,11 @@ ks_vec = EA ./ a0vec;
 lb = [ -pi*ones(K,1);   -0.6*a0vec;...
     -pi*ones(K,1);   -0.6*a0vec;...
     -pi*ones(K,1);   -0.6*a0vec;...
-    -2*pi;   0.8*p.xG;  0.8*p.yG];
+    -2*pi;   1.2*p.xG0;  1.2*p.yG0];
 ub = [  pi*ones(K,1);    0.6*a0vec;...
     pi*ones(K,1);    0.6*a0vec;...
     pi*ones(K,1);    0.6*a0vec;...
-    2*pi;   1.2*p.xG;  1.2*p.yG];
+    2*pi;   0.8*p.xG0;  0.8*p.yG0];
 
 %% Objective function
     function [f, g] = obj_fun(x)
@@ -63,36 +63,36 @@ ub = [  pi*ones(K,1);    0.6*a0vec;...
         yG = x(end);
         G = [xG; yG];
 
-        % ---------- Geometry (几何) ----------
+        % ---------- Geometry----------
         % B
-        psiB = zeros(N,1); psiB(1) = p.alphaLB; psiB(2:end) = p.alphaLB + cumsum(phiB);
+        psiB = zeros(N,1); psiB(1) = p.alphaL_B; psiB(2:end) = p.alphaL_B + cumsum(phiB);
         uB  = [cos(psiB), sin(psiB)];
         upB = [-sin(psiB), cos(psiB)];
         % A
-        psiA = zeros(N,1); psiA(1) = p.alphaLA; psiA(2:end) = p.alphaLA + cumsum(phiA);
+        psiA = zeros(N,1); psiA(1) = p.alphaL_A; psiA(2:end) = p.alphaL_A + cumsum(phiA);
         uA  = [cos(psiA), sin(psiA)];
         upA = [-sin(psiA), cos(psiA)];
         % C
-        psiC = zeros(N,1); psiC(1) = p.alphaLC; psiC(2:end) = p.alphaLC + cumsum(phiC);
+        psiC = zeros(N,1); psiC(1) = p.alphaL_C; psiC(2:end) = p.alphaL_C + cumsum(phiC);
         uC  = [cos(psiC), sin(psiC)];
         upC = [-sin(psiC), cos(psiC)];
 
-        % ---------- Constraints (约束) ----------
+        % ---------- Constraints----------
         res_posB = sum(((a0vec + eB).*uB), 1).' - ( G(:) + p.r_vertex*[cos(theta);               sin(theta)]               - p.B_flank(:));
-        res_angB = sum(phiB) - theta - pi + p.beta;
+        res_angB = sum(phiB) + p.alphaL_B - (theta + 5*pi/6);
 
         res_posA = sum(((a0vec + eA).*uA), 1).' - ( G(:) + p.r_vertex*[cos(theta - 2*pi/3);      sin(theta - 2*pi/3)]      - p.A_flank(:));
-        res_angA = sum(phiA) - theta - pi + p.beta;
+        res_angA = sum(phiA) + p.alphaL_A - (theta + pi/6);
 
         res_posC = sum(((a0vec + eC).*uC), 1).' - ( G(:) + p.r_vertex*[cos(theta + 2*pi/3);      sin(theta + 2*pi/3)]      - p.C_flank(:));
-        res_angC = sum(phiC) - theta - pi + p.beta;
+        res_angC = sum(phiC) + p.alphaL_C - (theta + 3*pi/2);
 
         ceq = [res_posB; res_angB; ...
             res_posA; res_angA; ...
             res_posC; res_angC];
         c = []; gc = [];
 
-        % ---------- Jacobian (gceq = J.' for fmincon; 雅可比) ----------
+        % ---------- Jacobian ----------
         % Column indices（列索引）
         i_phiB = 1:K;
         i_eB   = K + (1:N);

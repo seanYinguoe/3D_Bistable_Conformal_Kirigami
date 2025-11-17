@@ -100,8 +100,6 @@ B = p.G + r * [cos(theta), sin(theta)];
 C = p.G + r * [cos(theta + 2*pi/3), sin(theta + 2*pi/3)];
 
 E_one = fval;
-pack = struct('phi',phi,'e',e,'theta',theta,...
-    'B',B,'C',C,'G',p.G);
 
     function href = href_end_cluster(L0, N, r, p)
         % End-clustered segment lengths that sum to L0
@@ -114,17 +112,19 @@ pack = struct('phi',phi,'e',e,'theta',theta,...
     end
 
 %% Plot the deformed ligament
-% ell = a0vec + e;                         % current lengths 
-% psi = zeros(N,1);                        % absolute segment angles
-% psi(1) = p.alphaL;
-% psi(2:end) = p.alphaL + cumsum(phi);
+ell = a0vec + e;                         % current lengths 
+psi = zeros(N,1);                        % absolute segment angles
+psi(1) = p.alphaL;
+psi(2:end) = p.alphaL + cumsum(phi);
 
-% % Deformed chain
-% XY = zeros(N+1,2);
-% XY(1,:) = p.B_left(:).';
-% for i = 1:N
-%     XY(i+1,:) = XY(i,:) + ell(i)*[cos(psi(i)), sin(psi(i))];
-% end
+% Deformed chain
+XY = zeros(N+1,2);
+XY(1,:) = p.B_left(:).';
+for i = 1:N
+    XY(i+1,:) = XY(i,:) + ell(i)*[cos(psi(i)), sin(psi(i))];
+end
+pack = struct('phi',phi,'e',e,'theta',theta,...
+    'B',B,'C',C,'G',p.G,'XY',XY);
 % % undefomred chain
 % XY0 = zeros(N+1,2);
 % XY0(1,:) = p.B_left(:).';

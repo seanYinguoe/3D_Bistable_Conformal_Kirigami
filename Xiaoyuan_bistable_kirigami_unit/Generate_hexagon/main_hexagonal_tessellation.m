@@ -14,12 +14,13 @@ l4 = 0.05 * edgeLen; % thickness of flank
 l1 = 0.85 * edgeLen; % length of flank(not correct)
 
 % Set the parameters of a unit(variable)
-beta = 0; % titling angle
-t = 0.3; % thickness of filaments
+beta = pi/40; % titling angle
+t  = edgeLen * 0.025; % thickness of filaments
 
 % Set the coulour of display
-colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
-
+%colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
+colour = {'white', [0.9216    0.8863    0.4235
+], [ 0.7059    0.9608    0.4118], [0.9216    0.8863    0.4235]};
 % Set the initial guess of alpha_1 and alpha_2 regarding the displacement delta
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;

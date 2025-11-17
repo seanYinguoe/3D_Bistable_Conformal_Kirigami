@@ -96,11 +96,13 @@ triangle_new(41,:) = triangle_new(43,:);
 triangle_new(42,:) = triangle_new(41,:) + t/(norm(C_new-A_new))*(C_new-A_new);
 
 %% Plot
+% plot(last_pack.XY(:,1),  last_pack.XY(:,2),  '-o', 'LineWidth', 1.6, 'MarkerSize', 4, ...
+%     'DisplayName', 'deformed');
 % Plot energy curve
 % figure('Color','w');
 % box on;
 % plot(delta, E_total, '-o');
 % xlabel('\delta'); ylabel('Energy');
 % figure();
-% plot_triangle(triangle_new);
+% plot_triangle(triangle_new,colour);
 end
