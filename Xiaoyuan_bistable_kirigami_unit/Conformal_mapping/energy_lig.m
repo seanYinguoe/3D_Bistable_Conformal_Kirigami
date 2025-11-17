@@ -51,7 +51,8 @@ ub = [  pi*ones(K,1);    0.6*a0vec;    2*pi ];
 
         % Position closure
         res_pos = sum(((a0vec + e).*u), 1).' - ( p.G(:) + p.r_vertex*[cos(theta); sin(theta)] - p.B_left(:));
-        res_ang = sum(phi) - theta - pi + p.beta;
+        %res_ang = sum(phi) - theta - pi + p.beta;
+        res_ang = sum(phi) + p.alphaL - (theta + 5*pi/6);
 
         ceq = [res_pos; res_ang];
         c = []; gc = [];

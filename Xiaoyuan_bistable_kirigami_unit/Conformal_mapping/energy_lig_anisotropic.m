@@ -20,16 +20,19 @@ K = N - 1;
 hhinge = 0.5*(a0vec(1:end-1) + a0vec(2:end));
 kb_vec = EI ./ hhinge;
 ks_vec = EA ./ a0vec;
+xG = p.xG0;
+yG = p.xG0;
+G = [xG,yG];
 
 %% Bounds
 lb = [ -pi*ones(K,1);   -0.6*a0vec;...
     -pi*ones(K,1);   -0.6*a0vec;...
     -pi*ones(K,1);   -0.6*a0vec;...
-    -2*pi;   1.2*p.xG0;  1.2*p.yG0];
+    -2*pi];
 ub = [  pi*ones(K,1);    0.6*a0vec;...
     pi*ones(K,1);    0.6*a0vec;...
     pi*ones(K,1);    0.6*a0vec;...
-    2*pi;   0.8*p.xG0;  0.8*p.yG0];
+    2*pi];
 
 %% Objective function
     function [f, g] = obj_fun(x)
@@ -46,7 +49,7 @@ ub = [  pi*ones(K,1);    0.6*a0vec;...
             g = [kb_vec.*phiB; ks_vec.*eB;...
                 kb_vec.*phiC; ks_vec.*eC;...
                 kb_vec.*phiA; ks_vec.*eA;...
-                0;0;0];
+                0];
         end
     end
 
@@ -58,10 +61,7 @@ ub = [  pi*ones(K,1);    0.6*a0vec;...
         eA   = x(2*K+N+1:2*K+2*N);
         phiC = x(2*K+2*N+1:3*K+2*N);
         eC   = x(3*K+2*N+1:3*K+3*N);
-        theta = x(end-2);
-        xG = x(end-1);
-        yG = x(end);
-        G = [xG; yG];
+        theta = x(end);
 
         % ---------- Geometry----------
         % B
@@ -101,8 +101,6 @@ ub = [  pi*ones(K,1);    0.6*a0vec;...
         i_phiC = (K+N+K+N) + (1:K);
         i_eC   = (K+N+K+N+K) + (1:N);
         i_th   = 3*K + 3*N + 1;
-        i_xG   = 3*K + 3*N + 2;
-        i_yG   = 3*K + 3*N + 3;
 
         % Row indices: [posB(2); angB(1); posA(2); angA(1); posC(2); angC(1)]
         r_posB = 1:2;   r_angB = 3;
@@ -139,13 +137,13 @@ ub = [  pi*ones(K,1);    0.6*a0vec;...
         Jang_phiC = ones(1,K);  Jang_eC = zeros(1,N);  Jang_thC = -1;
 
         % Initialize J and place blocks
-        J = zeros(9, 3*K + 3*N + 3);
+        J = zeros(9, 3*K + 3*N + 1);
 
         % ---- B rows ----
         J(r_posB, i_phiB) = JposB_phi;
         J(r_posB, i_eB)   = JposB_e;
         J(r_posB, i_th)   = JposB_th;
-        J(r_posB, [i_xG i_yG]) = -eye(2);                 % d res_posB / d(xG,yG) = -I2
+        %J(r_posB, [i_xG i_yG]) = -eye(2);                 % d res_posB / d(xG,yG) = -I2
         J(r_angB, i_phiB) = Jang_phiB;
         J(r_angB, i_eB)   = Jang_eB;
         J(r_angB, i_th)   = Jang_thB;
@@ -154,7 +152,7 @@ ub = [  pi*ones(K,1);    0.6*a0vec;...
         J(r_posA, i_phiA) = JposA_phi;
         J(r_posA, i_eA)   = JposA_e;
         J(r_posA, i_th)   = JposA_th;
-        J(r_posA, [i_xG i_yG]) = -eye(2);                 % d res_posA / d(xG,yG) = -I2
+        %J(r_posA, [i_xG i_yG]) = -eye(2);                 % d res_posA / d(xG,yG) = -I2
         J(r_angA, i_phiA) = Jang_phiA;
         J(r_angA, i_eA)   = Jang_eA;
         J(r_angA, i_th)   = Jang_thA;
@@ -163,7 +161,7 @@ ub = [  pi*ones(K,1);    0.6*a0vec;...
         J(r_posC, i_phiC) = JposC_phi;
         J(r_posC, i_eC)   = JposC_e;
         J(r_posC, i_th)   = JposC_th;
-        J(r_posC, [i_xG i_yG]) = -eye(2);                 % d res_posC / d(xG,yG) = -I2
+        %J(r_posC, [i_xG i_yG]) = -eye(2);                 % d res_posC / d(xG,yG) = -I2
         J(r_angC, i_phiC) = Jang_phiC;
         J(r_angC, i_eC)   = Jang_eC;
         J(r_angC, i_th)   = Jang_thC;
@@ -193,9 +191,9 @@ eA    = x_opt(2*K+N+1:2*K+2*N);
 phiC  = x_opt(2*K+2*N+1:3*K+2*N);
 eC    = x_opt(3*K+2*N+1:3*K+3*N);
 theta = x_opt(end-2);
-xG    = x_opt(end-1);
-yG    = x_opt(end);
-G     = [xG, yG];                 % optimized centroid (质心)
+%xG    = x_opt(end-1);
+%yG    = x_opt(end);
+%G     = [xG, yG];                 % optimized centroid (质心)
 
 r = p.r_vertex;
 B = G + r * [cos(theta),               sin(theta)];
@@ -211,9 +209,9 @@ pack = struct( ...
     'eC',    eC, ...
     'theta', theta, ...
     'B',     B, ...
-    'C',     C, ...
-    'xG',    xG, ...
-    'yG',    yG);
+    'C',     C);
+%    'xG',    xG, ...
+%    'yG',    yG);
 
     function href = href_end_cluster(L0, N, r, p)
         % End-clustered segment lengths that sum to L0
