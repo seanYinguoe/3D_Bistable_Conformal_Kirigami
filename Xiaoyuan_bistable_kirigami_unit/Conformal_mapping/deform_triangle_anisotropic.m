@@ -42,11 +42,6 @@ p3_def = [p3_x,p3_y];
 
 %% create reference unit(delta = 0)
 [tri0, ~] = deform_triangle_isotropic(0, edgeLen, l1, l4, beta, t, N);
-
-% centroid
-xG0 = -sqrt(3)/6*edgeLen;
-yG0 = -1/2*edgeLen;
-
 E_total  = nan(1, nD);
 theta_all = nan(1, nD);
 theta_prev = -pi + beta;             % start with undefomred one
@@ -60,16 +55,17 @@ phi_prevA = (DeltaTot / K) * ones(K,1);
 e_prevA   = zeros(N,1);
 phi_prevC = (DeltaTot / K) * ones(K,1);
 e_prevC   = zeros(N,1);
-x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev; xG0; yG0]; % initial guess
+x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev]; % initial guess
+alpha = zeros(nD,1);
 %% Loop over deltas
 for k = 1:nD
     % deploy unit using interpolation between original and target one
-    alpha = (k - 1) / (nD - 1); % interpolation fraction 0 → 1
+    alpha(k) = (k - 1) / (nD - 1); % interpolation fraction 0 → 1
 
     % Interpolate node positions
-    p1 = (1 - alpha) * p1_orig + alpha * p1_def;
-    p2 = (1 - alpha) * p2_orig + alpha * p2_def;
-    p3 = (1 - alpha) * p3_orig + alpha * p3_def;
+    p1 = (1 - alpha(k)) * p1_orig + alpha(k) * p1_def;
+    p2 = (1 - alpha(k)) * p2_orig + alpha(k) * p2_def;
+    p3 = (1 - alpha(k)) * p3_orig + alpha(k) * p3_def;
     G = 1/3 * (p1+p2+p3);
     xG0 = G(1);
     yG0 = G(2);
@@ -97,15 +93,16 @@ for k = 1:nD
     %xG0 = pack.xG;
     %yG0 = pack.yG;
     x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev];
+    last_pack = pack;
 end
 
 
 %% Plot
 % Plot energy curve
-% figure('Color','w');
-% box on;
-% plot(delta, E_total, '-o');
-% xlabel('\delta'); ylabel('Energy');
+figure('Color','w');
+box on;
+plot(alpha, E_total, '-o');
+xlabel('deployment'); ylabel('Energy');
 % figure();
 % plot_triangle(triangle_new);
 
