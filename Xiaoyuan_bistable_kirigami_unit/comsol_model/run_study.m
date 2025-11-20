@@ -41,10 +41,10 @@ axis square;
 
 %% Compare semi-analytical result with FEA
 % Read FEA result from txt delta 0:0.1:0.55*edgeLen
-% edgeLen = 15;
-% l1 = edgeLen * 0.85;
-% l4 = edgeLen * 0.05;
-% t  = edgeLen * 0.025;
+edgeLen = 15;
+l1 = edgeLen * 0.85;
+l4 = edgeLen * 0.05;
+t  = edgeLen * 0.025;
 % beta = 0;
 % fname = '0_007.txt';  % <- change to your actual file
 % raw = fileread(fname);

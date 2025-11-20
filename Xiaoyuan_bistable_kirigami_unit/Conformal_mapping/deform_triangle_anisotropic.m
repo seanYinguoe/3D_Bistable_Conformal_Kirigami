@@ -42,6 +42,7 @@ p3_def = [p3_x,p3_y];
 
 %% create reference unit(delta = 0)
 [tri0, ~] = deform_triangle_isotropic(0, edgeLen, l1, l4, beta, t, N);
+% plot_triangle(tri0);
 E_total  = nan(1, nD);
 theta_all = nan(1, nD);
 theta_prev = -pi + beta;             % start with undefomred one
@@ -56,6 +57,7 @@ e_prevA   = zeros(N,1);
 phi_prevC = (DeltaTot / K) * ones(K,1);
 e_prevC   = zeros(N,1);
 x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev]; % initial guess
+%x_prev = [phi_prevA; e_prevA; phi_prevB; e_prevB;theta_prev]; % initial guess
 alpha = zeros(nD,1);
 %% Loop over deltas
 for k = 1:nD
@@ -69,9 +71,10 @@ for k = 1:nD
     G = 1/3 * (p1+p2+p3);
     xG0 = G(1);
     yG0 = G(2);
-    % Get 
+    % Get
     [B_flank, A_flank, C_flank,...
-            alphaL_B, alphaL_A, alphaL_C] = get_flank(p1, p2, p3);
+        alphaL_B, alphaL_A, alphaL_C,...
+        flank_B, flank_A, flank_C] = get_flank(p1, p2, p3);
 
     % update params for optimisation
     params = struct('t',t,'E',Emod,'b',b,'beta',beta,'B_flank',B_flank,...
@@ -82,17 +85,18 @@ for k = 1:nD
     [energy, pack] = energy_lig_anisotropic(x_prev, N, params); % N=10 segments
     % Save the reuslt
     theta_all(k) = pack.theta;
-    E_total(k)   = energy;               % 3 ligaments total
+    E_total(k)   = 3/2*energy;               % 3 ligaments total
     theta_prev   = pack.theta;
     phi_prevB = pack.phiB;
     e_prevB = pack.eB;
     phi_prevA = pack.phiA;
     e_prevA = pack.eA;
-    phi_prevC = pack.phiC;
-    e_prevC = pack.eC;
+    % phi_prevC = pack.phiC;
+    % e_prevC = pack.eC;
     %xG0 = pack.xG;
     %yG0 = pack.yG;
     x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev];
+    %x_prev = [phi_prevA; e_prevA;phi_prevB; e_prevB; theta_prev];
     last_pack = pack;
 end
 
@@ -103,12 +107,14 @@ figure('Color','w');
 box on;
 plot(alpha, E_total, '-o');
 xlabel('deployment'); ylabel('Energy');
-% figure();
-% plot_triangle(triangle_new);
+
+% Plot configuration
+%triangle = update_triangle(last_pack.B,last_pack.A,last_pack.C,flank_B,flank_A,flank_C, NaN,last_pack.XYA, last_pack.XYC);
 
 % Define function that can get deployed unit
     function [B_flank_def, A_flank_def, C_flank_def,...
-            alphaL_B_def, alphaL_A_def, alphaL_C_def] = get_flank(p1, p2, p3)
+            alphaL_B_def, alphaL_A_def, alphaL_C_def,...
+            flank1, flank2, flank3] = get_flank(p1, p2, p3)
         % Indecies of inner triangle
         f_flank = [19 20 21 22;
             27 28 29 30;
@@ -148,6 +154,35 @@ xlabel('deployment'); ylabel('Energy');
         alphaL_A_def = atan2(vA(2),vA(1));        
         vC = flank3(2,:) - flank3(3,:);
         alphaL_C_def = atan2(vC(2),vC(1));
+    end
+
+%% Build final configuration
+    function triangle = update_triangle(B,A,C,flankB,flankA,flankC,~,XYA,XYC)
+
+        % Inner triangle
+        triangle = zeros(45,2);
+        triangle(43,:) = A;
+        triangle(44,:) = B;
+        triangle(45,:) = C;
+
+        % flanks
+        triangle([19,20,21,22],:) = flankB;
+        triangle([27 28 29 30],:) = flankA;
+        triangle([23 24 25 26],:) = flankC;
+
+        
+        % plot unit
+        hold on
+        plot_triangle(triangle)
+
+        % filaments
+        % plot(XYB(:,1),  XYB(:,2),  '-o', 'LineWidth', 1.6, 'MarkerSize', 4, ...
+        %     'DisplayName', 'deformed');
+        plot(XYA(:,1),  XYA(:,2),  '-o', 'LineWidth', 1.6, 'MarkerSize', 4, ...
+            'DisplayName', 'deformed');
+        plot(XYC(:,1),  XYC(:,2),  '-o', 'LineWidth', 1.6, 'MarkerSize', 4, ...
+            'DisplayName', 'deformed');
+        hold off
     end
 
 end
