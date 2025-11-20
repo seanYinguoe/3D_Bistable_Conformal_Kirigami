@@ -21,7 +21,7 @@ hhinge = 0.5*(a0vec(1:end-1) + a0vec(2:end));
 kb_vec = EI ./ hhinge;
 ks_vec = EA ./ a0vec;
 xG = p.xG0;
-yG = p.xG0;
+yG = p.yG0;
 G = [xG,yG];
 
 %% Bounds
@@ -43,12 +43,12 @@ ub = [  pi*ones(K,1);    0.6*a0vec;...
         phiC = x(2*K+2*N+1:3*K+2*N);
         eC   = x(3*K+2*N+1:3*K+3*N);
         f = 0.5*( phiB.'*(kb_vec.*phiB) + eB.'*(ks_vec.*eB) ) + ...
-            0.5*( phiC.'*(kb_vec.*phiC) + eC.'*(ks_vec.*eC) ) + ...
-            0.5*( phiA.'*(kb_vec.*phiA) + eA.'*(ks_vec.*eA) );
+            0.5*( phiA.'*(kb_vec.*phiA) + eA.'*(ks_vec.*eA) ) + ...
+            0.5*( phiC.'*(kb_vec.*phiC) + eC.'*(ks_vec.*eC) );
         if nargout > 1
             g = [kb_vec.*phiB; ks_vec.*eB;...
-                kb_vec.*phiC; ks_vec.*eC;...
                 kb_vec.*phiA; ks_vec.*eA;...
+                kb_vec.*phiC; ks_vec.*eC;...
                 0];
         end
     end
@@ -190,7 +190,7 @@ phiA  = x_opt(K+N+1:2*K+N);
 eA    = x_opt(2*K+N+1:2*K+2*N);
 phiC  = x_opt(2*K+2*N+1:3*K+2*N);
 eC    = x_opt(3*K+2*N+1:3*K+3*N);
-theta = x_opt(end-2);
+theta = x_opt(end);
 %xG    = x_opt(end-1);
 %yG    = x_opt(end);
 %G     = [xG, yG];                 % optimized centroid (质心)
@@ -198,6 +198,38 @@ theta = x_opt(end-2);
 r = p.r_vertex;
 B = G + r * [cos(theta),               sin(theta)];
 C = G + r * [cos(theta + 2*pi/3),      sin(theta + 2*pi/3)];
+A = G + r * [cos(theta - 2*pi/3),      sin(theta - 2*pi/3)];
+
+% Deformed chain
+XYB = zeros(N+1,2);
+XYB(1,:) = p.B_flank(:).';
+ellB = a0vec + eB;                         % current lengths 
+psiB = zeros(N,1);                        % absolute segment angles
+psiB(1) = p.alphaL_B;
+psiB(2:end) = p.alphaL_B + cumsum(phiB);
+for j = 1:N
+    XYB(j+1,:) = XYB(j,:) + ellB(j)*[cos(psiB(j)), sin(psiB(j))];
+end
+
+XYA = zeros(N+1,2);
+XYA(1,:) = p.A_flank(:).';
+ellA = a0vec + eA;                         % current lengths 
+psiA = zeros(N,1);                        % absolute segment angles
+psiA(1) = p.alphaL_A;
+psiA(2:end) = p.alphaL_A + cumsum(phiA);
+for j = 1:N
+    XYA(j+1,:) = XYA(j,:) + ellA(j)*[cos(psiA(j)), sin(psiA(j))];
+end
+
+XYC = zeros(N+1,2);
+XYC(1,:) = p.C_flank(:).';
+ellC = a0vec + eC;                         % current lengths 
+psiC = zeros(N,1);                        % absolute segment angles
+psiC(1) = p.alphaL_C;
+psiC(2:end) = p.alphaL_C + cumsum(phiC);
+for j = 1:N
+    XYC(j+1,:) = XYC(j,:) + ellC(j)*[cos(psiC(j)), sin(psiC(j))];
+end
 
 E_one = fval;
 pack = struct( ...
@@ -209,7 +241,11 @@ pack = struct( ...
     'eC',    eC, ...
     'theta', theta, ...
     'B',     B, ...
-    'C',     C);
+    'C',     C, ...
+    'A',     A,...
+    'XYA',   XYA,...
+    'XYB',   XYB,...
+    'XYC',   XYC);
 %    'xG',    xG, ...
 %    'yG',    yG);
 
