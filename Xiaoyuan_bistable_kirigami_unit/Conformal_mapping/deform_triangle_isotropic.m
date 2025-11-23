@@ -1,4 +1,4 @@
-function [triangle_new, E_total] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, N)
+function [triangle_new, E_total] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, N, colour)
 % DEFORM_TRIANGLE_ISOTROPIC
 % Continuous deployment using fmincon
 % input:
@@ -96,13 +96,14 @@ triangle_new(41,:) = triangle_new(43,:);
 triangle_new(42,:) = triangle_new(41,:) + t/(norm(C_new-A_new))*(C_new-A_new);
 
 %% Plot
-% plot(last_pack.XY(:,1),  last_pack.XY(:,2),  '-o', 'LineWidth', 1.6, 'MarkerSize', 4, ...
-%     'DisplayName', 'deformed');
 % Plot energy curve
 % figure('Color','w');
 % box on;
 % plot(delta, E_total, '-o');
 % xlabel('\delta'); ylabel('Energy');
 % figure();
-% plot_triangle(triangle_new,colour);
+% plot_triangle(triangle_new);
+% plot(last_pack.XY(:,1),  last_pack.XY(:,2),  '-o', 'LineWidth', 1.6, 'MarkerSize', 4, ...
+%     'DisplayName', 'deformed');
+% axis off
 end
