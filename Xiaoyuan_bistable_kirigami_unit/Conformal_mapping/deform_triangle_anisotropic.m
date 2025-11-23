@@ -1,4 +1,4 @@
-function E_total = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N)
+function E_total = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N,colour)
 % Inputs:
 %   q1, q2, q3   - Unit node coordinates (1x3 vectors)
 %   edgeLen      - Original triangle edge length
@@ -35,9 +35,9 @@ edge1 = norm(q1-q2);
 edge2 = norm(q2-q3);
 edge3 = norm(q1-q3);
 p1_def = [0,0];
-p2_def = [0,-edge3];
-p3_y = (edge2^2 - edge1^2 - edge3^2) / (2*edge3);
-p3_x = -sqrt(max(edge1^2 - p3_y^2,0));
+p2_def = [0,-edge1];
+p3_y = (edge2^2 - edge1^2 - edge3^2) / (2*edge1);
+p3_x = -sqrt(max(edge3^2 - p3_y^2,0));
 p3_def = [p3_x,p3_y];
 
 %% create reference unit(delta = 0)
@@ -56,6 +56,9 @@ phi_prevA = (DeltaTot / K) * ones(K,1);
 e_prevA   = zeros(N,1);
 phi_prevC = (DeltaTot / K) * ones(K,1);
 e_prevC   = zeros(N,1);
+G0 = [-sqrt(3)/2*edgeLen, -1/2*edgeLen];
+xG0 = G0(1);
+yG0 = G0(2);
 x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev]; % initial guess
 %x_prev = [phi_prevA; e_prevA; phi_prevB; e_prevB;theta_prev]; % initial guess
 alpha = zeros(nD,1);
@@ -68,14 +71,15 @@ for k = 1:nD
     p1 = (1 - alpha(k)) * p1_orig + alpha(k) * p1_def;
     p2 = (1 - alpha(k)) * p2_orig + alpha(k) * p2_def;
     p3 = (1 - alpha(k)) * p3_orig + alpha(k) * p3_def;
-    G = 1/3 * (p1+p2+p3);
-    xG0 = G(1);
-    yG0 = G(2);
     % Get
     [B_flank, A_flank, C_flank,...
         alphaL_B, alphaL_A, alphaL_C,...
         flank_B, flank_A, flank_C] = get_flank(p1, p2, p3);
 
+    G0 = 1/3*(p1 + p2 + p3);
+    xG0 = G0(1);
+    yG0  =G0(2);
+    
     % update params for optimisation
     params = struct('t',t,'E',Emod,'b',b,'beta',beta,'B_flank',B_flank,...
         'A_flank',A_flank,'C_flank',C_flank,'r_vertex',r_vertex,'l2',l2,...
@@ -85,14 +89,14 @@ for k = 1:nD
     [energy, pack] = energy_lig_anisotropic(x_prev, N, params); % N=10 segments
     % Save the reuslt
     theta_all(k) = pack.theta;
-    E_total(k)   = 3/2*energy;               % 3 ligaments total
+    E_total(k)   = energy;               % 3 ligaments total
     theta_prev   = pack.theta;
     phi_prevB = pack.phiB;
     e_prevB = pack.eB;
     phi_prevA = pack.phiA;
     e_prevA = pack.eA;
-    % phi_prevC = pack.phiC;
-    % e_prevC = pack.eC;
+    phi_prevC = pack.phiC;
+    e_prevC = pack.eC;
     %xG0 = pack.xG;
     %yG0 = pack.yG;
     x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev];
@@ -109,7 +113,8 @@ plot(alpha, E_total, '-o');
 xlabel('deployment'); ylabel('Energy');
 
 % Plot configuration
-%triangle = update_triangle(last_pack.B,last_pack.A,last_pack.C,flank_B,flank_A,flank_C, NaN,last_pack.XYA, last_pack.XYC);
+figure()
+triangle = update_triangle(last_pack.B,last_pack.A,last_pack.C,flank_B,flank_A,flank_C, last_pack.XYB,last_pack.XYA, last_pack.XYC,colour);
 
 % Define function that can get deployed unit
     function [B_flank_def, A_flank_def, C_flank_def,...
@@ -157,7 +162,7 @@ xlabel('deployment'); ylabel('Energy');
     end
 
 %% Build final configuration
-    function triangle = update_triangle(B,A,C,flankB,flankA,flankC,~,XYA,XYC)
+    function triangle = update_triangle(B,A,C,flankB,flankA,flankC,XYB,XYA,XYC,colour)
 
         % Inner triangle
         triangle = zeros(45,2);
@@ -173,16 +178,15 @@ xlabel('deployment'); ylabel('Energy');
         
         % plot unit
         hold on
-        plot_triangle(triangle)
+        plot_triangle(triangle,colour)
 
         % filaments
-        % plot(XYB(:,1),  XYB(:,2),  '-o', 'LineWidth', 1.6, 'MarkerSize', 4, ...
-        %     'DisplayName', 'deformed');
-        plot(XYA(:,1),  XYA(:,2),  '-o', 'LineWidth', 1.6, 'MarkerSize', 4, ...
+        plot(XYB(:,1),  XYB(:,2),'LineWidth', 1.2, 'MarkerSize', 4, ...
+             'DisplayName', 'deformed');
+        plot(XYA(:,1),  XYA(:,2),'LineWidth', 1.2, 'MarkerSize', 4, ...
             'DisplayName', 'deformed');
-        plot(XYC(:,1),  XYC(:,2),  '-o', 'LineWidth', 1.6, 'MarkerSize', 4, ...
+        plot(XYC(:,1),  XYC(:,2),'LineWidth', 1.2, 'MarkerSize', 4, ...
             'DisplayName', 'deformed');
         hold off
     end
-
 end
