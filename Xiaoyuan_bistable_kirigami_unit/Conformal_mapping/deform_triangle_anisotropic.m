@@ -56,10 +56,10 @@ phi_prevA = (DeltaTot / K) * ones(K,1);
 e_prevA   = zeros(N,1);
 phi_prevC = (DeltaTot / K) * ones(K,1);
 e_prevC   = zeros(N,1);
-G0 = [-sqrt(3)/2*edgeLen, -1/2*edgeLen];
+G0 = [-sqrt(3)/6*edgeLen, -1/2*edgeLen];
 xG0 = G0(1);
 yG0 = G0(2);
-x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev]; % initial guess
+x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev; xG0; yG0]; % initial guess
 %x_prev = [phi_prevA; e_prevA; phi_prevB; e_prevB;theta_prev]; % initial guess
 alpha = zeros(nD,1);
 %% Loop over deltas
@@ -76,10 +76,10 @@ for k = 1:nD
         alphaL_B, alphaL_A, alphaL_C,...
         flank_B, flank_A, flank_C] = get_flank(p1, p2, p3);
 
-    G0 = 1/3*(p1 + p2 + p3);
-    xG0 = G0(1);
-    yG0  =G0(2);
-    
+    %G0 = 1/3*(p1 + p2 + p3);
+    %xG0 = G0(1);
+    %yG0 = G0(2);
+
     % update params for optimisation
     params = struct('t',t,'E',Emod,'b',b,'beta',beta,'B_flank',B_flank,...
         'A_flank',A_flank,'C_flank',C_flank,'r_vertex',r_vertex,'l2',l2,...
@@ -97,9 +97,11 @@ for k = 1:nD
     e_prevA = pack.eA;
     phi_prevC = pack.phiC;
     e_prevC = pack.eC;
-    %xG0 = pack.xG;
-    %yG0 = pack.yG;
-    x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev];
+    xG_prev = pack.xG;
+    yG_prev = pack.yG;
+    x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev; xG_prev; yG_prev];
+    xG0 = xG_prev;
+    yG0 = yG_prev;
     %x_prev = [phi_prevA; e_prevA;phi_prevB; e_prevB; theta_prev];
     last_pack = pack;
 end
