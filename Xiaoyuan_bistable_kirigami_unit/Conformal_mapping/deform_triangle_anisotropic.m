@@ -1,4 +1,4 @@
-function E_total = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N,colour)
+function [E_total,alpha] = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N,colour)
 % Inputs:
 %   q1, q2, q3   - Unit node coordinates (1x3 vectors)
 %   edgeLen      - Original triangle edge length
@@ -109,10 +109,18 @@ end
 
 %% Plot
 % Plot energy curve
-figure('Color','w');
-box on;
-plot(alpha, E_total, '-o');
-xlabel('deployment'); ylabel('Energy');
+figure('Color','w'); 
+hold on; box on;
+plot(alpha, E_total, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 1, ...
+     'DisplayName','FEM');
+xlabel('Deployment', 'Interpreter','tex', ...
+       'FontSize',20);
+ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
+       'FontSize',20);
+set(gca, 'FontName','Times New Roman','FontSize',20); 
+legend('Location','northwest','Box','off', 'Fontsize',18);  
+grid off;
+axis square;
 
 % Plot configuration
 figure()

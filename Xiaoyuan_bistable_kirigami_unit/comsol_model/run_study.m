@@ -137,3 +137,20 @@ axis square;
 % end
 % end
 
+
+%% Plot anisotropic and isotropic deployment
+% isotropic
+plot(alpha, E_total_iso, '-','Color',[0.85 0.33 0.10], 'LineWidth', 1, ...
+     'DisplayName','Isotropic');
+
+% anisotropic
+plot(alpha, E_total_an, '-', 'Color',[0 0.45 0.74],'LineWidth', 1, ...
+     'DisplayName','Anisotropic');
+xlabel('Deployment', 'Interpreter','tex', ...
+       'FontSize',28);
+ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
+       'FontSize',28);
+set(gca, 'FontName','Times New Roman','FontSize',28); 
+legend('Location','northwest','Box','off', 'Fontsize',28);  
+grid off;
+axis square;
