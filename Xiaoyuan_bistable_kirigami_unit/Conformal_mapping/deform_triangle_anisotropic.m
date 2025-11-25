@@ -1,4 +1,4 @@
-function [E_total,alpha] = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N,colour)
+function [E_total,alpha] = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N)
 % Inputs:
 %   q1, q2, q3   - Unit node coordinates (1x3 vectors)
 %   edgeLen      - Original triangle edge length
@@ -31,13 +31,13 @@ p1_orig = [0,0];
 p2_orig = [0,-edgeLen];
 p3_orig = [-sqrt(3)/2*edgeLen, -1/2*edgeLen];
 % current unit
-edge1 = norm(q1-q2);
-edge2 = norm(q2-q3);
-edge3 = norm(q1-q3);
+edge1 = norm(q2 - q3);  % p2p3
+edge2 = norm(q1 - q3);  % p1p3
+edge3 = norm(q1 - q2);  % p1p2
 p1_def = [0,0];
-p2_def = [0,-edge1];
-p3_y = (edge2^2 - edge1^2 - edge3^2) / (2*edge1);
-p3_x = -sqrt(max(edge3^2 - p3_y^2,0));
+p2_def = [0,-edge3];
+p3_y = (edge1^2 - edge2^2 - edge3^2) / (2 * edge3);
+p3_x = -sqrt(max(edge2^2 - p3_y^2,0));
 p3_def = [p3_x,p3_y];
 
 %% create reference unit(delta = 0)
@@ -108,23 +108,23 @@ end
 
 
 %% Plot
-% Plot energy curve
-figure('Color','w'); 
-hold on; box on;
-plot(alpha, E_total, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 1, ...
-     'DisplayName','FEM');
-xlabel('Deployment', 'Interpreter','tex', ...
-       'FontSize',20);
-ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
-       'FontSize',20);
-set(gca, 'FontName','Times New Roman','FontSize',20); 
-legend('Location','northwest','Box','off', 'Fontsize',18);  
-grid off;
-axis square;
-
-% Plot configuration
-figure()
-triangle = update_triangle(last_pack.B,last_pack.A,last_pack.C,flank_B,flank_A,flank_C, last_pack.XYB,last_pack.XYA, last_pack.XYC,colour);
+% % Plot energy curve
+% figure('Color','w'); 
+% hold on; box on;
+% plot(alpha, E_total, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 1, ...
+%      'DisplayName','FEM');
+% xlabel('Deployment', 'Interpreter','tex', ...
+%        'FontSize',20);
+% ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
+%        'FontSize',20);
+% set(gca, 'FontName','Times New Roman','FontSize',20); 
+% legend('Location','northwest','Box','off', 'Fontsize',18);  
+% grid off;
+% axis square;
+% 
+% % Plot configuration
+% figure()
+% triangle = update_triangle(last_pack.B,last_pack.A,last_pack.C,flank_B,flank_A,flank_C, last_pack.XYB,last_pack.XYA, last_pack.XYC);
 
 % Define function that can get deployed unit
     function [B_flank_def, A_flank_def, C_flank_def,...
