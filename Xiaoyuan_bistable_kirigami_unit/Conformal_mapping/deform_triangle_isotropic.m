@@ -1,4 +1,4 @@
-function [triangle_new, E_total] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, N, colour)
+function [triangle_new, E_total] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, N)
 % DEFORM_TRIANGLE_ISOTROPIC
 % Continuous deployment using fmincon
 % input:
