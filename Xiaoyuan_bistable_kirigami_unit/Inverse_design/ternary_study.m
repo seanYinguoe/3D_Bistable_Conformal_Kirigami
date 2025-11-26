@@ -94,4 +94,5 @@ for i3 = 1:numel(alpha3_vec)
     end
 end
 
-plot_ternary(alpha1_list, alpha2_list, alpha3_list, epsb_list, eta_list)
+%% Ternary plot (uses your custom function)
+plot_ternary(alpha1_list, alpha2_list, alpha3_list, epsb_list, eta_list);
