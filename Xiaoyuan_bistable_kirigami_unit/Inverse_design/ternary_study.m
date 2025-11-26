@@ -32,7 +32,7 @@ p_geom.l4   = edgeLen * 0.05;
 p_geom.t    = edgeLen * 0.015;
 p_geom.beta = 0;
 
-scale = 1.7;                             % overall stretch scale
+scale = 1.6;                             % overall stretch scale
 
 %% Sweep alpha3 and alpha2
 for i = 1:numel(alpha1_list)
@@ -57,10 +57,10 @@ for i = 1:numel(alpha1_list)
     q1 = [0, 0];
     q2 = [0, -L3];
     q3_y = (L1^2 - L2^2 - L3^2) / (2 * L3);
-    % inside = L2^2 - q3_y^2;
-    % if inside <= 0
-    %     continue;
-    % end
+    inside = L2^2 - q3_y^2;
+    if inside <= 0
+        continue;
+    end
     q3_x = -sqrt(inside);
     q3   = [q3_x, q3_y];
 
@@ -81,3 +81,4 @@ end
 
 %% Ternary plot (uses your custom function)
 plot_ternary(alpha1_list, alpha2_list, alpha3_list, epsb_list);
+
