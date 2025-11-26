@@ -63,8 +63,18 @@ drawTernaryAxesWithSymbolicTicks();
 scatter(X, Y, 55, val, 'filled');
 
 colormap(jet);
-cb = colorbar;
-ylabel(cb, 'index', 'Interpreter','none');
+
+cb = colorbar('southoutside');   % put colorbar UNDER the triangle
+cb.Label.Interpreter = 'none';
+cb.Label.FontSize = 18;           % make label big
+cb.FontSize = 18;                 % make tick labels bigger
+pos = cb.Position;
+
+pos(1) = 0.15;   % left edge
+pos(3) = 0.45;   % width (0.15 → 0.60)
+pos(2) = pos(2) - 0.05;   % move downward a bit
+
+cb.Position = pos;
 
 %% ---- 6) Axis labels ----
 text(0.05,  sqrt(3)/4, '\alpha_1', 'FontSize', 18, ...
