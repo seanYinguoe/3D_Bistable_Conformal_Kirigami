@@ -83,8 +83,8 @@ for i3 = 1:numel(alpha3_vec)
         alpha2_list(end+1,1) = a2;
         alpha3_list(end+1,1) = a3;
         
-        % Store results (use NaN for monostable)
-        if ~isnan(strain_bist) && bistability > 0
+        % Store results (treat eta < 0.1 as monostable if you like)
+        if ~isnan(strain_bist) && bistability >= 0.1
             eta_list(end+1,1)  = bistability;
             epsb_list(end+1,1) = strain_bist;
         else
