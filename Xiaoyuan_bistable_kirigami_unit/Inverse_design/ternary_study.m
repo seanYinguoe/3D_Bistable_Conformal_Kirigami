@@ -12,9 +12,11 @@ alpha2_vec = linspace(pi/6, 5*pi/12, nStep);   % α2 ∈ [π/6, 5π/12]
 [alpha2_grid, alpha3_grid] = meshgrid(alpha2_vec, alpha3_vec);
 alpha1_grid = pi - alpha2_grid - alpha3_grid;
 
-mask = (alpha1_grid > 0) & ...
-       (alpha1_grid >= alpha2_grid) & ...
-       (alpha2_grid >= alpha3_grid);
+tol = 1e-8;
+
+mask = (alpha1_grid > -tol) & ...
+       (alpha1_grid >= alpha2_grid - tol) & ...
+       (alpha2_grid >= alpha3_grid - tol);
 
 alpha1_list = alpha1_grid(mask);
 alpha2_list = alpha2_grid(mask);
@@ -108,3 +110,4 @@ anisotropy_study = table( ...
     'VariableNames', {'a1','a2','a3','eps_bist','eta_val','beta'});
 
 %plot_ternary(a1_all(1), a2_all(1), a3_all(1), eps_all)
+plot_ternary(alpha1_list, alpha2_list, alpha3_list, epsb_list);
