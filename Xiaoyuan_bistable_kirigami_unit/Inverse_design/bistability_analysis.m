@@ -13,7 +13,7 @@ function [strain_bist, bistability] = bistability_analysis(l1, l4, beta, t, edge
 
 
 %% Get the E_total energy and alpha(alpha is the interpolation)
-nD = 150;
+nD = 100;
 N = 8;
 [E_total,alpha] = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N);
 
