@@ -25,12 +25,13 @@ alpha3_list = alpha3_grid(mask);
 nConfig = numel(alpha1_list);
 
 %% ---- Beta sweep settings ----
-beta_vec = linspace(0, pi/20, 15);   
+%beta_vec = linspace(0, pi/20, 15);
+beta_vec = pi/40;
 nBeta = numel(beta_vec);
 
 %% ---- Geometry & scale ----
 edgeLen = 15;
-scale   = 1.6;
+scale   = 1.63;
 
 %% ---- Storage for all (a1,a2,a3,eps_bist,eta_val,beta) ----
 a1_all   = [];
@@ -109,5 +110,5 @@ anisotropy_study = table( ...
     a1_all, a2_all, a3_all, eps_all, eta_all, beta_all, ...
     'VariableNames', {'a1','a2','a3','eps_bist','eta_val','beta'});
 
-%plot_ternary(a1_all(1), a2_all(1), a3_all(1), eps_all)
-plot_ternary(alpha1_list, alpha2_list, alpha3_list, epsb_list);
+plot_ternary(a1_all, a2_all, a3_all, eps_all)
+%plot_ternary(alpha1_list, alpha2_list, alpha3_list, epsb_list);
