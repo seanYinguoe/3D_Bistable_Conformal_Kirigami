@@ -110,5 +110,5 @@ anisotropy_study = table( ...
     a1_all, a2_all, a3_all, eps_all, eta_all, beta_all, ...
     'VariableNames', {'a1','a2','a3','eps_bist','eta_val','beta'});
 
-plot_ternary(a1_all, a2_all, a3_all, eps_all)
-%plot_ternary(alpha1_list, alpha2_list, alpha3_list, epsb_list);
+plot_ternary(a1_all, a2_all, a3_all, eta_all)
+%plot_ternary(alpha1_list, alpha2_list, alpha3_list, eta_val);

@@ -13,7 +13,7 @@ function [strain_bist, bistability] = bistability_analysis(l1, l4, beta, t, edge
 
 
 %% Get the E_total energy and alpha(alpha is the interpolation)
-nD = 150;
+nD = 200;
 N = 8;
 [E_total,alpha] = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N);
 
@@ -45,22 +45,22 @@ if ~isempty(first_max_idx) && ~isempty(first_min_idx)
 end
 
 %% Plot energy vs physical displacement
-% figure;
-% set(gca, 'FontSize', 18);  % applies to both x and y tick labels
-% plot(strain, E_total, 'b-', 'LineWidth', 2); hold on;
-% xlabel('Strain','FontSize', 20);
-% ylabel('Energy','FontSize', 20);
-% title('Energy-Strain Curve','FontSize', 20);
-% grid on;
-% 
-% % Mark only max1 and min1
-% if exist('max1', 'var') && exist('min1', 'var')
-%     plot(max1.strain, max1.U, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 12);
-%     text(max1.strain, max1.U, ' localmax', 'VerticalAlignment', 'bottom', 'FontSize', 12);
-% 
-%     plot(min1.strain, min1.U, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 12);
-%     text(min1.strain, min1.U, ' localmin', 'VerticalAlignment', 'bottom', 'FontSize', 12);
-% end
-% 
-% legend({'Total Energy'}, 'Location', 'best');
+figure;
+set(gca, 'FontSize', 18);  % applies to both x and y tick labels
+plot(strain, E_total, 'b-', 'LineWidth', 2); hold on;
+xlabel('Strain','FontSize', 20);
+ylabel('Energy','FontSize', 20);
+title('Energy-Strain Curve','FontSize', 20);
+grid on;
+
+% Mark only max1 and min1
+if exist('max1', 'var') && exist('min1', 'var')
+    plot(max1.strain, max1.U, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 12);
+    text(max1.strain, max1.U, ' localmax', 'VerticalAlignment', 'bottom', 'FontSize', 12);
+
+    plot(min1.strain, min1.U, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 12);
+    text(min1.strain, min1.U, ' localmin', 'VerticalAlignment', 'bottom', 'FontSize', 12);
+end
+
+legend({'Total Energy'}, 'Location', 'best');
 end
