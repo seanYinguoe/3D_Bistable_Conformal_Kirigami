@@ -15,7 +15,7 @@ l1 = 0.85 * edgeLen; % length of flank(not correct)
 
 % Set the parameters of a unit(variable)
 beta = pi/40; % titling angle
-t  = edgeLen * 0.025; % thickness of filaments
+t  = edgeLen * 0.015; % thickness of filaments
 
 % Set the coulour of display
 %colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
