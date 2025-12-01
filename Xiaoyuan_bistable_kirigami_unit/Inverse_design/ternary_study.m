@@ -25,8 +25,8 @@ alpha3_list = alpha3_grid(mask);
 nConfig = numel(alpha1_list);
 
 %% ---- Beta sweep settings ----
-%beta_vec = linspace(0, pi/20, 15);
-beta_vec = pi/40;
+beta_vec = linspace(0, pi/20, 30);
+%beta_vec = pi/40;
 nBeta = numel(beta_vec);
 
 %% ---- Geometry & scale ----
@@ -110,5 +110,24 @@ anisotropy_study = table( ...
     a1_all, a2_all, a3_all, eps_all, eta_all, beta_all, ...
     'VariableNames', {'a1','a2','a3','eps_bist','eta_val','beta'});
 
-plot_ternary(a1_all, a2_all, a3_all, eta_all)
-%plot_ternary(alpha1_list, alpha2_list, alpha3_list, eta_val);
+%plot_ternary(a1_all, a2_all, a3_all, eps_all)
+%plot_ternary(alpha1_list, alpha2_list, alpha3_list, epsb_list);
+% T0 = anisotropy_study(abs(anisotropy_study.beta - 0.005416539057913) < 1e-4, :);
+% 
+% if T0.a3 < 1.33 && T0.a2 < 1.33
+%     T0.eps_bist = NaN;
+%     T0.eta_val = NaN;
+% end
+% 
+% plot_ternary( ...
+%     T0.a1, ...            % alpha1
+%     T0.a2, ...            % alpha2
+%     T0.a3, ...            % alpha3
+%     T0.eps_bist );        % index field (e.g. eps_bist)
+
+
+
+% a1 = anisotropy_study(67,:).a1;
+% a2 = anisotropy_study(67,:).a2;
+% a3 = anisotropy_study(67,:).a3;
+
