@@ -108,17 +108,17 @@
     
     
     %% Plot energy curve
-    figure('Color','w');
-    hold on; box on;
-    plot(alpha, E_total, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 1);
-    xlabel('Deployment', 'Interpreter','tex', ...
-           'FontSize',20);
-    ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
-           'FontSize',20);
-    set(gca, 'FontName','Times New Roman','FontSize',20);
-    legend('Location','northwest','Box','off', 'Fontsize',18);
-    grid off;
-    axis square;
+    % figure('Color','w');
+    % hold on; box on;
+    % plot(alpha, E_total, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 1);
+    % xlabel('Deployment', 'Interpreter','tex', ...
+    %        'FontSize',20);
+    % ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
+    %        'FontSize',20);
+    % set(gca, 'FontName','Times New Roman','FontSize',20);
+    % legend('Location','northwest','Box','off', 'Fontsize',18);
+    % grid off;
+    % axis square;
 
     %% Plot configuration
     %figure()
