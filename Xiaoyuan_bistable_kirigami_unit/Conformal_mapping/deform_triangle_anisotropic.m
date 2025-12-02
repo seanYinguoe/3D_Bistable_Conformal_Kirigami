@@ -63,7 +63,7 @@
     %x_prev = [phi_prevA; e_prevA; phi_prevB; e_prevB;theta_prev]; % initial guess
     alpha = zeros(nD,1);
     %% Loop over deltas
-    for k = 1:nD*0.75
+    for k = 1:nD
         % deploy unit using interpolation between original and target one
         alpha(k) = (k - 1) / (nD - 1); % interpolation fraction 0 → 1
     

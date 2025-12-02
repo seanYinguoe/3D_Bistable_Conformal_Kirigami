@@ -31,20 +31,34 @@ for i = 2:length(dU)-1
 end
 
 %% Keep only first local max and first local min after it
-first_max_idx = find(strcmp({critical_points.type}, 'Local Maximum'), 1);
-first_min_idx = find(strcmp({critical_points.type}, 'Local Minimum') & [critical_points.index] > critical_points(first_max_idx).index, 1);
+is_max = strcmp({critical_points.type}, 'Local Maximum');
+first_max_idx = find(is_max, 1);
 
+if isempty(first_max_idx)
+    first_min_idx = [];
+else
+    idx_array = [critical_points.index];            
+    is_min    = strcmp({critical_points.type}, 'Local Minimum');
+    after_max = idx_array > idx_array(first_max_idx);  
+    first_min_idx = find(is_min & after_max, 1);
+end
 strain_bist = NaN;
 bistability = 0;
 
-strain_gap = critical_points(first_min_idx).strain - critical_points(first_max_idx).strain;
-    
+if ~isempty(first_max_idx) && ~isempty(first_min_idx)
 
-if ~isempty(first_max_idx) && ~isempty(first_min_idx) && strain_gap > 0.05
+    % safe because both indices exist
     max1 = critical_points(first_max_idx);
     min1 = critical_points(first_min_idx);
-    strain_bist = min1.strain;
-    bistability = (max1.U - min1.U)/max1.U;
+
+    % compute strain gap
+    strain_gap = min1.strain - max1.strain;
+
+    % noise filter threshold
+    if strain_gap > 0.05
+        strain_bist = min1.strain;
+        bistability = (max1.U - min1.U) / max1.U;
+    end
 end
 
 %% Plot energy vs physical displacement
