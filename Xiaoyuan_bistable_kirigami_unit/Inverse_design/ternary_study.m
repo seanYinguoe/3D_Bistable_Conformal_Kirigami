@@ -5,7 +5,7 @@
 clear; clc;
 
 %% ---- Angle grid (independent of beta) ----
-nStep = 10;                         
+nStep = 20;                         
 alpha3_vec = linspace(pi/6, pi/3, nStep);       % α3 ∈ [π/6, π/3]
 alpha2_vec = linspace(pi/6, 5*pi/12, nStep);   % α2 ∈ [π/6, 5π/12]
 
@@ -25,7 +25,7 @@ alpha3_list = alpha3_grid(mask);
 nConfig = numel(alpha1_list);
 
 %% ---- Beta sweep settings ----
-beta_vec = linspace(0, pi/20, 30);
+beta_vec = linspace(0, pi/15, 50);
 %beta_vec = pi/40;
 nBeta = numel(beta_vec);
 
@@ -85,9 +85,21 @@ for ib = 1:nBeta
             q3   = [q3_x, q3_y];
 
             % ----- Call bistability analysis -----
-            [eps_bist, eta_val] = bistability_analysis( ...
-                p_geom.l1, p_geom.l4, p_geom.beta, p_geom.t, edgeLen, ...
-                q1, q2, q3);
+            try
+                [eps_bist, eta_val] = bistability_analysis( ...
+                    p_geom.l1, p_geom.l4, p_geom.beta, p_geom.t, edgeLen, ...
+                    q1, q2, q3);
+            catch ME   % ME = MException 异常对象
+                fprintf('alpha3 = %.6f, alpha2 = %.6f\n,, alpha1 = %.6f\n', a3, a2, a1);
+                disp('Inputs to bistability_analysis:');  % 显示传入的参数
+                % 比如：
+                % disp(p_geom);
+                % disp(stretch_vec);
+
+                fprintf('Error message: %s\n', ME.message);
+
+                keyboard;  % 进入调试模式，停在这里
+            end
 
             if isnan(eps_bist) || eta_val < 0.1
                 eps_bist = NaN;
@@ -109,6 +121,8 @@ end
 anisotropy_study = table( ...
     a1_all, a2_all, a3_all, eps_all, eta_all, beta_all, ...
     'VariableNames', {'a1','a2','a3','eps_bist','eta_val','beta'});
+
+save ternary_study_beta
 
 %plot_ternary(a1_all, a2_all, a3_all, eps_all)
 %plot_ternary(alpha1_list, alpha2_list, alpha3_list, epsb_list);
