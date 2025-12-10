@@ -1,4 +1,4 @@
-    function [E_total,alpha] = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N,colour)
+    function [E_total,alpha] = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N)
     % Inputs:
     %   q1, q2, q3   - Unit node coordinates (1x3 vectors)
     %   edgeLen      - Original triangle edge length
