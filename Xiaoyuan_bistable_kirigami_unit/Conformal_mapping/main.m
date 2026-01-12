@@ -10,7 +10,9 @@ modelname = 'hemisphere';
 %path = strcat('/Users/sean/Desktop/PhD/Program/Project_2_Shape_morphing_3D_kirigami/Xiaoyuan_bistable_kirigami_unit/Input_model/Reference_model/',modelname,'/');
 path = strcat('/Users/sean/Desktop/Project 2/3D_Bistable_Conformal_Kirigami/Xiaoyuan_bistable_kirigami_unit/Input_model/Reference_model/',modelname,'/');
 filename_3D = strcat(modelname,'.obj'); % 3D model
-filename_2D = strcat(modelname,'_flat.obj'); % 2D model
+%filename_2D = strcat(modelname,'_iso_flat.obj'); % 2D model the node order is different?
+%filename_2D = strcat(modelname,'_flat.obj'); % 2D model the node order is different?
+
 
 %obj_3D = readObj(path,filename_2D); % read 3D object, vertices, connectivity
 obj_2D = readObj(path,filename_2D); % read 2D object, vertices, connectivity
@@ -52,52 +54,52 @@ params = [edgeLen % The length of a unit
 tessellation = tessellated_triangle(f_out, i_out, params,v_out,beta); % Tessellate bistable triangle into fitted grids
 
 %% Plot the original configurations
-% figure()
-% patch('Vertices', obj_2D.v, 'Faces', obj_2D.f.v, ...
-%       'FaceVertexCData', obj_2D.v(:,3),...
-%       'FaceColor', 'interp', 'EdgeColor', 'none');
-% axis equal;          % Equal scaling for all axes
-% axis off;
-% view(3);             % Set default 3D view angle
-% camlight;            % Add light source
-% lighting gouraud;    % Smooth lighting across surfaces
-% 
-% figure()
-% axis equal
-% axis off;
-% patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.v, ...
-%     'FaceColor', 'none', 'EdgeColor', 'black'); % Plot 2D figure
-% view(3);             % Set default 3D view angle
-% camlight;            % Add a light source for better visualization
-% material shiny;                % Make the surface shiny (adjustable)
-% lighting gouraud;    % Smooth lighting across surfaces
+figure()
+patch('Vertices', obj_2D.v, 'Faces', obj_2D.f.v, ...
+      'FaceVertexCData', obj_2D.v(:,3),...
+      'FaceColor', 'none', 'EdgeColor', 'black');
+axis equal;          % Equal scaling for all axes
+axis off;
+view(3);             % Set default 3D view angle
+camlight;            % Add light source
+lighting gouraud;    % Smooth lighting across surfaces
+
+figure()
+axis equal
+axis off;
+patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.v, ...
+    'FaceColor', 'none', 'EdgeColor', 'black'); % Plot 2D figure
+view(3);             % Set default 3D view angle
+camlight;            % Add a light source for better visualization
+material shiny;                % Make the surface shiny (adjustable)
+lighting gouraud;    % Smooth lighting across surfaces
 
 %% Plot the Overlaid grids
-% figure(); 
-% hold on;
-% patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', 'none', 'EdgeColor', 'black','LineWidth',0.5); % Plot mesh surface
-% plotgrid(f_out,v_out)
-% axis equal;
-% axis off;
-% hold off
+figure(); 
+hold on;
+patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', 'none', 'EdgeColor', 'black','LineWidth',0.5); % Plot mesh surface
+plotgrid(f_out,v_out)
+axis equal;
+axis off;
+hold off
 
 %% Plot the scale_factor colormap of mesh surface
-% figure()
-% patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceVertexCData', scale_facs, 'FaceColor', 'flat', 'EdgeColor', 'none');
-% colormap summer; 
-% c = colorbar; 
-% c.FontSize = 18;
-% axis equal; 
-% axis off
+figure()
+patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceVertexCData', scale_facs, 'FaceColor', 'flat', 'EdgeColor', 'none');
+colormap summer; 
+c = colorbar; 
+c.FontSize = 18;
+axis equal; 
+axis off
 
 %% Plot the scale_area colormap of overlaid grips
-% figure()
-% patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceVertexCData', scale_area, 'FaceColor', 'flat', 'EdgeColor', 'none');
-% colormap summer; 
-% c = colorbar; 
-% c.FontSize = 18;
-% axis equal; 
-% axis off
+figure()
+patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceVertexCData', scale_area, 'FaceColor', 'flat', 'EdgeColor', 'none');
+colormap summer; 
+c = colorbar; 
+c.FontSize = 18;
+axis equal; 
+axis off
 
 %% Plot the tessellated configuration
 colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
@@ -113,10 +115,10 @@ axis off
 mesh_deployment(obj_2D,modelname);
 
 %% Plot grid deployment
-[T,v_target] = grid_deployment(obj_2D,c_mesh,v_out,f_out,modelname); % Here we need to move and rotate the 3D surface coresponding to 2D surface
+[T,v_target] = grid_deployment(obj_2D,c_mesh,v_out,f_out); % Here we need to move and rotate the 3D surface coresponding to 2D surface
 
-%% Plot tessellation deployment
-% Calculate stretch facor based on flattened grid and deployed grid
+%% Recalculate stretch factor on each edge
+% Calculate stretch facor based on flattened grid and deployed grid(accurate)
 % for a bistable unit the range of stretch factor should be within(1.15,1.75)
 areas_2D = triangle_area_2D(v_out, f_out);  % Deprive the area of grid in 2D
 areas_3D = triangle_area_3D(v_target, f_out);  % Deprive the area of grid in 3D
@@ -132,13 +134,11 @@ if min(min(stretch_facs)) < 0.95 || max(max(stretch_facs)) > 1.75
     disp("Warning: The stretch factors are out of range")
 end
 
-% Calculate the stretch facor based on every edge(every edge deploy
-% differently)
+%% Plot tessellation deployment
 def_facs = def_factor(v_out,v_target,f_out);
 
 v_target = v_target * rescale_facs;
 
 tessellation_target = tessellated_triangle(f_out, i_out, params, v_target, beta); % Generate closed state of deployed
 
-% Define parameters
 tessellation_deployment(tessellation,tessellation_target,T,modelname); % Plot deployment

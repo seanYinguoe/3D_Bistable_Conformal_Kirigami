@@ -11,7 +11,10 @@ deployed_surface = obj_2D.v;    % Deployed 3D vertex positions
 [flattened_surface, deployed_surface] = model_rotate(modelname, flattened_surface, deployed_surface);
 %deployed_surface = [deployed_surface(:,1), -deployed_surface(:,3),deployed_surface(:,2)]; % rotate the deployed surface 90 around x axis
 T = mean(flattened_surface) - mean(deployed_surface); 
-flattened_surface = flattened_surface - [T(:,[1,2]),0]; % Move to match the coorespoind node
+% Move to match the centroid
+flattened_surface = flattened_surface - [T(:,[1,2]),0];
+% Rotate the match on the same plane
+%flattened_surface = 
 faces = obj_2D.f.v;             % Face connectivity
 
 % Create the figure and UI components

@@ -25,7 +25,7 @@ alpha3_list = alpha3_grid(mask);
 nConfig = numel(alpha1_list);
 
 %% ---- Beta sweep settings ----
-beta_vec = linspace(0, pi/15, 1);
+beta_vec = linspace(0, pi/15, 15);
 %beta_vec = pi/40;
 nBeta = numel(beta_vec);
 
