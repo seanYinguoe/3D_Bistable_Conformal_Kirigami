@@ -64,29 +64,23 @@ zlim(ax, [min(Z(:)) max(Z(:))]);
 
 %% ===================== 6) Export surface as OBJ =====================
 % Build triangulation from grid
-[nr, nc] = size(X);
-
-% Vertices
-V = [X(:), Y(:), Z(:)];
-
-% Faces (two triangles per quad)
+%% EXPORT OBJ
+[nr,nc] = size(X);
+Vtx = [X(:), Y(:), Z(:)];
 F = [];
+
 for i = 1:nr-1
     for j = 1:nc-1
         v1 = sub2ind([nr,nc], i,   j);
         v2 = sub2ind([nr,nc], i+1, j);
         v3 = sub2ind([nr,nc], i+1, j+1);
         v4 = sub2ind([nr,nc], i,   j+1);
-
-        F = [F;
-             v1 v2 v3;
-             v1 v3 v4];
+        F = [F; v1 v2 v3; v1 v3 v4];
     end
 end
 
-% Write OBJ
-write_obj('curved_surface.obj', V, F);
-
+write_obj('curved_surface.obj', Vtx, F);
+disp('OBJ exported: curved_surface.obj');
 end
 
 %% ===================== helper: EVEN grid spacing ON THE SURFACE =====================
@@ -140,5 +134,21 @@ for k = 1:numel(vEven)
         'LineStyle', ls, 'Color', col, 'LineWidth', lw);
 end
 
+end
 
+function write_obj(filename, V, F)
+fid = fopen(filename,'w');
+if fid==-1
+    error('Cannot open file for writing.');
+end
+
+for i = 1:size(V,1)
+    fprintf(fid,'v %.8f %.8f %.8f\n',V(i,1),V(i,2),V(i,3));
+end
+
+for i = 1:size(F,1)
+    fprintf(fid,'f %d %d %d\n',F(i,1),F(i,2),F(i,3));
+end
+
+fclose(fid);
 end

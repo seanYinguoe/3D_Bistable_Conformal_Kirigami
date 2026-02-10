@@ -13,7 +13,7 @@ opt_tessellation_target = tessellated_triangle(f_out, i_out, params, v_target, o
 tessellation_deployment(opt_tessellation,opt_tessellation_target,T,modelname); % Plot deployment
 
 % Create deployment figure
-filename = 'optimised_deployment_progress.gif';
+filename = 'hypar.gif';
 generate_gif(opt_tessellation, opt_tessellation_target,T, modelname, filename)
 
 % Generate energy evolvement during deployment

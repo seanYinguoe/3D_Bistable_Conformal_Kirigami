@@ -21,6 +21,9 @@ switch modelName
     case 'hemisphere'
         deployed_surface = rotate_pts(deployed_surface, 90, 'x');
 
+    case 'arbitrary_surface'
+        deployed_surface = rotate_pts(deployed_surface, 90, 'x');
+
     case 'lilium_tower'
         deployed_surface = rotate_pts(deployed_surface, 90, 'x');
         flattened_surface = rotate_pts(flattened_surface, 45, 'z');
