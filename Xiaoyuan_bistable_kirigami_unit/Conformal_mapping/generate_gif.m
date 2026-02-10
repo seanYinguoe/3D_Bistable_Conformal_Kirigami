@@ -26,7 +26,9 @@ for k = 0:numFrames
     % Clear previous plot and create new one
     clf(fig);
     set(fig, 'Color', 'w')
-    colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255};
+    %colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255};
+    colour = {'white', [0.9216    0.8863    0.4235
+], [ 0.7059    0.9608    0.4118], [0.9216    0.8863    0.4235]};
     hold on;
     for m = 1:size(tessellation,1)
         plot_triangle(tessellation_deploy{m},colour);
