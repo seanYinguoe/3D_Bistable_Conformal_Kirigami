@@ -34,12 +34,37 @@ edgeLen = 15;
 scale   = 1.63;
 
 %% ---- Storage for all (a1,a2,a3,eps_bist,eta_val,beta) ----
-a1_all   = [];
-a2_all   = [];
-a3_all   = [];
-eps_all  = [];
-eta_all  = [];
-beta_all = [];
+% OPT: Preallocate outputs to avoid dynamic growth
+nTotal   = nBeta * nConfig;
+a1_all   = repmat(alpha1_list, nBeta, 1);
+a2_all   = repmat(alpha2_list, nBeta, 1);
+a3_all   = repmat(alpha3_list, nBeta, 1);
+beta_all = kron(beta_vec(:), ones(nConfig, 1));
+eps_all  = NaN(nTotal, 1);
+eta_all  = NaN(nTotal, 1);
+
+% OPT: Precompute geometry that does not depend on beta
+sin_a1 = sin(alpha1_list);
+sin_a2 = sin(alpha2_list);
+sin_a3 = sin(alpha3_list);
+
+lam1_ratio = sin_a1 ./ sin_a3;
+lam2_ratio = sin_a2 ./ sin_a3;
+lam3_ratio = 1.0;
+
+lambda1 = lam1_ratio * scale;
+lambda2 = lam2_ratio * scale;
+lambda3 = lam3_ratio * scale;
+
+L1 = lambda1 * edgeLen;
+L2 = lambda2 * edgeLen;
+L3 = lambda3 * edgeLen;
+
+q3_y = (L1.^2 - L2.^2 - L3.^2) ./ (2 * L3);
+inside = L2.^2 - q3_y.^2;
+valid  = inside > 0;
+q3_x   = NaN(nConfig, 1);
+q3_x(valid) = -sqrt(inside(valid));
 
 %% ================== MAIN LOOPS ==================
 for ib = 1:nBeta
@@ -53,54 +78,26 @@ for ib = 1:nBeta
     p_geom.beta = beta;
 
     for i = 1:nConfig
-        a1 = alpha1_list(i);
-        a2 = alpha2_list(i);
-        a3 = alpha3_list(i);
-
-        % ----- Stretch ratios from angles -----
-        lam1_ratio = sin(a1)/sin(a3);
-        lam2_ratio = sin(a2)/sin(a3);
-        lam3_ratio = 1.0;
-
-        lambda1 = lam1_ratio * scale;
-        lambda2 = lam2_ratio * scale;
-        lambda3 = lam3_ratio * scale;
-
-        % ----- Deformed edge lengths -----
-        L1 = lambda1 * edgeLen;
-        L2 = lambda2 * edgeLen;
-        L3 = lambda3 * edgeLen;
+        % OPT: Skip invalid triangles early
+        if ~valid(i)
+            continue;
+        end
 
         % ----- Triangle coordinates -----
         q1 = [0, 0];
-        q2 = [0, -L3];
-        q3_y = (L1^2 - L2^2 - L3^2) / (2 * L3);
-        inside = L2^2 - q3_y^2;
+        q2 = [0, -L3(i)];
+        q3 = [q3_x(i), q3_y(i)];
 
-        if inside <= 0
-            eps_bist = NaN;
-            eta_val  = NaN;
-        else
-            q3_x = -sqrt(inside);
-            q3   = [q3_x, q3_y];
+        [eps_bist, eta_val] = bistability_analysis( ...
+            p_geom.l1, p_geom.l4, p_geom.beta, p_geom.t, edgeLen, ...
+            q1, q2, q3);
 
-            [eps_bist, eta_val] = bistability_analysis( ...
-                p_geom.l1, p_geom.l4, p_geom.beta, p_geom.t, edgeLen, ...
-                q1, q2, q3);
-
-            if isnan(eps_bist) || eta_val < 0.1
-                eps_bist = NaN;
-                eta_val  = NaN;
-            end
+        if ~isnan(eps_bist) && eta_val >= 0.1
+            % OPT: Direct indexing into preallocated arrays
+            idx = (ib - 1) * nConfig + i;
+            eps_all(idx, 1) = eps_bist;
+            eta_all(idx, 1) = eta_val;
         end
-
-        % store results
-        a1_all(end+1,1)   = a1;
-        a2_all(end+1,1)   = a2;
-        a3_all(end+1,1)   = a3;
-        eps_all(end+1,1)  = eps_bist;
-        eta_all(end+1,1)  = eta_val;
-        beta_all(end+1,1) = beta;
     end
 end
 
@@ -131,4 +128,3 @@ plot_ternary( ...
 % a1 = anisotropy_study(67,:).a1;
 % a2 = anisotropy_study(67,:).a2;
 % a3 = anisotropy_study(67,:).a3;
-
