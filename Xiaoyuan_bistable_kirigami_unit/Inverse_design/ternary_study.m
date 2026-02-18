@@ -25,7 +25,7 @@ alpha3_list = alpha3_grid(mask);
 nConfig = numel(alpha1_list);
 
 %% ---- Beta sweep settings ----
-beta_vec = linspace(0, pi/15, 15);
+beta_vec = linspace(0, pi/15, 5);
 %beta_vec = pi/40;
 nBeta = numel(beta_vec);
 
@@ -50,7 +50,7 @@ sin_a3 = sin(alpha3_list);
 
 lam1_ratio = sin_a1 ./ sin_a3;
 lam2_ratio = sin_a2 ./ sin_a3;
-lam3_ratio = 1.0;
+lam3_ratio = ones(nConfig, 1);
 
 lambda1 = lam1_ratio * scale;
 lambda2 = lam2_ratio * scale;
@@ -67,37 +67,35 @@ q3_x   = NaN(nConfig, 1);
 q3_x(valid) = -sqrt(inside(valid));
 
 %% ================== MAIN LOOPS ==================
-for ib = 1:nBeta
+% Geometry parameters independent of (a1,a2,a3)
+l1_geom = edgeLen * 0.85;
+l4_geom = edgeLen * 0.05;
+t_geom  = edgeLen * 0.015;
+
+% PARFOR over flattened (beta, config) index
+parfor idx = 1:nTotal
+    i  = mod(idx - 1, nConfig) + 1;
+    ib = floor((idx - 1) / nConfig) + 1;
+
+    % Skip invalid triangles early  
+    if ~valid(i)
+        continue;
+    end
+
     beta = beta_vec(ib);
 
-    % Geometry parameters for this beta
-    p_geom = struct();
-    p_geom.l1   = edgeLen * 0.85;
-    p_geom.l4   = edgeLen * 0.05;
-    p_geom.t    = edgeLen * 0.015;
-    p_geom.beta = beta;
+    % ----- Triangle coordinates -----
+    q1 = [0, 0];
+    q2 = [0, -L3(i)];
+    q3 = [q3_x(i), q3_y(i)];
 
-    for i = 1:nConfig
-        % OPT: Skip invalid triangles early
-        if ~valid(i)
-            continue;
-        end
+    [eps_bist, eta_val] = bistability_analysis( ...
+        l1_geom, l4_geom, beta, t_geom, edgeLen, ...
+        q1, q2, q3);
 
-        % ----- Triangle coordinates -----
-        q1 = [0, 0];
-        q2 = [0, -L3(i)];
-        q3 = [q3_x(i), q3_y(i)];
-
-        [eps_bist, eta_val] = bistability_analysis( ...
-            p_geom.l1, p_geom.l4, p_geom.beta, p_geom.t, edgeLen, ...
-            q1, q2, q3);
-
-        if ~isnan(eps_bist) && eta_val >= 0.1
-            % OPT: Direct indexing into preallocated arrays
-            idx = (ib - 1) * nConfig + i;
-            eps_all(idx, 1) = eps_bist;
-            eta_all(idx, 1) = eta_val;
-        end
+    if ~isnan(eps_bist) && eta_val >= 0.1
+        eps_all(idx, 1) = eps_bist;
+        eta_all(idx, 1) = eta_val;
     end
 end
 
@@ -106,15 +104,15 @@ anisotropy_study = table( ...
     a1_all, a2_all, a3_all, eps_all, eta_all, beta_all, ...
     'VariableNames', {'a1','a2','a3','eps_bist','eta_val','beta'});
 
-save ternary_study_beta
+save ternary_study_beta_test1
 
 % %% Plot ternary figure
-% T0 = anisotropy_study(abs(anisotropy_study.beta - 0.005416539057913) < 1e-4, :);
+T0 = anisotropy_study(abs(anisotropy_study.beta - 0.209439510239320) < 1e-4, :);
 % 
 % mask = (T0.a1 > pi/2) | (T0.a3 < 5*pi/24 & T0.a2 > pi/3);
 % T0.eps_bist(mask) = NaN;
 % T0.eta_val(mask)  = NaN;
-T0 = anisotropy_study;
+% T0 = anisotropy_study;
 plot_ternary( ...
     T0.a1, ...            % alpha1
     T0.a2, ...            % alpha2
