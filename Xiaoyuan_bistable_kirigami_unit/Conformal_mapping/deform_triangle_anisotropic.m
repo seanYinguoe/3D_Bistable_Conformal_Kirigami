@@ -1,19 +1,20 @@
 function [E_total,alpha] = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N)
 % Inputs:
-%   q1, q2, q3   - Unit node coordinates (1x3 vectors)
-%   edgeLen      - Original triangle edge length
-%   l1, l4, beta   - l1: length of flanks l4:thickness of flanks
-%   beta:tilting angle
-%   t            - Thickness of filaments
-%   i_out        - Orientation flag (0 for upwards, 1 for downwards)
-%   nD           - Number of steps
+%   q1, q2, q3 - Unit node coordinates (1x3 vectors)
+%   edgeLen    - Original triangle edge length
+%   l1, l4     - Geometric parameters of flanks
+%   beta       - Tilting angle
+%   t          - Thickness of filaments
+%   nD         - Number of deployment steps
+%   N          - Number of nodes per ligament
 %
 % Output:
-%   triangle_new - Deformed triangle coordinates
-%   E_total      - Deployed energy
+%   E_total    - Deployed energy
+%   alpha      - Deployment fraction (0 to 1)
 
 %% Helper
 wrap  = @(th) atan2(sin(th), cos(th));
+pack_x = @(phiB,eB,phiA,eA,phiC,eC,theta,xG,yG) [phiB; eB; phiA; eA; phiC; eC; theta; xG; yG];
 
 %% Geometry constants (independent of delta)
 l2 = (2/sqrt(3)) * (edgeLen - l1 - l4) .* sin(pi/3 - beta);
@@ -42,7 +43,6 @@ p3_def = [p3_x,p3_y];
 
 %% create reference unit(delta = 0)
 [tri0, ~] = deform_triangle_isotropic(0, edgeLen, l1, l4, beta, t, N);
-% plot_triangle(tri0);
 E_total  = nan(1, nD);
 theta_all = nan(1, nD);
 theta_prev = -pi + beta;             % start with undefomred one
@@ -50,17 +50,12 @@ theta_prev = -pi + beta;             % start with undefomred one
 %% input initial guess for optimisation
 K = N-1;  % number of torsional spring
 DeltaTot = wrap(theta_prev + pi - beta); % total angle difference
-phi_prevB = (DeltaTot / K) * ones(K,1); % initial rotational angle of torsional springs
-e_prevB   = zeros(N,1); % initial length change in ligaments
-phi_prevA = (DeltaTot / K) * ones(K,1);
-e_prevA   = zeros(N,1);
-phi_prevC = (DeltaTot / K) * ones(K,1);
-e_prevC   = zeros(N,1);
+phi0 = (DeltaTot / K) * ones(K,1); % initial rotational angle of torsional springs
+e0   = zeros(N,1);                 % initial length change in ligaments
 G0 = [-sqrt(3)/6*edgeLen, -1/2*edgeLen];
 xG0 = G0(1);
 yG0 = G0(2);
-x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev; xG0; yG0]; % initial guess
-%x_prev = [phi_prevA; e_prevA; phi_prevB; e_prevB;theta_prev]; % initial guess
+x_prev = pack_x(phi0,e0,phi0,e0,phi0,e0,theta_prev,xG0,yG0); % initial guess
 alpha = zeros(nD,1);
 %% Loop over deltas
 for k = 1:nD
@@ -76,10 +71,6 @@ for k = 1:nD
         alphaL_B, alphaL_A, alphaL_C,...
         flank_B, flank_A, flank_C] = get_flank(p1, p2, p3);
 
-    %G0 = 1/3*(p1 + p2 + p3);
-    %xG0 = G0(1);
-    %yG0 = G0(2);
-
     % update params for optimisation
     params = struct('t',t,'E',Emod,'b',b,'beta',beta,'B_flank',B_flank,...
         'A_flank',A_flank,'C_flank',C_flank,'r_vertex',r_vertex,'l2',l2,...
@@ -90,22 +81,12 @@ for k = 1:nD
     % Save the reuslt
     theta_all(k) = pack.theta;
     E_total(k)   = energy;               % 3 ligaments total
-    theta_prev   = pack.theta;
-    phi_prevB = pack.phiB;
-    e_prevB = pack.eB;
-    phi_prevA = pack.phiA;
-    e_prevA = pack.eA;
-    phi_prevC = pack.phiC;
-    e_prevC = pack.eC;
-    xG_prev = pack.xG;
-    yG_prev = pack.yG;
-    x_prev = [phi_prevB; e_prevB; phi_prevA; e_prevA; phi_prevC; e_prevC; theta_prev; xG_prev; yG_prev];
-    xG0 = xG_prev;
-    yG0 = yG_prev;
-    %x_prev = [phi_prevA; e_prevA;phi_prevB; e_prevB; theta_prev];
+    theta_prev = pack.theta;
+    xG0 = pack.xG;
+    yG0 = pack.yG;
+    x_prev = pack_x(pack.phiB,pack.eB,pack.phiA,pack.eA,pack.phiC,pack.eC,theta_prev,xG0,yG0);
     last_pack = pack;
 end
-
 
 %% Plot energy curve
 % figure('Color','w');
@@ -121,8 +102,10 @@ end
 % axis square;
 
 %% Plot configuration
-%figure()
-%triangle = update_triangle(last_pack.B,last_pack.A,last_pack.C,flank_B,flank_A,flank_C, last_pack.XYB,last_pack.XYA, last_pack.XYC,colour);
+% figure()
+% colour = {'white', [0.9216 0.8863 0.4235], [0.7059 0.9608 0.4118], [0.9216 0.8863 0.4235]};
+% triangle = update_triangle(last_pack.B,last_pack.A,last_pack.C,flank_B,flank_A,flank_C, ...
+%                            last_pack.XYB,last_pack.XYA,last_pack.XYC,colour);
 
 % Define function that can get deployed unit
     function [B_flank_def, A_flank_def, C_flank_def,...
@@ -134,28 +117,19 @@ end
             23 24 25 26
             ];
 
-        % Move the flanks to fit the outer boundary(rigid conditions)
-        flank1_t = p1 - tri0(22,:);
-        flank1 = tri0(f_flank(1,:),:) + flank1_t;
-        flank2_t = p2 - tri0(30,:);
-        flank2 = tri0(f_flank(2,:),:) + flank2_t;
-        flank3_t = p3 - tri0(26,:);
-        flank3 = tri0(f_flank(3,:),:) + flank3_t;
-
-        % Rotate the flanks to fit the outer boundary
-        vector1 = flank1(3,:) - flank1(4,:);
-        vector2 = p3 - p1;
-        flank1_r = atan2(vector1(1)*vector2(2) - vector1(2)*vector2(1), dot(vector1, vector2));
-        vector1 = flank2(3,:) - flank2(4,:);
-        vector2 = p1 - p2;
-        flank2_r = atan2(vector1(1)*vector2(2) - vector1(2)*vector2(1), dot(vector1, vector2));
-        vector1 = flank3(3,:) - flank3(4,:);
-        vector2 = p2 - p3;
-        flank3_r = atan2(vector1(1)*vector2(2) - vector1(2)*vector2(1), dot(vector1, vector2));
-
-        flank1 = real((flank1-p1)*rotation(-flank1_r) + p1);
-        flank2 = real((flank2-p2)*rotation(-flank2_r) + p2);
-        flank3 = real((flank3-p3)*rotation(-flank3_r) + p3);
+        % Move and rotate each flank to match the current boundary
+        p = [p1; p2; p3];
+        base_idx = [22 30 26];
+        edge_target = [p3-p1; p1-p2; p2-p3];
+        flanks = cell(3,1);
+        for ii = 1:3
+            flk = tri0(f_flank(ii,:),:) + (p(ii,:) - tri0(base_idx(ii),:));
+            v1 = flk(3,:) - flk(4,:);
+            v2 = edge_target(ii,:);
+            rot_ang = atan2(v1(1)*v2(2) - v1(2)*v2(1), dot(v1, v2));
+            flanks{ii} = real((flk - p(ii,:)) * rotation(-rot_ang) + p(ii,:));
+        end
+        flank1 = flanks{1}; flank2 = flanks{2}; flank3 = flanks{3};
 
         B_flank_def = flank1(2,:);
         A_flank_def = flank2(2,:);
@@ -183,7 +157,6 @@ end
         triangle([27 28 29 30],:) = flankA;
         triangle([23 24 25 26],:) = flankC;
 
-
         % plot unit
         hold on
         plot_triangle(triangle,colour)
@@ -192,13 +165,6 @@ end
         build_ligament(XYB, flankB, A, B, t, colour{3})
         build_ligament(XYA, flankA, C, A, t, colour{3})
         build_ligament(XYC, flankC, B, C, t, colour{3})
-
-        % plot(XYB(:,1),  XYB(:,2),'LineWidth', 1.2, 'MarkerSize', 4, ...
-        %     'DisplayName', 'deformed');
-        % plot(XYA(:,1),  XYA(:,2),'LineWidth', 1.2, 'MarkerSize', 4, ...
-        %     'DisplayName', 'deformed');
-        % plot(XYC(:,1),  XYC(:,2),'LineWidth', 1.2, 'MarkerSize', 4, ...
-        %     'DisplayName', 'deformed');
         hold off
         axis off
     end
@@ -215,22 +181,6 @@ end
         end
 
         n = size(XY_outer, 1);
-
-        % compute tangent direction along XY_outer
-        dXY = diff(XY_outer, 1, 1);
-        segLen = vecnorm(dXY, 2, 2);
-        T = dXY ./ segLen;
-
-        T_pts = zeros(n,2);
-        T_pts(1,:) = T(1,:);
-        T_pts(end,:) = T(end,:);
-        if n > 2
-            T_pts(2:end-1,:) = 0.5 * (T(1:end-1,:) + T(2:end,:));
-        end
-
-        % curve normal
-        N_curve = [-T_pts(:,2), T_pts(:,1)];
-        N_curve = N_curve ./ vecnorm(N_curve,2,2);
 
         % start direction comes from flank
         dir_start = flank(1,:) - flank(2,:);
@@ -275,5 +225,5 @@ end
             'LineWidth', 0.5,...
             'MarkerFaceColor', 'cyan');
     end
-end
 
+end
