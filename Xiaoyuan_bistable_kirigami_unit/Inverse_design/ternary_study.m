@@ -5,7 +5,7 @@
 clear; clc;
 
 %% ---- Angle grid (independent of beta) ----
-nStep = 10;                         
+nStep = 20;                         
 alpha3_vec = linspace(pi/6, pi/3, nStep);       % α3 ∈ [π/6, π/3]
 alpha2_vec = linspace(pi/6, 5*pi/12, nStep);   % α2 ∈ [π/6, 5π/12]
 
@@ -25,7 +25,7 @@ alpha3_list = alpha3_grid(mask);
 nConfig = numel(alpha1_list);
 
 %% ---- Beta sweep settings ----
-beta_vec = linspace(0, pi/15, 5);
+beta_vec = linspace(0, pi/15, 20);
 %beta_vec = pi/40;
 nBeta = numel(beta_vec);
 
@@ -91,7 +91,7 @@ parfor idx = 1:nTotal
 
     [eps_bist, eta_val] = bistability_analysis( ...
         l1_geom, l4_geom, beta, t_geom, edgeLen, ...
-        q1, q2, q3);
+        q1, q2, q3,0);
 
     if ~isnan(eps_bist) && eta_val >= 0.1
         eps_all(idx, 1) = eps_bist;
@@ -107,17 +107,17 @@ anisotropy_study = table( ...
 save ternary_study_beta_test1
 
 % %% Plot ternary figure
-T0 = anisotropy_study(abs(anisotropy_study.beta - 0.209439510239320) < 1e-4, :);
+%T0 = anisotropy_study(abs(anisotropy_study.beta - 0.209439510239320) < 1e-4, :);
 % 
 % mask = (T0.a1 > pi/2) | (T0.a3 < 5*pi/24 & T0.a2 > pi/3);
 % T0.eps_bist(mask) = NaN;
 % T0.eta_val(mask)  = NaN;
 % T0 = anisotropy_study;
-plot_ternary( ...
-    T0.a1, ...            % alpha1
-    T0.a2, ...            % alpha2
-    T0.a3, ...            % alpha3
-    T0.eps_bist );        % index field (e.g. eps_bist)
+% plot_ternary( ...
+%     T0.a1, ...            % alpha1
+%     T0.a2, ...            % alpha2
+%     T0.a3, ...            % alpha3
+%     T0.eps_bist );        % index field (e.g. eps_bist)
 
 %% Plot 3D ternary figure in term of beta
 %plot_ternary_3D(anisotropy_study.a1, anisotropy_study.a2, anisotropy_study.a3, anisotropy_study.eps_bist, anisotropy_study.beta)

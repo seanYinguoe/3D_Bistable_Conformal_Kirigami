@@ -4,7 +4,10 @@ function [E_one, pack] = energy_lig_anisotropic(x0, N, p)
 %   th : initial theta guess
 %   N  : number of segments
 %   B0 : Left node
-%   p  : struct with fields {t, E, b, beta, G, r_vertex, l2, l3, alphaL}
+%   p = struct('t',t,'E',Emod,'b',b,'beta',beta,'B_flank',B_flank,...
+%        'A_flank',A_flank,'C_flank',C_flank,'r_vertex',r_vertex,'l2',l2,...
+%        'l3',l3,'alphaL_B',alphaL_B,'alphaL_A',alphaL_A,'alphaL_C',alphaL_C,...
+%        'xG0',xG0,'yG0',yG0);
 
 wrap = @(a) atan2(sin(a), cos(a));
 
@@ -23,6 +26,24 @@ ks_vec = EA ./ a0vec;
 xG0 = p.xG0;
 yG0 = p.yG0;
 G0 = [xG0, yG0];
+
+% Cache constant index/layout blocks (no math change)
+i_phiB = 1:K;
+i_eB   = K + (1:N);
+i_phiA = (K+N) + (1:K);
+i_eA   = (K+N+K) + (1:N);
+i_phiC = (K+N+K+N) + (1:K);
+i_eC   = (K+N+K+N+K) + (1:N);
+i_th   = 3*K + 3*N + 1;
+i_xG   = 3*K + 3*N + 2;
+i_yG   = 3*K + 3*N + 3;
+r_posB = 1:2;   r_angB = 3;
+r_posA = 4:5;   r_angA = 6;
+r_posC = 7:8;   r_angC = 9;
+nvars  = 3*K + 3*N + 3;
+negI2  = -eye(2);
+onesK  = ones(1,K);
+zerosN = zeros(1,N);
 
 %% Bounds
 lb = [ -pi*ones(K,1);   -0.6*a0vec;...
@@ -95,23 +116,6 @@ ub = [  pi*ones(K,1);    0.6*a0vec;...
             res_posC; res_angC];
         c = []; gc = [];
 
-        % ---------- Jacobian ----------
-        % Column indices（列索引）
-        i_phiB = 1:K;
-        i_eB   = K + (1:N);
-        i_phiA = (K+N) + (1:K);
-        i_eA   = (K+N+K) + (1:N);
-        i_phiC = (K+N+K+N) + (1:K);
-        i_eC   = (K+N+K+N+K) + (1:N);
-        i_th   = 3*K + 3*N + 1;
-        i_xG   = 3*K + 3*N + 2;
-        i_yG   = 3*K + 3*N + 3;
-
-        % Row indices: [posB(2); angB(1); posA(2); angA(1); posC(2); angC(1)]
-        r_posB = 1:2;   r_angB = 3;
-        r_posA = 4:5;   r_angA = 6;
-        r_posC = 7:8;   r_angC = 9;
-
         % d(pos)/d(e) = u^T
         JposB_e = uB.';   % 2xN
         JposA_e = uA.';   % 2xN
@@ -137,18 +141,18 @@ ub = [  pi*ones(K,1);    0.6*a0vec;...
         JposC_th = -p.r_vertex * uthpC;   % 2x1
 
         % d(ang)/d(·)
-        Jang_phiB = ones(1,K);  Jang_eB = zeros(1,N);  Jang_thB = -1;
-        Jang_phiA = ones(1,K);  Jang_eA = zeros(1,N);  Jang_thA = -1;
-        Jang_phiC = ones(1,K);  Jang_eC = zeros(1,N);  Jang_thC = -1;
+        Jang_phiB = onesK;  Jang_eB = zerosN;  Jang_thB = -1;
+        Jang_phiA = onesK;  Jang_eA = zerosN;  Jang_thA = -1;
+        Jang_phiC = onesK;  Jang_eC = zerosN;  Jang_thC = -1;
 
         % Initialize J and place blocks
-        J = zeros(9, 3*K + 3*N + 3);
+        J = zeros(9, nvars);
 
         % ---- B rows ----
         J(r_posB, i_phiB) = JposB_phi;
         J(r_posB, i_eB)   = JposB_e;
         J(r_posB, i_th)   = JposB_th;
-        J(r_posB, [i_xG i_yG]) = -eye(2);                 % d res_posB / d(xG,yG) = -I2
+        J(r_posB, [i_xG i_yG]) = negI2;                 % d res_posB / d(xG,yG) = -I2
         J(r_angB, i_phiB) = Jang_phiB;
         J(r_angB, i_eB)   = Jang_eB;
         J(r_angB, i_th)   = Jang_thB;
@@ -157,7 +161,7 @@ ub = [  pi*ones(K,1);    0.6*a0vec;...
         J(r_posA, i_phiA) = JposA_phi;
         J(r_posA, i_eA)   = JposA_e;
         J(r_posA, i_th)   = JposA_th;
-        J(r_posA, [i_xG i_yG]) = -eye(2);                 % d res_posA / d(xG,yG) = -I2
+        J(r_posA, [i_xG i_yG]) = negI2;                 % d res_posA / d(xG,yG) = -I2
         J(r_angA, i_phiA) = Jang_phiA;
         J(r_angA, i_eA)   = Jang_eA;
         J(r_angA, i_th)   = Jang_thA;
@@ -166,7 +170,7 @@ ub = [  pi*ones(K,1);    0.6*a0vec;...
         J(r_posC, i_phiC) = JposC_phi;
         J(r_posC, i_eC)   = JposC_e;
         J(r_posC, i_th)   = JposC_th;
-        J(r_posC, [i_xG i_yG]) = -eye(2);                 % d res_posC / d(xG,yG) = -I2
+        J(r_posC, [i_xG i_yG]) = negI2;                 % d res_posC / d(xG,yG) = -I2
         J(r_angC, i_phiC) = Jang_phiC;
         J(r_angC, i_eC)   = Jang_eC;
         J(r_angC, i_th)   = Jang_thC;
