@@ -106,18 +106,66 @@ anisotropy_study = table( ...
 
 save ternary_study_beta_test1
 
-% %% Plot ternary figure
-%T0 = anisotropy_study(abs(anisotropy_study.beta - 0.209439510239320) < 1e-4, :);
-% 
-% mask = (T0.a1 > pi/2) | (T0.a3 < 5*pi/24 & T0.a2 > pi/3);
-% T0.eps_bist(mask) = NaN;
-% T0.eta_val(mask)  = NaN;
-% T0 = anisotropy_study;
-% plot_ternary( ...
-%     T0.a1, ...            % alpha1
-%     T0.a2, ...            % alpha2
-%     T0.a3, ...            % alpha3
-%     T0.eps_bist );        % index field (e.g. eps_bist)
+%% Plot ternary figure
+% Keep rows with eta_val > threshold and finite eps_bist.
+etaThreshold = 0.15;
+isValid = isfinite(anisotropy_study.eta_val) & ...
+          (anisotropy_study.eta_val > etaThreshold) & ...
+          isfinite(anisotropy_study.eps_bist);
+T_valid = anisotropy_study(isValid, :);
+
+% Select beta slice for plotting.
+T_plot = T_valid(abs(T_valid.beta - 0) < 1e-4, :);
+
+% Remove isolated outliers in ternary coordinates (toolbox-free).
+% outlier_strength: larger means more aggressive filtering.
+outlier_strength = 3;
+k_nn = 6;
+n_pts = height(T_plot);
+if n_pts > 3
+    % Normalize ternary coordinates and map to 2D Cartesian.
+    s = T_plot.a1 + T_plot.a2 + T_plot.a3;
+    B = T_plot.a2 ./ s;
+    C = T_plot.a3 ./ s;
+    x = B + 0.5 * C;
+    y = (sqrt(3)/2) * C;
+    X = [x, y];
+
+    % Pairwise distances and kNN mean distances.
+    G = sum(X.^2, 2);
+    D2 = max(G + G' - 2*(X*X'), 0);
+    D = sqrt(D2);
+    D(1:n_pts+1:end) = inf;
+
+    k_eff = min(k_nn, n_pts - 1);
+    if k_eff >= 1
+        D_sorted = sort(D, 2, 'ascend');
+        knn_mean_dist = mean(D_sorted(:, 1:k_eff), 2);
+
+        % Robust threshold: median + outlier_strength * 1.4826*MAD
+        d_med = median(knn_mean_dist);
+        d_mad = median(abs(knn_mean_dist - d_med));
+        if d_mad <= eps
+            thr_robust = inf;
+        else
+            thr_robust = d_med + outlier_strength * 1.4826 * d_mad;
+        end
+
+        % Secondary threshold: 99th percentile.
+        d_sorted = sort(knn_mean_dist);
+        idx99 = max(1, ceil(0.99 * numel(d_sorted)));
+        thr_p99 = d_sorted(idx99);
+
+        is_outlier = (knn_mean_dist > thr_robust) | (knn_mean_dist > thr_p99);
+        T_plot = T_plot(~is_outlier, :);
+    end
+end
+
+plot_ternary( ...
+    T_plot.a1, ...            % alpha1
+    T_plot.a2, ...            % alpha2
+    T_plot.a3, ...            % alpha3
+    T_plot.eps_bist );        % index field (eps_bist)
 
 %% Plot 3D ternary figure in term of beta
 %plot_ternary_3D(anisotropy_study.a1, anisotropy_study.a2, anisotropy_study.a3, anisotropy_study.eps_bist, anisotropy_study.beta)
