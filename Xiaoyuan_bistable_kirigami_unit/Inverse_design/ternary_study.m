@@ -91,7 +91,7 @@ parfor idx = 1:nTotal
 
     [eps_bist, eta_val] = bistability_analysis( ...
         l1_geom, l4_geom, beta, t_geom, edgeLen, ...
-        q1, q2, q3,0);
+        q1, q2, q3,1); % 1: plot energy curve; 0: not plotting
 
     if ~isnan(eps_bist) && eta_val >= 0.1
         eps_all(idx, 1) = eps_bist;
@@ -121,45 +121,7 @@ T_plot = T_valid(abs(T_valid.beta - 0) < 1e-4, :);
 % outlier_strength: larger means more aggressive filtering.
 outlier_strength = 3;
 k_nn = 6;
-n_pts = height(T_plot);
-if n_pts > 3
-    % Normalize ternary coordinates and map to 2D Cartesian.
-    s = T_plot.a1 + T_plot.a2 + T_plot.a3;
-    B = T_plot.a2 ./ s;
-    C = T_plot.a3 ./ s;
-    x = B + 0.5 * C;
-    y = (sqrt(3)/2) * C;
-    X = [x, y];
-
-    % Pairwise distances and kNN mean distances.
-    G = sum(X.^2, 2);
-    D2 = max(G + G' - 2*(X*X'), 0);
-    D = sqrt(D2);
-    D(1:n_pts+1:end) = inf;
-
-    k_eff = min(k_nn, n_pts - 1);
-    if k_eff >= 1
-        D_sorted = sort(D, 2, 'ascend');
-        knn_mean_dist = mean(D_sorted(:, 1:k_eff), 2);
-
-        % Robust threshold: median + outlier_strength * 1.4826*MAD
-        d_med = median(knn_mean_dist);
-        d_mad = median(abs(knn_mean_dist - d_med));
-        if d_mad <= eps
-            thr_robust = inf;
-        else
-            thr_robust = d_med + outlier_strength * 1.4826 * d_mad;
-        end
-
-        % Secondary threshold: 99th percentile.
-        d_sorted = sort(knn_mean_dist);
-        idx99 = max(1, ceil(0.99 * numel(d_sorted)));
-        thr_p99 = d_sorted(idx99);
-
-        is_outlier = (knn_mean_dist > thr_robust) | (knn_mean_dist > thr_p99);
-        T_plot = T_plot(~is_outlier, :);
-    end
-end
+T_plot = filter_ternary_outliers_knn(T_plot, k_nn, outlier_strength);
 
 plot_ternary( ...
     T_plot.a1, ...            % alpha1
@@ -169,8 +131,3 @@ plot_ternary( ...
 
 %% Plot 3D ternary figure in term of beta
 %plot_ternary_3D(anisotropy_study.a1, anisotropy_study.a2, anisotropy_study.a3, anisotropy_study.eps_bist, anisotropy_study.beta)
-
-%% Test
-% a1 = anisotropy_study(67,:).a1;
-% a2 = anisotropy_study(67,:).a2;
-% a3 = anisotropy_study(67,:).a3;

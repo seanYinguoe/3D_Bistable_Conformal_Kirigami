@@ -102,10 +102,10 @@ end
 % axis square;
 
 %% Plot configuration
-% figure()
-% colour = {'white', [0.9216 0.8863 0.4235], [0.7059 0.9608 0.4118], [0.9216 0.8863 0.4235]};
-% triangle = update_triangle(last_pack.B,last_pack.A,last_pack.C,flank_B,flank_A,flank_C, ...
-%                            last_pack.XYB,last_pack.XYA,last_pack.XYC,colour);
+figure()
+colour = {'white', [0.9216 0.8863 0.4235], [0.7059 0.9608 0.4118], [0.9216 0.8863 0.4235]};
+triangle = update_triangle(last_pack.B,last_pack.A,last_pack.C,flank_B,flank_A,flank_C, ...
+                           last_pack.XYB,last_pack.XYA,last_pack.XYC,colour);
 
 % Define function that can get deployed unit
     function [B_flank_def, A_flank_def, C_flank_def,...

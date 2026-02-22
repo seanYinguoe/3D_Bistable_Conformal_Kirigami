@@ -108,6 +108,12 @@ alpha_hist = nan(maxSteps,1);
 E_hist = nan(maxSteps,1);
 strain_hist = nan(maxSteps,1);
 
+% === NEW: store per-step configuration for bistable-shape plotting ===
+pack_hist = cell(maxSteps,1);
+flankB_hist = cell(maxSteps,1);
+flankA_hist = cell(maxSteps,1);
+flankC_hist = cell(maxSteps,1);
+
 strain_scale = norm(q1 - q2) / edgeLen - 1;
 
 strain_bist = NaN;
@@ -120,15 +126,28 @@ max_idx = NaN;
 min_idx = NaN;
 last_checked_i = 3; % candidate index i checked once k >= i+L_confirm
 
+% === NEW: store bistable configuration ===
+pack_bist = [];
+flankB_bist = [];
+flankA_bist = [];
+flankC_bist = [];
+alpha_bist = NaN;
+
 %% Incremental deployment loop
 for k = 1:maxSteps
     alpha_k = min((k - 1) * dalpha, alpha_max);
 
-    [energy, pack] = step_deploy(alpha_k);
+    [energy, pack, flankB_step, flankA_step, flankC_step] = step_deploy(alpha_k);
 
     alpha_hist(k) = alpha_k;
     E_hist(k) = energy;
     strain_hist(k) = alpha_k * strain_scale;
+
+    % Cache step state for potential later retrieval (e.g., min_idx < current k)
+    pack_hist{k} = pack;
+    flankB_hist{k} = flankB_step;
+    flankA_hist{k} = flankA_step;
+    flankC_hist{k} = flankC_step;
 
     % Warm-start continuity for next step
     xG0 = pack.xG;
@@ -183,6 +202,13 @@ for k = 1:maxSteps
                             strain_bist = strain_hist(min_idx);
                             bistability = bistability_raw;
                             status = 'bistable';
+
+                            % === NEW: store bistable configuration ===
+                            pack_bist = pack_hist{min_idx};
+                            flankB_bist = flankB_hist{min_idx};
+                            flankA_bist = flankA_hist{min_idx};
+                            flankC_bist = flankC_hist{min_idx};
+                            alpha_bist = alpha_hist(min_idx);
                         end
                         break;
                     end
@@ -242,6 +268,12 @@ info.strain_history = strain_hist;
 info.max_idx = max_idx;
 info.min_idx = min_idx;
 info.bistability_raw = bistability_raw;
+if strcmp(status, 'bistable')
+    info.alpha_bist = alpha_bist;
+else
+    info.alpha_bist = NaN;
+end
+info.has_shape_plot = false;
 
 if do_plot
     % Same plotting style as deform_triangle_anisotropic
@@ -259,6 +291,10 @@ if do_plot
         plot(alpha_hist(min_idx), E_hist(min_idx), 'ks', 'MarkerFaceColor', 'k', 'MarkerSize', 8);
         text(alpha_hist(min_idx), E_hist(min_idx), ' bistable energy', ...
             'VerticalAlignment', 'top', 'FontName', 'Times New Roman', 'FontSize', 14);
+    else
+        % Optional status annotation for non-bistable cases
+        text(alpha_hist(end), E_hist(end), [' status: ' status], ...
+            'VerticalAlignment', 'bottom', 'FontName', 'Times New Roman', 'FontSize', 12);
     end
 
     xlabel('Deployment', 'Interpreter','tex', 'FontSize',20);
@@ -267,15 +303,27 @@ if do_plot
     legend('Location','northwest','Box','off', 'Fontsize',18);
     grid off;
     axis square;
+
+    % === NEW: plot bistable configuration ===
+    if strcmp(status, 'bistable') && ~isempty(pack_bist)
+        figure('Color','w');
+        colour = {'white', [0.9216 0.8863 0.4235], [0.7059 0.9608 0.4118], [0.9216 0.8863 0.4235]};
+        update_triangle(pack_bist.B, pack_bist.A, pack_bist.C, ...
+            flankB_bist, flankA_bist, flankC_bist, ...
+            pack_bist.XYB, pack_bist.XYA, pack_bist.XYC, colour);
+        title(sprintf('Bistable configuration at \\alpha = %.3f', alpha_bist), ...
+            'FontName', 'Times New Roman', 'FontSize', 16);
+        info.has_shape_plot = true;
+    end
 end
 
-    function [energy, pack] = step_deploy(alpha_k)
+    function [energy, pack, flankB, flankA, flankC] = step_deploy(alpha_k)
         % Interpolate boundary nodes
         p1 = (1 - alpha_k) * p1_orig + alpha_k * p1_def;
         p2 = (1 - alpha_k) * p2_orig + alpha_k * p2_def;
         p3 = (1 - alpha_k) * p3_orig + alpha_k * p3_def;
 
-        [B_flank, A_flank, C_flank, alphaL_B, alphaL_A, alphaL_C] = get_flank(p1, p2, p3);
+        [B_flank, A_flank, C_flank, alphaL_B, alphaL_A, alphaL_C, flankB, flankA, flankC] = get_flank(p1, p2, p3);
 
         % Update dynamic params only
         params.B_flank = B_flank;
@@ -290,7 +338,7 @@ end
         [energy, pack] = energy_lig_anisotropic(x_prev, N, params);
     end
 
-    function [B_flank_def, A_flank_def, C_flank_def, alphaL_B_def, alphaL_A_def, alphaL_C_def] = get_flank(p1, p2, p3)
+    function [B_flank_def, A_flank_def, C_flank_def, alphaL_B_def, alphaL_A_def, alphaL_C_def, flank1, flank2, flank3] = get_flank(p1, p2, p3)
         f_flank = [19 20 21 22;
                    27 28 29 30;
                    23 24 25 26];
@@ -379,6 +427,70 @@ end
             n_changes = sum(diff(sign_nz) ~= 0);
             is_osc = (n_changes >= osc_sign_changes_thresh);
         end
+    end
+
+    function triangle = update_triangle(B,A,C,flankB,flankA,flankC,XYB,XYA,XYC,colour)
+        triangle = zeros(45,2);
+        triangle(43,:) = A;
+        triangle(44,:) = B;
+        triangle(45,:) = C;
+
+        triangle([19,20,21,22],:) = flankB;
+        triangle([27 28 29 30],:) = flankA;
+        triangle([23 24 25 26],:) = flankC;
+
+        hold on
+        plot_triangle(triangle,colour)
+
+        build_ligament(XYB, flankB, A, B, t, colour{3})
+        build_ligament(XYA, flankA, C, A, t, colour{3})
+        build_ligament(XYC, flankC, B, C, t, colour{3})
+        hold off
+        axis off
+    end
+
+    function [XY_inner, XY_outer] = build_ligament(XY_outer, flank, A, B, t_lig, colour)
+        if nargin < 6
+            colour = [0.5 0.5 0.5];
+        end
+
+        n = size(XY_outer, 1);
+
+        dir_start = flank(1,:) - flank(2,:);
+        dir_start = dir_start / norm(dir_start);
+
+        dir_end = A - B;
+        dir_end = dir_end / norm(dir_end);
+
+        dir_interp = zeros(n,2);
+        for i_pt = 1:n
+            s_loc = (i_pt-1)/(n-1);
+            dir = (1-s_loc)*dir_start + s_loc*dir_end;
+            dir_interp(i_pt,:) = dir / norm(dir);
+        end
+
+        XY_inner_1 = XY_outer + t_lig * dir_interp;
+        XY_inner_2 = XY_outer - t_lig * dir_interp;
+
+        target = 0.5*(A + B);
+        d1 = norm(mean(XY_inner_1,1) - target);
+        d2 = norm(mean(XY_inner_2,1) - target);
+
+        if d1 < d2
+            XY_inner = XY_inner_1;
+        else
+            XY_inner = XY_inner_2;
+        end
+
+        verts = [XY_outer; flipud(XY_inner)];
+        faces = 1:(2*n);
+
+        patch('Vertices', verts, 'Faces', faces, ...
+            'FaceColor', colour, ...
+            'FaceAlpha', 0.5, ...
+            'EdgeColor', 'k', ...
+            'LineWidth', 0.5,...
+            'MarkerFaceColor', 'cyan');
     end
 
 end
