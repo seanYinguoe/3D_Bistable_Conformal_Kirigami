@@ -108,7 +108,7 @@ save ternary_study_beta_test1
 
 %% Plot ternary figure
 % Keep rows with eta_val > threshold and finite eps_bist.
-etaThreshold = 0.15;
+etaThreshold = 0.20;
 isValid = isfinite(anisotropy_study.eta_val) & ...
           (anisotropy_study.eta_val > etaThreshold) & ...
           isfinite(anisotropy_study.eps_bist);
@@ -116,6 +116,8 @@ T_valid = anisotropy_study(isValid, :);
 
 % Select beta slice for plotting.
 T_filter = T_valid(abs(T_valid.beta - 0) < 1e-4, :);
+
+plot_ternary(T_valid.a1, T_valid.a2, T_valid.a3, T_valid.eps_bist, 'scatter');
 
 % Remove isolated outliers in ternary coordinates (toolbox-free).
 % outlier_strength: larger means more aggressive filtering.
@@ -125,7 +127,9 @@ T_filter = filter_ternary_outliers_knn(T_filter, k_nn, outlier_strength);
 
 plot_ternary(T_filter.a1, T_filter.a2, T_filter.a3, T_filter.eps_bist, 'scatter');
 
-T_plot = interpolate_ternary_smooth(T_filter, 60, 1.3, etaThreshold);
+T_plot = interpolate_ternary_smooth(T_filter, 100, 1.3, etaThreshold);
+
+plot_ternary(T_plot.a1, T_plot.a2, T_plot.a3, T_plot.eps_bist, 'scatter');
 
 if ~isempty(T_plot)
     eps_ref = T_filter.eps_bist(isfinite(T_filter.eps_bist));
