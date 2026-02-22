@@ -1,15 +1,24 @@
-function plot_ternary(alpha1, alpha2, alpha3, index)
+function plot_ternary(alpha1, alpha2, alpha3, index, mode, clim)
 % PLOT_TERNARY  Standalone symmetric ternary plot (no toolbox required)
 % Now includes symbolic radian ticks: 0, π/6, π/3, π/2, 2π/3, 5π/6, π
 %
 % alpha1, alpha2, alpha3 : internal angles (rad)
 % index                  : scalar field (e.g. eps_bist or eta)
 %                          Points with index = NaN will not be plotted.
+% mode (optional)        : 'scatter' (default) | 'field'
+% clim (optional)        : color limits [cmin cmax]
 %
 % Axis convention (matching your figure):
 %   - alpha3: bottom edge, 0 → π from left to right
 %   - alpha2: right  edge, 0 → π from bottom to top
 %   - alpha1: left   edge, 0 → π from top to bottom
+
+if nargin < 5 || isempty(mode)
+    mode = 'scatter';
+end
+if nargin < 6
+    clim = [];
+end
 
 %% ---- 1) Symmetrize points across all 6 permutations (full triangle) ----
 Aang = [alpha1(:), alpha2(:), alpha3(:)];
@@ -28,8 +37,8 @@ Afull = [];
 Vfull = [];
 
 for i = 1:6
-    Afull = [Afull; Aang(:,P(i,:))];
-    Vfull = [Vfull; V];
+    Afull = [Afull; Aang(:,P(i,:))]; %#ok<AGROW>
+    Vfull = [Vfull; V]; %#ok<AGROW>
 end
 
 alpha1 = Afull(:,1);
@@ -49,8 +58,8 @@ C = alpha2 ./ S;
 
 [X, Y] = ternaryToCartesian(A,B,C);
 
-%% ---- 3) Keep only finite index values (外面已经决定单/双稳) ----
-mask = isfinite(index);
+%% ---- 3) Keep only finite index values ----
+mask = isfinite(index) & isfinite(X) & isfinite(Y);
 X = X(mask);
 Y = Y(mask);
 val = index(mask);
@@ -59,15 +68,27 @@ val = index(mask);
 figure; hold on; axis equal; axis off;
 drawTernaryAxesWithSymbolicTicks();
 
-%% ---- 5) Draw points ----
-scatter(X, Y, 55, val, 'filled');
+%% ---- 5) Draw data ----
+switch lower(mode)
+    case 'field'
+        if numel(X) >= 3
+            tri = delaunay(X, Y);
+            trisurf(tri, X, Y, val, 'EdgeColor', 'none');
+            view(2);
+        end
+    otherwise
+        scatter(X, Y, 55, val, 'filled');
+end
 
 colormap(jet);
+if ~isempty(clim) && numel(clim) == 2 && all(isfinite(clim))
+    caxis(clim);
+end
 
 cb = colorbar('southoutside');   % put colorbar UNDER the triangle
 cb.Label.Interpreter = 'none';
-cb.Label.FontSize = 18;           % make label big
-cb.FontSize = 18;                 % make tick labels bigger
+cb.Label.FontSize = 18;          % make label big
+cb.FontSize = 18;                % make tick labels bigger
 pos = cb.Position;
 
 pos(1) = 0.15;   % left edge
@@ -108,6 +129,21 @@ function drawTernaryAxesWithSymbolicTicks()
 % Outer triangle
 plot([0 1 0.5 0], [0 0 sqrt(3)/2 0], 'k-', 'LineWidth', 2);
 hold on;
+
+% Direction indicators
+% Bottom α3 direction
+plot([0.4 0.5],[-0.02 -0.02],'k','LineWidth',2);
+
+% Left α1 direction: short line rotated +60° from horizontal
+L = 0.08;
+mcL = [0.25, sqrt(3)/4];
+dL = [cos(pi/3), sin(pi/3)] * (L/2);
+plot([mcL(1)-dL(1), mcL(1)+dL(1)], [mcL(2)-dL(2), mcL(2)+dL(2)], 'k', 'LineWidth', 2);
+
+% Right α2 direction: short line rotated -60° from horizontal
+mcR = [0.75, sqrt(3)/4];
+dR = [cos(-pi/3), sin(-pi/3)] * (L/2);
+plot([mcR(1)-dR(1), mcR(1)+dR(1)], [mcR(2)-dR(2), mcR(2)+dR(2)], 'k', 'LineWidth', 2);
 
 g   = linspace(0,1,7);   % 0, 1/6, ..., 1
 symTicks = { ...
