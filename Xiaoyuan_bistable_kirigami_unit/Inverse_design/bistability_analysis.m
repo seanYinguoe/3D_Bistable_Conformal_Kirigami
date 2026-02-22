@@ -38,21 +38,29 @@ if nargin < 12 || isempty(dropMin)
     dropMin = 0.02;
 end
 if nargin < 13 || isempty(bistabilityMin)
-    bistabilityMin = 0.1;
+    bistabilityMin = 0.04;
 end
 
 do_plot = logical(do_plot);
 L_confirm = max(1, round(L_confirm));
 
-% Detection settings (noise-robust online detection)
-W = 7;                          % rolling window length for unreliable checks
-min_samples_unreliable = 12;    % avoid very-early false stops
+% Detection settings
 slope_eps_rel = 1e-4;           % relative slope deadband
-plateau_dE_rel = 3e-4;          % plateau max |dE| threshold (relative)
-plateau_std_rel = 2e-4;         % plateau std(E) threshold (relative)
-osc_sign_changes_thresh = 4;    % sign-change count threshold in window
 persist_frac = 0.67;            % "mostly" sign persistence threshold
-guard_after_peak = max(L_confirm + 2, 5); % guard unreliable detection right after peak
+
+% Post-peak reliability gate (single metric)
+maxFlipFrac = 0.25;
+
+% Peak neighborhood validity gate (cheap local smoothness test)
+% Suggested defaults:
+%   mPeak=4       -> 4 slopes on each side of candidate peak
+%   asymFrac=0.15 -> reject if right-side descent is too flat vs left ascent
+%   jumpMult=8    -> reject severe one-step slope kinks at peak
+%   useJumpGate   -> enable/disable jump gate
+mPeak = 4;
+asymFrac = 0.15;
+jumpMult = 8;
+useJumpGate = true;
 
 %% Geometry constants (same model as deform_triangle_anisotropic)
 wrap  = @(th) atan2(sin(th), cos(th));
@@ -132,6 +140,18 @@ flankB_bist = [];
 flankA_bist = [];
 flankC_bist = [];
 alpha_bist = NaN;
+stop_now = false;
+
+% Diagnostics for post-peak quality gate
+flipFrac_postpeak = NaN;
+postpeak_ok = false;
+
+% Diagnostics for peak-neighborhood gate
+peak_magL = NaN;
+peak_magR = NaN;
+peak_ratioRtoL = NaN;
+peak_jumpRel = NaN;
+peak_ok = false;
 
 %% Incremental deployment loop
 for k = 1:maxSteps
@@ -174,6 +194,19 @@ for k = 1:maxSteps
                     Emin_pre = min(E_hist(1:i));
                     rise_ratio = (Ei - Emin_pre) / max(abs(Ei), eps);
                     if rise_ratio >= peakRiseMin
+                        [peak_ok, peak_magL, peak_magR, peak_ratioRtoL, peak_jumpRel] = ...
+                            peak_neighborhood_gate(i, k);
+                        if ~peak_ok
+                            status = 'invalid_peak';
+                            strain_bist = NaN;
+                            bistability = NaN;
+                            max_idx = NaN;
+                            min_idx = NaN;
+                            bistability_raw = NaN;
+                            stop_now = true;
+                            processed_upto = i;
+                            break;
+                        end
                         found_max = true;
                         max_idx = i;
                         processed_upto = i;
@@ -191,14 +224,29 @@ for k = 1:maxSteps
                     Emax = E_hist(max_idx);
                     drop_ratio = (Emax - Ei) / max(abs(Emax), eps);
                     if drop_ratio >= dropMin
-                        min_idx = i;
-                        bistability_raw = drop_ratio;
+                        % Candidate valley found: validate post-peak smoothness/robustness
+                        cand_min_idx = i;
+                        cand_bistability_raw = drop_ratio;
                         processed_upto = i;
-                        if bistability_raw < bistabilityMin
+
+                        [flipFrac_postpeak, postpeak_ok] = postpeak_flip_gate(max_idx, cand_min_idx);
+
+                        if ~postpeak_ok
+                            status = 'monostable_osc';
+                            strain_bist = NaN;
+                            bistability = NaN;
+                            min_idx = NaN;
+                            bistability_raw = NaN;
+                            stop_now = true; % break early to save time
+                        elseif cand_bistability_raw < bistabilityMin
+                            min_idx = cand_min_idx;
+                            bistability_raw = cand_bistability_raw;
                             strain_bist = NaN;
                             bistability = NaN;
                             status = 'monostable_weak';
                         else
+                            min_idx = cand_min_idx;
+                            bistability_raw = cand_bistability_raw;
                             strain_bist = strain_hist(min_idx);
                             bistability = bistability_raw;
                             status = 'bistable';
@@ -217,28 +265,8 @@ for k = 1:maxSteps
         end
         last_checked_i = processed_upto + 1;
 
-        if ~isnan(min_idx)
+        if stop_now || ~isnan(min_idx)
             break;
-        end
-    end
-
-    % Early monostable/unreliable detection
-    if k >= min_samples_unreliable && (k >= W) && isnan(min_idx)
-        allow_unreliable = (~found_max) || (k >= max_idx + guard_after_peak);
-        if allow_unreliable
-            [is_plateau, is_osc] = unreliable_flags(alpha_hist(1:k), E_hist(1:k));
-            if is_plateau
-                status = 'monostable_plateau';
-                strain_bist = NaN;
-                bistability = NaN;
-                break;
-            end
-            if is_osc
-                status = 'monostable_osc';
-                strain_bist = NaN;
-                bistability = NaN;
-                break;
-            end
         end
     end
 
@@ -268,6 +296,13 @@ info.strain_history = strain_hist;
 info.max_idx = max_idx;
 info.min_idx = min_idx;
 info.bistability_raw = bistability_raw;
+info.flipFrac_postpeak = flipFrac_postpeak;
+info.postpeak_ok = postpeak_ok;
+info.peak_magL = peak_magL;
+info.peak_magR = peak_magR;
+info.peak_ratioRtoL = peak_ratioRtoL;
+info.peak_jumpRel = peak_jumpRel;
+info.peak_ok = peak_ok;
 if strcmp(status, 'bistable')
     info.alpha_bist = alpha_bist;
 else
@@ -398,35 +433,81 @@ end
         ok = (n_good >= ceil(frac * numel(vals)));
     end
 
-    function [is_plateau, is_osc] = unreliable_flags(alpha_v, E_v)
-        Ew = E_v(end-W+1:end);
-        Aw = alpha_v(end-W+1:end);
-        dEw = diff(Ew);
-        dAw = diff(Aw);
-        sw = dEw ./ dAw;
-
-        Escale = max(abs(Ew));
-        if Escale < 1
-            Escale = 1;
+    function [flipFrac, isOk] = postpeak_flip_gate(iMax, iMin)
+        % Post-peak gate using only derivative sign flips between peak and valley.
+        if iMin <= iMax + 2
+            flipFrac = inf;
+            isOk = false;
+            return;
         end
 
-        % Plateau: tiny slope and tiny local variation
-        is_plateau = (max(abs(dEw)) <= plateau_dE_rel * Escale) && ...
-                     (std(Ew) <= plateau_std_rel * Escale);
+        idx = iMax:iMin;
+        aSeg = alpha_hist(idx);
+        eSeg = E_hist(idx);
+        da = diff(aSeg);
+        de = diff(eSeg);
+        s = de ./ da;
 
-        % Oscillation: many sign flips among non-negligible slopes
-        s_eps = max(1e-12, slope_eps_rel * Escale);
-        sign_s = zeros(size(sw));
-        sign_s(sw > s_eps) = 1;
-        sign_s(sw < -s_eps) = -1;
-        sign_nz = sign_s(sign_s ~= 0);
+        Escale = max(abs(eSeg));
+        s_eps = max(1e-12, slope_eps_rel * max(Escale, 1));
+        sig = zeros(size(s));
+        sig(s > s_eps) = 1;
+        sig(s < -s_eps) = -1;
+        sigNZ = sig(sig ~= 0);
 
-        if numel(sign_nz) < 3
-            is_osc = false;
+        if numel(sigNZ) < 2
+            flipFrac = 0;
         else
-            n_changes = sum(diff(sign_nz) ~= 0);
-            is_osc = (n_changes >= osc_sign_changes_thresh);
+            flipFrac = sum(diff(sigNZ) ~= 0) / (numel(sigNZ) - 1);
         end
+
+        isOk = (flipFrac <= maxFlipFrac);
+    end
+
+    function [ok, magL, magR, ratioRtoL, jumpRel] = peak_neighborhood_gate(iPeak, kNow)
+        % Validate candidate peak with local slopes around iPeak only.
+        magL = NaN;
+        magR = NaN;
+        ratioRtoL = NaN;
+        jumpRel = NaN;
+        ok = false;
+
+        % Need mPeak slopes on left and right of iPeak.
+        if iPeak < (mPeak + 1)
+            return;
+        end
+        if (iPeak + mPeak) > kNow
+            return;
+        end
+
+        aSeg = alpha_hist(1:kNow);
+        eSeg = E_hist(1:kNow);
+        s = diff(eSeg) ./ diff(aSeg);
+
+        sL = s(iPeak-mPeak:iPeak-1);
+        sR = s(iPeak:iPeak+mPeak-1);
+
+        Escale = max(abs(eSeg));
+        s_eps = max(1e-12, slope_eps_rel * max(Escale, 1));
+
+        medL = median(sL);
+        medR = median(sR);
+        magL = median(abs(sL));
+        magR = median(abs(sR));
+        ratioRtoL = magR / max(magL, eps);
+
+        trend_ok = (medL > s_eps) && (medR < -s_eps);
+        asym_ok = (magR >= asymFrac * magL);
+
+        if useJumpGate
+            baseMag = median(abs([sL; sR]));
+            jumpRel = abs(s(iPeak) - s(iPeak-1)) / max(baseMag, eps);
+            jump_ok = (jumpRel <= jumpMult);
+        else
+            jump_ok = true;
+        end
+
+        ok = trend_ok && asym_ok && jump_ok;
     end
 
     function triangle = update_triangle(B,A,C,flankB,flankA,flankC,XYB,XYA,XYC,colour)
