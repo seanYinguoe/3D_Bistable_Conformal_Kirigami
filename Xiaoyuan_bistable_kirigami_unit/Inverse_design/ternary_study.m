@@ -91,12 +91,7 @@ parfor idx = 1:nTotal
 
     [eps_bist, eta_val] = bistability_analysis( ...
         l1_geom, l4_geom, beta, t_geom, edgeLen, ...
-        q1, q2, q3,1); % 1: plot energy curve; 0: not plotting
-
-    if ~isnan(eps_bist) && eta_val >= 0.1
-        eps_all(idx, 1) = eps_bist;
-        eta_all(idx, 1) = eta_val;
-    end
+        q1, q2, q3,0); % 1: plot energy curve; 0: not plotting
 end
 
 %% Build final table: anisotropy_study
@@ -104,42 +99,42 @@ anisotropy_study = table( ...
     a1_all, a2_all, a3_all, eps_all, eta_all, beta_all, ...
     'VariableNames', {'a1','a2','a3','eps_bist','eta_val','beta'});
 
-save ternary_study_beta_test1
+save ternary_study_beta_test2
 
 %% Plot ternary figure
-% Keep rows with eta_val > threshold and finite eps_bist.
-etaThreshold = 0.20;
-isValid = isfinite(anisotropy_study.eta_val) & ...
-          (anisotropy_study.eta_val > etaThreshold) & ...
-          isfinite(anisotropy_study.eps_bist);
-T_valid = anisotropy_study(isValid, :);
-
-% Select beta slice for plotting.
-T_filter = T_valid(abs(T_valid.beta - 0) < 1e-4, :);
-
-plot_ternary(T_valid.a1, T_valid.a2, T_valid.a3, T_valid.eps_bist, 'scatter');
-
-% Remove isolated outliers in ternary coordinates (toolbox-free).
-% outlier_strength: larger means more aggressive filtering.
-outlier_strength = 3;
-k_nn = 6;
-T_filter = filter_ternary_outliers_knn(T_filter, k_nn, outlier_strength);
-
-plot_ternary(T_filter.a1, T_filter.a2, T_filter.a3, T_filter.eps_bist, 'scatter');
-
-T_plot = interpolate_ternary_smooth(T_filter, 100, 1.3, etaThreshold);
-
-plot_ternary(T_plot.a1, T_plot.a2, T_plot.a3, T_plot.eps_bist, 'scatter');
-
-if ~isempty(T_plot)
-    eps_ref = T_filter.eps_bist(isfinite(T_filter.eps_bist));
-    clim_eps = [min(eps_ref) max(eps_ref)];
-    plot_ternary(T_plot.a1, T_plot.a2, T_plot.a3, T_plot.eps_bist, 'field', clim_eps);
-
-    eta_ref = T_filter.eta_val(isfinite(T_filter.eta_val));
-    clim_eta = [min(eta_ref) max(eta_ref)];
-    plot_ternary(T_plot.a1, T_plot.a2, T_plot.a3, T_plot.eta_val, 'field', clim_eta);
-end
+% % Keep rows with eta_val > threshold and finite eps_bist.
+% etaThreshold = 0.20;
+% isValid = isfinite(anisotropy_study.eta_val) & ...
+%           (anisotropy_study.eta_val > etaThreshold) & ...
+%           isfinite(anisotropy_study.eps_bist);
+% T_valid = anisotropy_study(isValid, :);
+% 
+% % Select beta slice for plotting.
+% T_filter = T_valid(abs(T_valid.beta - 0) < 1e-4, :);
+% 
+% plot_ternary(T_valid.a1, T_valid.a2, T_valid.a3, T_valid.eps_bist, 'scatter');
+% 
+% % Remove isolated outliers in ternary coordinates (toolbox-free).
+% % outlier_strength: larger means more aggressive filtering.
+% outlier_strength = 3;
+% k_nn = 6;
+% T_filter = filter_ternary_outliers_knn(T_filter, k_nn, outlier_strength);
+% 
+% plot_ternary(T_filter.a1, T_filter.a2, T_filter.a3, T_filter.eps_bist, 'scatter');
+% 
+% T_plot = interpolate_ternary_smooth(T_filter, 100, 1.3, etaThreshold);
+% 
+% plot_ternary(T_plot.a1, T_plot.a2, T_plot.a3, T_plot.eps_bist, 'scatter');
+% 
+% if ~isempty(T_plot)
+%     eps_ref = T_filter.eps_bist(isfinite(T_filter.eps_bist));
+%     clim_eps = [min(eps_ref) max(eps_ref)];
+%     plot_ternary(T_plot.a1, T_plot.a2, T_plot.a3, T_plot.eps_bist, 'field', clim_eps);
+% 
+%     eta_ref = T_filter.eta_val(isfinite(T_filter.eta_val));
+%     clim_eta = [min(eta_ref) max(eta_ref)];
+%     plot_ternary(T_plot.a1, T_plot.a2, T_plot.a3, T_plot.eta_val, 'field', clim_eta);
+% end
 
 %% Plot 3D ternary figure in term of beta
 %plot_ternary_3D(anisotropy_study.a1, anisotropy_study.a2, anisotropy_study.a3, anisotropy_study.eps_bist, anisotropy_study.beta)
