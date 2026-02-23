@@ -7,8 +7,8 @@ clear; clc;
 %% ---- Angle grid (independent of beta) ----
 interval = pi/36;
 
-alpha3_vec = pi/6 : interval : pi/3;      % α3 ∈ [π/8, π/3]
-alpha2_vec = pi/6 : interval : 5*pi/12;   % α2 ∈ [π/8, 7π/16]
+alpha3_vec = pi/6 : interval : pi/3;      % α3 ∈ [π/6, π/3]
+alpha2_vec = pi/6 : interval : 5*pi/12;   % α2 ∈ [π/6, 5π/12]
 
 [alpha2_grid, alpha3_grid] = meshgrid(alpha2_vec, alpha3_vec);
 alpha1_grid = pi - alpha2_grid - alpha3_grid;
@@ -26,7 +26,7 @@ alpha3_list = alpha3_grid(mask);
 nConfig = numel(alpha1_list);
 
 %% ---- Beta sweep settings ----
-beta_vec = linspace(0, pi/15, 20); 
+beta_vec = linspace(0, pi/15, 20);
 %beta_vec = pi/40;
 nBeta = numel(beta_vec);
 
@@ -35,7 +35,6 @@ edgeLen = 15;
 scale   = 1.63;
 
 %% ---- Storage for all (a1,a2,a3,eps_bist,eta_val,beta) ----
-% OPT: Preallocate outputs to avoid dynamic growth
 nTotal   = nBeta * nConfig;
 a1_all   = repmat(alpha1_list, nBeta, 1);
 a2_all   = repmat(alpha2_list, nBeta, 1);
@@ -44,7 +43,7 @@ beta_all = kron(beta_vec(:), ones(nConfig, 1));
 eps_all  = NaN(nTotal, 1);
 eta_all  = NaN(nTotal, 1);
 
-% OPT: Precompute geometry that does not depend on beta
+% Precompute geometry that does not depend on beta
 sin_a1 = sin(alpha1_list);
 sin_a2 = sin(alpha2_list);
 sin_a3 = sin(alpha3_list);
@@ -73,7 +72,7 @@ l1_geom = edgeLen * 0.85;
 l4_geom = edgeLen * 0.05;
 t_geom  = edgeLen * 0.015;
 
-% Batch by beta (checkpoint each beta slice for resume stability)
+% Batch by beta (checkpoint each beta slice)
 outDir = 'beta_batches';
 if ~exist(outDir, 'dir')
     mkdir(outDir);
@@ -93,12 +92,10 @@ for ib = 1:nBeta
         eta_beta = NaN(nConfig,1);
 
         parfor i = 1:nConfig
-            % Skip invalid triangles early
             if ~valid(i)
                 continue;
             end
 
-            % ----- Triangle coordinates -----
             q1 = [0, 0];
             q2 = [0, -L3(i)];
             q3 = [q3_x(i), q3_y(i)];
@@ -126,42 +123,25 @@ anisotropy_study = table( ...
     a1_all, a2_all, a3_all, eps_all, eta_all, beta_all, ...
     'VariableNames', {'a1','a2','a3','eps_bist','eta_val','beta'});
 
+% Save only final table
 save('anisotropy_study.mat', 'anisotropy_study');
 
-%% Plot ternary figure
-% % Keep rows with eta_val > threshold and finite eps_bist.
-% etaThreshold = 0.05;
-% isValid = isfinite(anisotropy_study.eta_val) & ...
-%           (anisotropy_study.eta_val > etaThreshold) & ...
-%           isfinite(anisotropy_study.eps_bist);
-% T_valid = anisotropy_study(isValid, :);
-% 
-% % Select beta slice for plotting.
-% T_filter = T_valid(abs(T_valid.beta - 0) < 1e-4, :);
-% 
-% plot_ternary(T_valid.a1, T_valid.a2, T_valid.a3, T_valid.eps_bist, 'scatter');
-% 
-% % Remove isolated outliers in ternary coordinates (toolbox-free).
-% % outlier_strength: larger means more aggressive filtering.
-% outlier_strength = 3;
-% k_nn = 6;
-% T_filter = filter_ternary_outliers_knn(T_filter, k_nn, outlier_strength);
-% 
-% plot_ternary(T_filter.a1, T_filter.a2, T_filter.a3, T_filter.eps_bist, 'scatter');
-% 
-% T_plot = interpolate_ternary_smooth(T_filter, 100, 1.3, etaThreshold);
-% 
-% plot_ternary(T_plot.a1, T_plot.a2, T_plot.a3, T_plot.eps_bist, 'scatter');
-% 
-% if ~isempty(T_plot)
-%     eps_ref = T_filter.eps_bist(isfinite(T_filter.eps_bist));
-%     clim_eps = [min(eps_ref) max(eps_ref)];
-%     plot_ternary(T_plot.a1, T_plot.a2, T_plot.a3, T_plot.eps_bist, 'field', clim_eps);
-% 
-%     eta_ref = T_filter.eta_val(isfinite(T_filter.eta_val));
-%     clim_eta = [min(eta_ref) max(eta_ref)];
-%     plot_ternary(T_plot.a1, T_plot.a2, T_plot.a3, T_plot.eta_val, 'field', clim_eta);
-% end
+%% Clean + fill + plot ternary figure (optional)
+[anisotropy_cleaned, fill_report] = clean_and_fill_anisotropy(anisotropy_study);
 
-%% Plot 3D ternary figure in term of beta
-%plot_ternary_3D(anisotropy_study.a1, anisotropy_study.a2, anisotropy_study.a3, anisotropy_study.eps_bist, anisotropy_study.beta)
+do_post_plot = true;   % set true to plot
+etaThreshold = 0.04;
+beta_plot = 0;
+beta_tol = 1e-4;
+
+if do_post_plot
+    T0 = anisotropy_cleaned(abs(anisotropy_cleaned.beta - beta_plot) < beta_tol, :);
+    isB = isfinite(T0.eps_bist) & isfinite(T0.eta_val) & (T0.eta_val > etaThreshold);
+    T_bist = T0(isB,:);
+    if ~isempty(T_bist)
+        plot_ternary(T_bist.a1, T_bist.a2, T_bist.a3, T_bist.eps_bist, 'scatter');
+    end
+end
+
+%% Plot 3D ternary figure in terms of beta
+% plot_ternary_3D(anisotropy_study.a1, anisotropy_study.a2, anisotropy_study.a3, anisotropy_study.eps_bist, anisotropy_study.beta)
