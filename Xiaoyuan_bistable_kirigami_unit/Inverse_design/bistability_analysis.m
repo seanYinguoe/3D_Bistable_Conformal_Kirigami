@@ -38,7 +38,7 @@ if nargin < 12 || isempty(dropMin)
     dropMin = 0.02;
 end
 if nargin < 13 || isempty(bistabilityMin)
-    bistabilityMin = 0.04;
+    bistabilityMin = 0.07;
 end
 
 do_plot = logical(do_plot);

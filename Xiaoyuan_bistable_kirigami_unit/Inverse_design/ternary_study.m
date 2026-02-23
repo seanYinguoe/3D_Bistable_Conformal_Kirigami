@@ -73,28 +73,52 @@ l1_geom = edgeLen * 0.85;
 l4_geom = edgeLen * 0.05;
 t_geom  = edgeLen * 0.015;
 
-% PARFOR over flattened (beta, config) index
-parfor idx = 1:nTotal
-    i  = mod(idx - 1, nConfig) + 1;
-    ib = floor((idx - 1) / nConfig) + 1;
+% Batch by beta (checkpoint each beta slice for resume stability)
+outDir = 'beta_batches';
+if ~exist(outDir, 'dir')
+    mkdir(outDir);
+end
 
-    % Skip invalid triangles early  
-    if ~valid(i)
-        continue;
+for ib = 1:nBeta
+    beta = beta_vec(ib);
+    batchFile = fullfile(outDir, sprintf('beta_%03d.mat', ib));
+
+    if exist(batchFile, 'file')
+        S = load(batchFile, 'eps_beta', 'eta_beta');
+        eps_beta = S.eps_beta;
+        eta_beta = S.eta_beta;
+        fprintf('Loaded beta %d/%d from checkpoint.\n', ib, nBeta);
+    else
+        eps_beta = NaN(nConfig,1);
+        eta_beta = NaN(nConfig,1);
+
+        parfor i = 1:nConfig
+            % Skip invalid triangles early
+            if ~valid(i)
+                continue;
+            end
+
+            % ----- Triangle coordinates -----
+            q1 = [0, 0];
+            q2 = [0, -L3(i)];
+            q3 = [q3_x(i), q3_y(i)];
+
+            [eps_bist, eta_val] = bistability_analysis( ...
+                l1_geom, l4_geom, beta, t_geom, edgeLen, ...
+                q1, q2, q3, 0); % 1: plot energy curve; 0: not plotting
+
+            eps_beta(i,1) = eps_bist;
+            eta_beta(i,1) = eta_val;
+        end
+
+        save(batchFile, 'ib', 'beta', 'eps_beta', 'eta_beta');
+        fprintf('Saved beta %d/%d checkpoint.\n', ib, nBeta);
     end
 
-    beta = beta_vec(ib);
-
-    % ----- Triangle coordinates -----
-    q1 = [0, 0];
-    q2 = [0, -L3(i)];
-    q3 = [q3_x(i), q3_y(i)];
-
-    [eps_bist, eta_val] = bistability_analysis( ...
-        l1_geom, l4_geom, beta, t_geom, edgeLen, ...
-        q1, q2, q3,0); % 1: plot energy curve; 0: not plotting
-    eps_all(idx,1) = eps_bist;
-    eta_all(idx,1) = eta_val;
+    idx0 = (ib - 1) * nConfig + 1;
+    idx1 = ib * nConfig;
+    eps_all(idx0:idx1,1) = eps_beta;
+    eta_all(idx0:idx1,1) = eta_beta;
 end
 
 %% Build final table: anisotropy_study
@@ -102,7 +126,7 @@ anisotropy_study = table( ...
     a1_all, a2_all, a3_all, eps_all, eta_all, beta_all, ...
     'VariableNames', {'a1','a2','a3','eps_bist','eta_val','beta'});
 
-save ternary_study_beta_test2
+save('anisotropy_study.mat', 'anisotropy_study');
 
 %% Plot ternary figure
 % % Keep rows with eta_val > threshold and finite eps_bist.
