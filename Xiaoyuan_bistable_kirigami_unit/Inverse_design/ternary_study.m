@@ -5,10 +5,10 @@
 clear; clc;
 
 %% ---- Angle grid (independent of beta) ----
-interval = pi/96;
+interval = pi/36;
 
-alpha3_vec = pi/8 : interval : pi/3;      % α3 ∈ [π/8, π/3]
-alpha2_vec = pi/8 : interval : 7*pi/16;   % α2 ∈ [π/8, 7π/16]
+alpha3_vec = pi/6 : interval : pi/3;      % α3 ∈ [π/8, π/3]
+alpha2_vec = pi/6 : interval : 5*pi/12;   % α2 ∈ [π/8, 7π/16]
 
 [alpha2_grid, alpha3_grid] = meshgrid(alpha2_vec, alpha3_vec);
 alpha1_grid = pi - alpha2_grid - alpha3_grid;
@@ -26,7 +26,7 @@ alpha3_list = alpha3_grid(mask);
 nConfig = numel(alpha1_list);
 
 %% ---- Beta sweep settings ----
-beta_vec = linspace(0, pi/15, 20);
+beta_vec = linspace(0, pi/15, 20); 
 %beta_vec = pi/40;
 nBeta = numel(beta_vec);
 
@@ -93,6 +93,8 @@ parfor idx = 1:nTotal
     [eps_bist, eta_val] = bistability_analysis( ...
         l1_geom, l4_geom, beta, t_geom, edgeLen, ...
         q1, q2, q3,0); % 1: plot energy curve; 0: not plotting
+    eps_all(idx,1) = eps_bist;
+    eta_all(idx,1) = eta_val;
 end
 
 %% Build final table: anisotropy_study
