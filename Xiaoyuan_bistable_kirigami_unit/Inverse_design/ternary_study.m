@@ -5,9 +5,10 @@
 clear; clc;
 
 %% ---- Angle grid (independent of beta) ----
-nStep = 20;                         
-alpha3_vec = linspace(pi/6, pi/3, nStep);       % α3 ∈ [π/6, π/3]
-alpha2_vec = linspace(pi/6, 5*pi/12, nStep);   % α2 ∈ [π/6, 5π/12]
+interval = pi/96;
+
+alpha3_vec = pi/8 : interval : pi/3;      % α3 ∈ [π/8, π/3]
+alpha2_vec = pi/8 : interval : 7*pi/16;   % α2 ∈ [π/8, 7π/16]
 
 [alpha2_grid, alpha3_grid] = meshgrid(alpha2_vec, alpha3_vec);
 alpha1_grid = pi - alpha2_grid - alpha3_grid;
@@ -103,7 +104,7 @@ save ternary_study_beta_test2
 
 %% Plot ternary figure
 % % Keep rows with eta_val > threshold and finite eps_bist.
-% etaThreshold = 0.20;
+% etaThreshold = 0.05;
 % isValid = isfinite(anisotropy_study.eta_val) & ...
 %           (anisotropy_study.eta_val > etaThreshold) & ...
 %           isfinite(anisotropy_study.eps_bist);
