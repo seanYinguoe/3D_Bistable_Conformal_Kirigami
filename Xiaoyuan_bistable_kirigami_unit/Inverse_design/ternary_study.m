@@ -132,7 +132,7 @@ save('anisotropy_study.mat', 'anisotropy_study');
 
 do_post_plot = true;   % set true to plot
 etaThreshold = 0.03;
-beta_plot = 0.132277585414307;
+beta_plot = 0.209439510239320;
 beta_tol = 1e-4;
 
 if do_post_plot
@@ -141,6 +141,7 @@ if do_post_plot
     T_bist = T0(isB,:);
     if ~isempty(T_bist)
         plot_ternary(T_bist.a1, T_bist.a2, T_bist.a3, T_bist.eps_bist, 'scatter');
+        plot_ternary(T_bist.a1, T_bist.a2, T_bist.a3, T_bist.eta_val, 'scatter');
     end
 end
 
