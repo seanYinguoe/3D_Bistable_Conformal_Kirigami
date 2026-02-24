@@ -130,20 +130,6 @@ function drawTernaryAxesWithSymbolicTicks()
 plot([0 1 0.5 0], [0 0 sqrt(3)/2 0], 'k-', 'LineWidth', 2);
 hold on;
 
-% Direction indicators
-% Bottom α3 direction
-plot([0.4 0.5],[-0.02 -0.02],'k','LineWidth',2);
-
-% Left α1 direction: short line rotated +60° from horizontal
-L = 0.08;
-mcL = [0.25, sqrt(3)/4];
-dL = [cos(pi/3), sin(pi/3)] * (L/2);
-plot([mcL(1)-dL(1), mcL(1)+dL(1)], [mcL(2)-dL(2), mcL(2)+dL(2)], 'k', 'LineWidth', 2);
-
-% Right α2 direction: short line rotated -60° from horizontal
-mcR = [0.75, sqrt(3)/4];
-dR = [cos(-pi/3), sin(-pi/3)] * (L/2);
-plot([mcR(1)-dR(1), mcR(1)+dR(1)], [mcR(2)-dR(2), mcR(2)+dR(2)], 'k', 'LineWidth', 2);
 
 g   = linspace(0,1,7);   % 0, 1/6, ..., 1
 symTicks = { ...

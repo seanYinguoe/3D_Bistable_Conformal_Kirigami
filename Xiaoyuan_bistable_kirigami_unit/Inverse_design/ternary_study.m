@@ -126,16 +126,17 @@ anisotropy_study = table( ...
 % Save only final table
 save('anisotropy_study.mat', 'anisotropy_study');
 
-%% Clean + fill + plot ternary figure (optional)
-[anisotropy_cleaned, fill_report] = clean_and_fill_anisotropy(anisotropy_study);
+%% Clean islands first, then fill missing, then plot ternary figure (optional)
+[anisotropy_clean, reportClean] = clean_isolated_outliers(anisotropy_study);
+[anisotropy_filled, reportFill] = clean_and_fill_anisotropy(anisotropy_clean);
 
 do_post_plot = true;   % set true to plot
-etaThreshold = 0.04;
-beta_plot = 0;
+etaThreshold = 0.03;
+beta_plot = 0.132277585414307;
 beta_tol = 1e-4;
 
 if do_post_plot
-    T0 = anisotropy_cleaned(abs(anisotropy_cleaned.beta - beta_plot) < beta_tol, :);
+    T0 = anisotropy_filled(abs(anisotropy_filled.beta - beta_plot) < beta_tol, :);
     isB = isfinite(T0.eps_bist) & isfinite(T0.eta_val) & (T0.eta_val > etaThreshold);
     T_bist = T0(isB,:);
     if ~isempty(T_bist)
