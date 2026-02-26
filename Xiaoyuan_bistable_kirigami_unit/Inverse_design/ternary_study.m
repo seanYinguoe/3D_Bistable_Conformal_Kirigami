@@ -130,6 +130,10 @@ save('anisotropy_study.mat', 'anisotropy_study');
 [anisotropy_clean, reportClean] = clean_isolated_outliers(anisotropy_study);
 [anisotropy_filled, reportFill] = clean_and_fill_anisotropy(anisotropy_clean);
 
+
+% Save filled table
+save('anisotropy_filled.mat', 'anisotropy_filled');
+
 do_post_plot = true;   % set true to plot
 etaThreshold = 0.03;
 beta_plot = 0.209439510239320;
