@@ -79,19 +79,19 @@ camlight;            % Add a light source for better visualization
 material shiny;                % Make the surface shiny (adjustable)
 lighting gouraud;    % Smooth lighting across surfaces
 
-%% Plot the Overlaid grids(unfiltered)
-figure(); 
-hold on;
-TR = triangulation(f_mesh, v_mesh);
-B  = freeBoundary(TR);   % boundary edges only
-patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', '[0.78 0.80 0.88]', 'EdgeColor', [0.7 0.7 0.7],'LineWidth',0.5); % Plot mesh surface
-for i = 1:size(B,1)
-    plot(v_mesh(B(i,:),1), v_mesh(B(i,:),2), 'Color', [0.5 0.5 0.5], 'LineWidth', 1.5);
-end
-plotgrid(f_grid,v_grid)
-axis equal;
-axis off;
-hold off
+% %% Plot the Overlaid grids(unfiltered)
+% figure(); 
+% hold on;
+% TR = triangulation(f_mesh, v_mesh);
+% B  = freeBoundary(TR);   % boundary edges only
+% patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', '[0.78 0.80 0.88]', 'EdgeColor', [0.7 0.7 0.7],'LineWidth',0.5); % Plot mesh surface
+% for i = 1:size(B,1)
+%     plot(v_mesh(B(i,:),1), v_mesh(B(i,:),2), 'Color', [0.5 0.5 0.5], 'LineWidth', 1.5);
+% end
+% plotgrid(f_grid,v_grid)
+% axis equal;
+% axis off;
+% hold off
 
 %% Plot the Overlaid grids
 figure(); 
