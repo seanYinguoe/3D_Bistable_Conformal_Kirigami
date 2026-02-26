@@ -147,26 +147,18 @@ mesh_deployment(obj_2D);
 % Calculate edge-wise scale factors based on flattened/deployed grids
 % scale_facs is Mx3: [edge(n1,n2), edge(n2,n3), edge(n3,n1)] per triangle
 scale_facs = calculate_scale_facs(v_out, v_target, f_out);
+rescale_facs = 1.1 ./ min(scale_facs(:));
+scale_facs = scale_facs * rescale_facs;
+disp("Stretch factor min: "+num2str(min(scale_facs(:))) +", max: "+num2str(max(scale_facs(:))))
 
-min_stretch = min(valid_stretch);
-max_stretch = max(valid_stretch);
-rescale_facs = 1.1 / min_stretch;
-
-stretch_facs = stretch_facs * rescale_facs;
-valid_stretch_scaled = stretch_facs(isfinite(stretch_facs));
-disp("Stretch factor min: "+num2str(min(valid_stretch_scaled)) +", max: "+num2str(max(valid_stretch_scaled)))
-
-if min(valid_stretch_scaled) < 0.95 || max(valid_stretch_scaled) > 1.75
+if max(scale_facs(:)) > 1.65
     disp("Warning: The stretch factors are out of range")
 end
 
-% % Calculate the stretch factor on every edge
-% [E,lambda] = edge_stretch(v_target, edgeLen, f_out);
-% rescale_facs = 1.1/min(lambda);
-% lambda = lambda * rescale_facs;
-% 
-% % plot the stretch factor figure
-% plot_edge_stretch(lambda, v_out, E)
+[anisotropy_level, ~] = scale_facs_to_angles(scale_facs);
+
+% % Visulalize the scale factor on the edge
+plot_edge_stretch(scale_facs, v_out, f_out)
 
 %% Plot tessellation deployment
 def_facs = def_factor(v_out,v_target,f_out);
