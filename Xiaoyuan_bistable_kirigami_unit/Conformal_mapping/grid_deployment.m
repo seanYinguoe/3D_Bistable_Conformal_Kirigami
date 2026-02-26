@@ -1,4 +1,4 @@
-function [T,v_target] = grid_deployment(obj_2D,c_mesh,v_out,f_out,modelname)
+function [T,v_target] = grid_deployment(obj_2D,c_mesh,v_out,f_out)
 % Deploy a flattened grids onto the deployed surface
 % using barycentric interpolation.
 
@@ -8,17 +8,18 @@ flattened_surface = obj_2D.vt;  % Flattened 2D vertex positions
 flattened_surface = [flattened_surface,zeros(size(flattened_surface,1),1)];
 deployed_surface = obj_2D.v;    % Deployed 3D vertex positions
 c_mesh = [c_mesh zeros(size(c_mesh,1),1)];
-[c_mesh, ~] = model_rotate(modelname, c_mesh,ones(1,3));
-[v_out, ~] = model_rotate(modelname, v_out,ones(1,3));
+if size(v_out,2) == 2
+    v_out = [v_out, zeros(size(v_out,1),1)];
+end
 f_mesh = obj_2D.f.v;             % Face connectivity
 
-% Move and rotate the 2D and 3D object to match the boundary
-[flattened_surface, deployed_surface] = model_rotate(modelname, flattened_surface, deployed_surface);
-% deployed_surface = [deployed_surface(:,1), -deployed_surface(:,3),deployed_surface(:,2)]; % rotate the deployed surface 90 around x axis
-T = mean(flattened_surface) - mean(deployed_surface); 
-flattened_surface = flattened_surface - [T(:,[1,2]),0]; % Move to match the cooresponding node
-c_mesh = c_mesh - [T(:,[1,2]),0]; % Move to match the coorespoind node
-v_out = v_out - [T(:,[1,2]),0]; % Move the grids to match the centroid of flattened surface
+% Automatic rigid transform: align both surfaces to XY frame and remove global motion
+[flattened_surface, deployed_surface, tf] = model_transform(flattened_surface, deployed_surface);
+T = tf; % keep output slot for backward compatibility
+
+% Apply the same flattened-domain transform to auxiliary 2D/flattened points
+c_mesh = tf_apply_flat_points(c_mesh, tf);
+v_out  = tf_apply_flat_points(v_out, tf);
 
 %% Build the cooresponding between grids point and mesh points for each grid triangle
 cp = cell(size(f_out,1),1);
@@ -81,15 +82,26 @@ end
 
 
 %% Deploy the flattened grids surface on to deployed target surface
+% Precompute fixed view bounds to avoid rescaling/jumping during updates
+allV = [v_out; v_target];
+vMin = min(allV, [], 1);
+vMax = max(allV, [], 1);
+span = max(vMax - vMin, 1e-9);
+pad = 0.08 * max(span);
+xLimFix = [vMin(1)-pad, vMax(1)+pad];
+yLimFix = [vMin(2)-pad, vMax(2)+pad];
+zLimFix = [min(0, vMin(3)-pad), vMax(3)+pad];
+
 % Create the figure and UI components
-fig = figure('Name', 'Deployment Control', 'Position', [100 100 800 600]);
-slider = uicontrol('Parent', fig, 'Style', 'slider', 'Position', [150 20 500 20], ...
+fig = figure('Name', 'Deployment Control', 'Color', 'w', ...
+             'Units', 'pixels', 'Position', [120 80 980 720]);
+slider = uicontrol('Parent', fig, 'Style', 'slider', 'Position', [190 18 600 22], ...
                    'Min', 0, 'Max', 1, 'Value', 0, ...
-                   'Callback', @(src,event) updatePlot(src, v_out, v_target, f_out));
-updatePlot(slider, v_out, v_target, f_out);
+                   'Callback', @(src,event) updatePlot(src, v_out, v_target, f_out, xLimFix, yLimFix, zLimFix));
+updatePlot(slider, v_out, v_target, f_out, xLimFix, yLimFix, zLimFix);
 
 % Function to update the plot based on slider value
-function updatePlot(src, v_out, v_target, faces)
+function updatePlot(src, v_out, v_target, faces, xLimFix, yLimFix, zLimFix)
 
 alpha = get(src, 'Value');
 
@@ -108,14 +120,29 @@ patch('Vertices', v_deploy, 'Faces', faces, ...
 
 grid off;
 axis equal;
-% xlim([-90,90]);
-% ylim([-90,90]);
-% zlim([-10,60]);
-axis off
+xlim(xLimFix);
+ylim(yLimFix);
+zlim(zLimFix);
+axis vis3d;
+axis off;
 xlabel('X');
 ylabel('Y');
 zlabel('Z');
 title(['Deployment Progress: ' num2str(alpha*100, '%.1f') '%']);
 view([45, 45]);
 end
+
+function pts_out = tf_apply_flat_points(pts_in, tf)
+% Apply flattened-domain transform returned by model_transform.
+if size(pts_in,2) == 2
+    pts_in = [pts_in, zeros(size(pts_in,1),1)];
+elseif size(pts_in,2) ~= 3
+    error('pts_in must be Nx2 or Nx3');
+end
+p0 = pts_in - tf.c_flat;
+p1 = (tf.R_flat_plane * p0')';
+pxy = p1(:,1:2) * tf.Q2 + tf.t_xy;
+pts_out = [pxy, zeros(size(pxy,1),1)];
+end
+
 end

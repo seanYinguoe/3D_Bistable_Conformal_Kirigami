@@ -138,25 +138,25 @@ hold off
 axis off
 
 %% Plot mesh deployment
-mesh_deployment(obj_2D,modelname);
+mesh_deployment(obj_2D);
 
 %% Plot grid deployment
-[T,v_target] = grid_deployment(obj_2D,c_mesh,v_out,f_out,modelname); % Here we need to move and rotate the 3D surface coresponding to 2D surface
+[T,v_target] = grid_deployment(obj_2D,c_mesh,v_out,f_out); % Here we need to move and rotate the 3D surface coresponding to 2D surface
 
-%% Recalculate stretch factor on each edge
-% Calculate scale factor based on flattened grid and deployed grid(accurate)
-% for a bistable unit the range of scale factor area should be within(1.15,1.75)
-areas_2D = triangle_area_2D(v_out, f_out);  % Deprive the length of grid in 2D
-areas_3D = triangle_area_3D(v_target, f_out);  % Deprive the length of grid in 3D
+%% Recalculate scale factor on each edge
+% Calculate edge-wise scale factors based on flattened/deployed grids
+% scale_facs is Mx3: [edge(n1,n2), edge(n2,n3), edge(n3,n1)] per triangle
+scale_facs = calculate_scale_facs(v_out, v_target, f_out);
 
-scale_facs = areas_3D./areas_2D; % Calculate the scale factor. Area_3D/Area_2D
-stretch_facs = sqrt(scale_facs);
-rescale_facs = 1.1/min(stretch_facs);
+min_stretch = min(valid_stretch);
+max_stretch = max(valid_stretch);
+rescale_facs = 1.1 / min_stretch;
 
 stretch_facs = stretch_facs * rescale_facs;
-disp("Stretch factor min: "+num2str(min(stretch_facs)) +", max: "+num2str(max(stretch_facs)))
+valid_stretch_scaled = stretch_facs(isfinite(stretch_facs));
+disp("Stretch factor min: "+num2str(min(valid_stretch_scaled)) +", max: "+num2str(max(valid_stretch_scaled)))
 
-if min(min(stretch_facs)) < 0.95 || max(max(stretch_facs)) > 1.75
+if min(valid_stretch_scaled) < 0.95 || max(valid_stretch_scaled) > 1.75
     disp("Warning: The stretch factors are out of range")
 end
 
