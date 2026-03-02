@@ -10,10 +10,10 @@ opt_tessellation = tessellated_triangle(f_out, i_out, params,v_out,opt_beta);
 opt_tessellation_target = tessellated_triangle(f_out, i_out, params, v_target, opt_beta);
 
 % Create deployment from closed state to open state
-tessellation_deployment(opt_tessellation,opt_tessellation_target,T,modelname); % Plot deployment
+tessellation_deployment(opt_tessellation,opt_tessellation_target); % Plot deployment
 
 % Create deployment figure
-filename = 'hypar.gif';
+filename = 'arbitrary_surface.gif';
 generate_gif(opt_tessellation, opt_tessellation_target,T, modelname, filename)
 
 % Generate energy evolvement during deployment

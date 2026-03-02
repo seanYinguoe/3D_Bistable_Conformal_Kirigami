@@ -1,12 +1,22 @@
-function generate_gif(tessellation, tessellation_target, T, modelname, filename)
+function output_path = generate_gif(tessellation, tessellation_target, varargin)
+%GENERATE_GIF Create and save deployment GIF next to this function.
+%   output_path = generate_gif(tessellation, tessellation_target)
+%   output_path = generate_gif(tessellation, tessellation_target, filename)
+%
+% The GIF is saved to an "output" folder in the same directory as this
+% function. If additional legacy inputs are passed, the last char/string
+% input is treated as the filename.
+
+filename = resolve_filename(varargin{:});
+func_dir = fileparts(mfilename('fullpath'));
+output_dir = fullfile(func_dir, 'output');
+if ~exist(output_dir, 'dir')
+    mkdir(output_dir);
+end
+output_path = fullfile(output_dir, filename);
+
 % Number of frames for the GIF
 numFrames = 50;
-
-% Rotate the tessellation
-for i = 1:size(tessellation,1)
-    [tessellation{i},~] = model_rotate(modelname, tessellation{i}, ones(1,3));
-    tessellation{i} = tessellation{i} - [T(:,[1,2]),0];% Move it to the central point   
-end
 
 % Create a figure for plotting
 fig = figure('Name', 'Deployment Control', 'Position', [100, 100, 800, 600]);
@@ -51,11 +61,38 @@ for k = 0:numFrames
 
     % Write to the GIF file
     if k == 0
-        imwrite(imind, cm, filename, 'gif', 'Loopcount', inf, 'DelayTime', 0.1);
+        imwrite(imind, cm, output_path, 'gif', 'Loopcount', inf, 'DelayTime', 0.1);
     else
-        imwrite(imind, cm, filename, 'gif', 'WriteMode', 'append', 'DelayTime', 0.1);
+        imwrite(imind, cm, output_path, 'gif', 'WriteMode', 'append', 'DelayTime', 0.1);
     end
 end
 
 close(fig);
+end
+
+function filename = resolve_filename(varargin)
+filename = 'deployment.gif';
+
+if nargin == 0
+    return;
+end
+
+for k = numel(varargin):-1:1
+    arg = varargin{k};
+    if isstring(arg) && isscalar(arg)
+        filename = char(arg);
+        break;
+    end
+    if ischar(arg)
+        filename = arg;
+        break;
+    end
+end
+
+[~, name, ext] = fileparts(filename);
+if isempty(name)
+    filename = 'deployment.gif';
+elseif isempty(ext)
+    filename = [filename '.gif'];
+end
 end
