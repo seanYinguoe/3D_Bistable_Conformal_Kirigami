@@ -18,8 +18,15 @@ output_path = fullfile(output_dir, filename);
 % Number of frames for the GIF
 numFrames = 50;
 
-% Create a figure for plotting
-fig = figure('Name', 'Deployment Control', 'Position', [100, 100, 800, 600]);
+% Create a figure sized relative to the current screen.
+screen_size = get(groot, 'ScreenSize');
+fig_w = max(900, round(0.75 * screen_size(3)));
+fig_h = max(650, round(0.75 * screen_size(4)));
+fig_x = max(1, round((screen_size(3) - fig_w) / 2));
+fig_y = max(1, round((screen_size(4) - fig_h) / 2));
+fig = figure('Name', 'Deployment Control', ...
+             'Units', 'pixels', ...
+             'Position', [fig_x, fig_y, fig_w, fig_h]);
 
 for k = 0:numFrames
     alpha = k / numFrames;
