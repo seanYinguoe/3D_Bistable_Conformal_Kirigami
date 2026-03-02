@@ -114,14 +114,17 @@ mesh_deployment(obj_2D);
 [T,v_target,v_out] = grid_deployment(obj_2D,c_mesh,v_out,f_out); % Here we need to move and rotate the 3D surface coresponding to 2D surface
 
 %% Reparametrization v_target to fit the boundary(optional)
-[v_target, ~] = reparameterization(v_out, f_out, obj_2D, v_target, 1.7/1.1, 1.3963);
+%[v_target, ~] = reparameterization(v_out, f_out, obj_2D, v_target, 1.7/1.1, 1.3963);
 
 %% Recalculate scale factor on each edge
 % Calculate edge-wise scale factors based on flattened/deployed grids
 % scale_facs is Mx3: [edge(n1,n2), edge(n2,n3), edge(n3,n1)] per triangle
 scale_facs = calculate_scale_facs(v_out, v_target, f_out);
 rescale_facs = 1.15 ./ min(scale_facs(:));
-scale_facs = scale_facs * rescale_facs;
+%scale_facs = scale_facs * rescale_facs;
+
+[v_scaled, scale_facs, ~] = rescale_target_edges(v_out, f_out, obj_2D, v_target, rescale_facs);
+
 disp("Stretch factor min: "+num2str(min(scale_facs(:))) +", max: "+num2str(max(scale_facs(:))))
 
 if max(scale_facs(:)) > 1.65
@@ -130,7 +133,7 @@ end
 
 [anisotropy_level, ~] = scale_facs_to_angles(scale_facs);
 
-% % Visulalize the scale factor on the edge
+% Visulalize the scale factor on the edge
 plot_edge_stretch(scale_facs, v_out, f_out)
 
 %% Plot tessellation deployment
@@ -148,6 +151,7 @@ params = [edgeLen % The length of a unit
     ];
 
 % Find optimal beta for each unit based on anisotropy_level
+load("Inverse_design/anisotropy_filled.mat")
 mask = isfinite(anisotropy_filled.eta_val) & isfinite(anisotropy_filled.eps_bist);
 anisotropy_filter = anisotropy_filled(mask,:);
 [opt_beta, bistability, info] = assign_opt_beta(anisotropy_level, anisotropy_filter);
@@ -168,10 +172,9 @@ hold off
 axis off
 
 % Plot the deployment
-tessellation_target = tessellated_triangle(f_out, i_out, params, v_target, opt_beta, opt_t); % Generate closed state of deployed
+tessellation_target = tessellated_triangle(f_out, i_out, params, v_scaled, opt_beta, opt_t); % Generate closed state of deployed
 
 tessellation_deployment(tessellation,tessellation_target); % Plot deployment
 
 % Create deployment figure
-filename = 'arbitrary_surface.gif';
-generate_gif(tessellation, tessellation_target, filename);
+generate_gif(tessellation, tessellation_target, modelname);
