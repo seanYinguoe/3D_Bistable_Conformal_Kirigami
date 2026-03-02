@@ -136,8 +136,10 @@ plot_edge_stretch(scale_facs, v_out, f_out)
 %% Plot tessellation deployment
 % Define the size of tessellation
 l1 = edgeLen * 0.85;
-l4 = edgeLen * 0.05;
-t  = edgeLen * 0.015;
+l4 = edgeLen * 0.05; % the length of the filament 0.1
+t_min = edgeLen * 0.005; % minimum ligament thickness
+t_max = edgeLen * 0.01;  % maximum ligament thickness
+t  = t_min; % default ligament thickness stored in params
 %beta = zeros(size(i_out)); % tilting angle initial
 params = [edgeLen % The length of a unit
     l1            % The length of flanks
@@ -148,9 +150,10 @@ params = [edgeLen % The length of a unit
 % Find optimal beta for each unit based on anisotropy_level
 mask = isfinite(anisotropy_filled.eta_val) & isfinite(anisotropy_filled.eps_bist);
 anisotropy_filter = anisotropy_filled(mask,:);
-[beta, bistability, info] = assign_opt_beta(anisotropy_level, anisotropy_filter);
+[opt_beta, bistability, info] = assign_opt_beta(anisotropy_level, anisotropy_filter);
+opt_t = assign_thickness(bistability, t_min, t_max);   % thr = 0.4
 
-tessellation = tessellated_triangle(f_out, i_out, params,v_out,beta); % Tessellate bistable triangle into fitted grids
+tessellation = tessellated_triangle(f_out, i_out, params,v_out,opt_beta,opt_t); % Tessellate bistable triangle into fitted grids
 
 %Plot the tessellated configuration
 %colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
@@ -165,7 +168,7 @@ hold off
 axis off
 
 % Plot the deployment
-tessellation_target = tessellated_triangle(f_out, i_out, params, v_target, beta); % Generate closed state of deployed
+tessellation_target = tessellated_triangle(f_out, i_out, params, v_target, opt_beta, opt_t); % Generate closed state of deployed
 
 tessellation_deployment(tessellation,tessellation_target); % Plot deployment
 
