@@ -7,8 +7,8 @@ function [anisotropy_level, lambda_sorted, sort_idx] = scale_facs_to_angles(scal
 %                [edge(n1,n2), edge(n2,n3), edge(n3,n1)]
 %
 % Output:
-%   anisotropy_level : Mx4 list [alpha1 alpha2 alpha3 eps_bist], where
-%                      alpha1 >= alpha2 >= alpha3 and eps_bist = lambda3
+%   anisotropy_level : table with variables a1, a2, a3, strain3, where
+%                      a1 >= a2 >= a3 and strain3 = lambda3 - 1
 %   lambda_sorted: Mx3 sorted scale factors [lambda1 lambda2 lambda3],
 %                  lambda1 >= lambda2 >= lambda3
 %   sort_idx     : Mx3 indices mapping sorted lambdas to original columns
@@ -32,7 +32,10 @@ l3 = lambda_sorted(:,3);
 
 % Initialize outputs
 M = size(scale_facs,1);
-anisotropy_level = nan(M,4, 'like', scale_facs);
+a1 = nan(M,1, 'like', scale_facs);
+a2 = nan(M,1, 'like', scale_facs);
+a3 = nan(M,1, 'like', scale_facs);
+strain3 = nan(M,1, 'like', scale_facs);
 
 % Valid rows: finite, positive, and satisfy triangle inequality
 valid = all(isfinite(lambda_sorted),2) & all(lambda_sorted > 0,2) & ...
@@ -53,10 +56,21 @@ if any(valid)
     a2 = acos(c2);
     a3 = pi - a1 - a2;
 
-    % eps_bist requested as lambda3
-    eps_bist = lv3;
-    anisotropy_level(valid,:) = [a1, a2, a3, eps_bist];
+    % strain3 requested as lambda3 - 1
+    strain3(valid) = lv3 - 1;
+    a1_full = nan(M,1, 'like', scale_facs);
+    a2_full = nan(M,1, 'like', scale_facs);
+    a3_full = nan(M,1, 'like', scale_facs);
+    a1_full(valid) = a1;
+    a2_full(valid) = a2;
+    a3_full(valid) = a3;
+    a1 = a1_full;
+    a2 = a2_full;
+    a3 = a3_full;
 end
+
+anisotropy_level = table(a1, a2, a3, strain3, ...
+    'VariableNames', {'a1','a2','a3','strain3'});
 
 %{
 % Example:
