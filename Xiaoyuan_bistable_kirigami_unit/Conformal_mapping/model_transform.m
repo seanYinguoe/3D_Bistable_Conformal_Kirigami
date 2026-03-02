@@ -3,6 +3,7 @@ function [flattened_out, deployed_out, tf] = model_transform(flattened_surface, 
 %   [flattened_out, deployed_out, tf] = model_transform(flattened_surface, deployed_surface)
 %   - Removes global translation and rotation automatically.
 %   - Rotates both surfaces so their best-fit planes align with XY plane.
+%   - Enforces the flattened surface on z=0 and deployed surface above XY plane.
 %   - Aligns flattened in-plane orientation to deployed via 2D rigid fit.
 %
 % Inputs:
@@ -40,6 +41,20 @@ R_dep_plane  = plane_to_xy_rotation(dep0);
 flat1 = rotate_points(flat0, R_flat_plane);
 dep1  = rotate_points(dep0,  R_dep_plane);
 
+% 2.5) Enforce a consistent positive-Z convention for the deployed shape.
+% Flip if needed, then shift so the surface sits on/above the XY plane.
+if median(dep1(:,3)) < 0
+    dep1(:,3) = -dep1(:,3);
+    dep_z_flip = -1;
+else
+    dep_z_flip = 1;
+end
+
+dep_z_shift = -min(dep1(:,3));
+if dep_z_shift ~= 0
+    dep1(:,3) = dep1(:,3) + dep_z_shift;
+end
+
 % 3) In-plane rigid alignment (flattened XY -> deployed XY)
 Fxy = flat1(:,1:2);
 Dxy = dep1(:,1:2);
@@ -70,6 +85,8 @@ tf.R_flat_plane = R_flat_plane;
 tf.R_dep_plane = R_dep_plane;
 tf.Q2 = Q;
 tf.t_xy = t_xy;
+tf.dep_z_flip = dep_z_flip;
+tf.dep_z_shift = dep_z_shift;
 end
 
 function R = plane_to_xy_rotation(P)

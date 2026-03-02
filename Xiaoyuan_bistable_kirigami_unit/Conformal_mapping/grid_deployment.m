@@ -1,4 +1,4 @@
-function [T,v_target] = grid_deployment(obj_2D,c_mesh,v_out,f_out)
+function [T,v_target,v_out] = grid_deployment(obj_2D,c_mesh,v_out,f_out)
 % Deploy a flattened grids onto the deployed surface
 % using barycentric interpolation.
 
@@ -77,9 +77,6 @@ for i = 1:size(f_out,1)
         v_target(f_out(i,j),:) = cart_out(3*(i-1)+j,:);
     end
 end
-
-
-
 
 %% Deploy the flattened grids surface on to deployed target surface
 % Precompute fixed view bounds to avoid rescaling/jumping during updates

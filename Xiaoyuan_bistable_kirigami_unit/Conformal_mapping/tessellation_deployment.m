@@ -1,11 +1,6 @@
-function tessellation_target = tessellation_deployment(tessellation,tessellation_target,T,modelname)
+function tessellation_target = tessellation_deployment(tessellation,tessellation_target)
 % Deploy a flattened tessellation onto the target tessellation
 % using barycentric interpolation.
-%% Move 2D closed tessellation configuration(should I rotate it as well?)
-for i = 1:size(tessellation,1)
-    [tessellation{i},~] = model_rotate(modelname, tessellation{i}, ones(1,3));
-    tessellation{i} = tessellation{i} - [T(:,[1,2]),0];% Move it to the central point   
-end
 
 %% Deploy the flattened grids surface on to deployed target surface
 % Create the figure and UI components
