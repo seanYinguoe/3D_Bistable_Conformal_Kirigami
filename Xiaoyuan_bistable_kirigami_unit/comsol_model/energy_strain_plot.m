@@ -1,23 +1,3 @@
-%% Read the data from the txt
-fname = 'pi:40G0.txt';  % <- change to your actual file
-raw = fileread(fname);
-
-% capture lines that contain exactly two numbers (delta, energy)
-expr = '(?:^|\r?\n)\s*([+\-]?\d+(?:\.\d+)?(?:[eE][+\-]?\d+)?)\s+([+\-]?\d+(?:\.\d+)?(?:[eE][+\-]?\d+)?)\s*(?=\r?\n|$)';
-tokens = regexp(raw, expr, 'tokens');
-
-if isempty(tokens)
-    error('No numeric (delta, energy) lines found. Check file formatting.');
-end
-
-% Convert tokens to numeric arrays
-nums = cellfun(@(t)[str2double(t{1}), str2double(t{2})], tokens, 'UniformOutput', false);
-data = vertcat(nums{:});
-delta_fem = data(:,1);             % displacement (m)
-U_fem     = data(:,2);             % total stored energy (J)
-
-
-
 %% Get the energy-displacement curve based on simulation results
 E = 4.33e11;
 eps_fem = delta_fem ./ edgeLen;

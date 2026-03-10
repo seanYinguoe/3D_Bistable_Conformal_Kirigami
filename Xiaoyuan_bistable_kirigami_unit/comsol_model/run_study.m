@@ -45,7 +45,7 @@ edgeLen = 15;
 l1 = edgeLen * 0.85;
 l4 = edgeLen * 0.05;
 t  = edgeLen * 0.015;
-beta = pi/40;
+beta = pi/15;
 fname = 'pi40_015.txt';  % <- change to your actual file
 raw = fileread(fname);
 % capture lines that contain exactly two numbers (delta, energy)
@@ -63,28 +63,32 @@ E = 4.33e11;
 eps_fem = delta_fem ./ edgeLen;
 
 % Run semi-analyical result
-delta = 0:0.1:0.57*edgeLen;
+delta = 0:0.1:0.40*edgeLen;
 N = 10;
 [~, U_hbm] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, N);
 eps_hbm = delta./edgeLen;
+U_hbm_max = max(U_hbm);
+U_hbm_norm = U_hbm ./ max(U_hbm_max, eps);
+
+% Plot the configuration(beta)
 
 % Plot reslt
 figure('Color','w'); 
 hold on; box on;
 
 % semi-analytical
-plot(eps_hbm, U_hbm, '-','Color',[0 0.45 0.74], 'LineWidth', 1, ...
+plot(eps_hbm, U_hbm_norm, '-','Color',[0 0.45 0.74], 'LineWidth', 2, ...
      'DisplayName','HBM');
 
-% FEM
-plot(eps_fem, U_fem, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 1, ...
-     'DisplayName','FEM');
+% % FEM
+% plot(eps_fem, U_fem, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 1, ...
+%      'DisplayName','FEM');
 xlabel('Strain', 'Interpreter','tex', ...
-       'FontSize',20);
-ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
-       'FontSize',20);
-set(gca, 'FontName','Times New Roman','FontSize',20); 
-legend('Location','northwest','Box','off', 'Fontsize',18);  
+       'FontSize',24);
+ylabel('U/U_{max}', 'Interpreter','tex', ...
+       'FontSize',24);
+set(gca, 'FontName','Times New Roman','FontSize',24); 
+%legend('Location','northwest','Box','off', 'Fontsize',18);  
 grid off;
 axis square;
 
