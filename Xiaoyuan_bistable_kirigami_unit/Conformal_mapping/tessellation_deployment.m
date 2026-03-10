@@ -45,6 +45,7 @@ xlabel('X');
 ylabel('Y');
 zlabel('Z');
 title(['Deployment Progress: ' num2str(alpha*100, '%.1f') '%']);
-view([45, 45]);
+%view([45, 45]);
+view([45, 25]);
 end
 end

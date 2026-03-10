@@ -1,7 +1,7 @@
 % Deploy a flattened surface onto the deployed surface (conformal mapping)
 % using interpolation and analysis.
 % Input: obj_2D(flattened_surface and deployed_surface)
-function mesh_deployment(obj_2D)
+function [flattened_surface,deployed_surface] = mesh_deployment(obj_2D)
 % Input flattened and deployed surface
 flattened_surface = obj_2D.vt;  % Flattened 2D vertex positions
 flattened_surface = [flattened_surface,zeros(size(flattened_surface,1),1)];

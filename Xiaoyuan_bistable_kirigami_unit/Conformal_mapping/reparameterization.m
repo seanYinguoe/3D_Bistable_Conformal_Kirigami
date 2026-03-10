@@ -1,229 +1,420 @@
-function [v_target, info] = reparameterization(v_out, f_out, obj_2D, v_target, ratio_max, alphaMax, opts)
-%REPARAMETERIZATION Surface-constrained reparameterization with scale-ratio/angle bounds.
-%   [v_target, info] = reparameterization(v_out, f_out, obj_2D, v_target, ...
-%       ratio_max, alphaMax, opts)
+function [v_initial, v_target, info] = reparameterization(v_out, f_out, vt_mesh, v_mesh, f_mesh, ratio_max, alphaMax, opts)
+%REPARAMETERIZATION Surface-constrained reparameterization with global bounds.
+%   [v_initial, v_target, info] = reparameterization(v_out, f_out, ...
+%       vt_mesh, v_mesh, f_mesh, ratio_max, alphaMax, opts)
 %
-% Inputs (kept as requested):
-%   v_out    : Nx2 or Nx3 flattened configuration
-%   f_out    : Mx3 triangles on v_out/v_target
-%   obj_2D.v : Ns x 3 surface vertices
-%   obj_2D.f.v : Ms x 3 surface faces
-%   v_target : Nx3 initial deployed positions
-%   ratio_max: max allowed anisotropy ratio (lambda_max/lambda_min)
-%   alphaMax : maximum internal angle (radians)
-%   opts     : struct with fields nIter, step, w_len, w_ang, w_smooth, verbose
-%              optional: qFrac
-%
-% Output:
-%   v_target : updated deployed positions on the target surface
-%   info     : diagnostics
+% Uses global per-triangle scale factors:
+%   scale_facs = calculate_scale_facs(v_out, v_target, f_out)   % Mx3
+%   lam_all = scale_facs(:)
+%   ratio = max(lam_all) / min(lam_all)
+% with monotone acceptance on ratio and angle violations.
 
+% Supports both:
+%   reparameterization(v_out, f_out, obj_2D, v_target, ratio_max, alphaMax, opts)
+%   reparameterization(v_out, f_out, obj_2D, ratio_max, alphaMax, opts)
 if nargin < 7
+    error('Not enough input arguments.');
+end
+
+if nargin < 8 || isempty(opts)
     opts = struct();
 end
 opts = fill_default_opts(opts);
-if nargin < 5 || isempty(ratio_max)
+if nargin < 6 || isempty(ratio_max)
     ratio_max = 1.7 / 1.1;
 end
 
-if size(v_out, 2) == 2
+if size(v_out,2) == 2
     v_out = [v_out, zeros(size(v_out,1),1, 'like', v_out)];
 elseif size(v_out,2) ~= 3
     error('v_out must be Nx2 or Nx3.');
-end
-if size(v_target,2) ~= 3
-    error('v_target must be Nx3.');
 end
 if size(f_out,2) ~= 3
     error('f_out must be Mx3.');
 end
 
-% Surface data
-surfV = obj_2D.v;
-surfF = obj_2D.f.v;
-if size(surfV,2) ~= 3 || size(surfF,2) ~= 3
-    error('obj_2D.v must be Ns x 3 and obj_2D.f.v must be Ms x 3.');
+if size(v_mesh,2) ~= 3
+    error('v_mesh must be Ns x 3.');
 end
+if size(vt_mesh,2) > 2
+    vt_mesh = vt_mesh(:,1:2);
+end
+if size(vt_mesh,1) ~= size(v_mesh,1)
+    error('vt_mesh and v_mesh must have same number of vertices.');
+end
+if size(f_mesh,2) ~= 3
+    error('f_mesh must be Mx3.');
+end
+if any(f_mesh(:) < 1) || any(f_mesh(:) > size(v_mesh,1))
+    error('f_mesh contains invalid vertex indices.');
+end
+vt_mesh3 = [vt_mesh, zeros(size(vt_mesh,1),1, 'like', vt_mesh)];
 
-% Precompute mesh data
-[E, vertNbrs] = build_edge_list_and_vertex_neighbors(f_out, size(v_target,1));
-L0 = edge_lengths(v_out, E);
-L0_safe = max(L0, eps(class(L0)));
+% Register v_out(:,1:2) into vt_mesh(:,1:2) frame using centroid + uniform scale.
+q_src = v_out(:,1:2);
+uv = vt_mesh3(:,1:2);
+c_src = mean(q_src, 1);
+c_uv = mean(uv, 1);
+r_src = q_src - c_src;
+r_uv = uv - c_uv;
+s_src = sqrt(mean(sum(r_src.^2, 2)));
+s_uv = sqrt(mean(sum(r_uv.^2, 2)));
+if s_src > eps(class(s_src))
+    sim_s = s_uv / s_src;
+else
+    sim_s = 1;
+end
+q_reg = (q_src - c_src) * sim_s + c_uv;
+vt_mesh = uv;
 
+surfV = v_mesh;
+surfF = f_mesh;
+
+[v_initial, v_target] = initialize_pair_from_surface(v_out, q_reg, vt_mesh, surfV, surfF);
+
+nV = size(v_target,1);
+[~, vertNbrs] = build_edge_list_and_vertex_neighbors(f_out, nV);
+[edgeI, edgeJ] = tri_edge_pairs(f_out);
+L0_tri_edges = tri_edge_lengths(v_out, f_out);
+L0_safe = max(L0_tri_edges, eps(class(L0_tri_edges)));
 triData = precompute_surface_data(surfV, surfF);
 
-% Initial projection to surface + anchor faces
-[v_target, anchorFace, faceNormalsAtPts] = project_points_to_surface(v_target, surfV, surfF, triData, zeros(size(v_target,1),1));
+[v_target, anchorFace, faceNormalsAtPts] = project_points_to_surface( ...
+    v_target, surfV, surfF, triData, zeros(size(v_target,1),1));
 
 nIter = opts.nIter;
-histMaxScale = zeros(nIter,1);
+histRatio = zeros(nIter,1);
+histMinLam = zeros(nIter,1);
+histMaxLam = zeros(nIter,1);
 histMaxAngle = zeros(nIter,1);
+histObj = zeros(nIter,1);
+histStepAccepted = zeros(nIter,1);
 histRmsUpdate = zeros(nIter,1);
 
+status = "maxIter";
+
 for it = 1:nIter
-    % --------- scale constraints on edges ---------
-    [lam_e, L1] = compute_scale_factors(v_target, E, L0_safe);
-    ratioMax = ratio_max;
-    qFrac = opts.qFrac;
-    lam_min_cur = min(lam_e);
-    lam_max_cur = max(lam_e);
-    ratio = lam_max_cur / max(lam_min_cur, eps(class(lam_e)));
-    maxScaleViol = max(0, ratio - ratioMax);
+    scale_facs = calculate_scale_facs(v_out, v_target, f_out);
+    lam_all = scale_facs(:);
+    lam_all = lam_all(isfinite(lam_all));
+    if isempty(lam_all)
+        error('No finite scale factors available in reparameterization.');
+    end
+
+    minLam = min(lam_all);
+    maxLam = max(lam_all);
+    ratio = maxLam / max(minLam, eps(class(minLam)));
+
+    [~, maxAnglePerTri, ~] = triangle_internal_angles(v_target, f_out, alphaMax);
+    maxAngle = max(maxAnglePerTri);
+
+    [J_old, ratioViol, angleViol, ~] = objective_value(v_target, ratio, maxAngle, ratio_max, alphaMax, vertNbrs, opts);
+    merit_old = constraint_merit(ratioViol, angleViol);
+
+    histRatio(it) = ratio;
+    histMinLam(it) = minLam;
+    histMaxLam(it) = maxLam;
+    histMaxAngle(it) = maxAngle;
+    histObj(it) = J_old;
 
     g = zeros(size(v_target), 'like', v_target);
 
-    % Apply anisotropy-ratio correction only when violated.
-    if maxScaleViol > 0
-        nE = numel(lam_e);
-        nSel = max(1, ceil(qFrac * nE));
-        [~, idSort] = sort(lam_e, 'ascend');
-        idLo = idSort(1:nSel);
-        idHi = idSort(max(1, nE-nSel+1):nE);
+    if ratioViol > 0
+        lam_ref = exp(mean(log(max(lam_all, eps(class(lam_all))))));
 
-        lam_med = median(lam_e);
-        lam_med = max(lam_med, eps(class(lam_e)));
+        lam_mat = scale_facs;
+        validMask = isfinite(lam_mat);
+        lam_vec = lam_mat(validMask);
+        validLin = find(validMask);
 
-        targetLam = lam_med;
+        qCount = max(1, ceil(opts.qFrac * numel(lam_vec)));
+        [~, ord] = sort(lam_vec, 'ascend');
+        lowLin = validLin(ord(1:qCount));
+        highLin = validLin(ord(max(1, numel(ord)-qCount+1):end));
 
-        % High-stretch edges: push shorter.
-        for kk = 1:numel(idHi)
-            eIdx = idHi(kk);
-            i = E(eIdx,1);
-            j = E(eIdx,2);
-
-            xi = v_target(i,:);
-            xj = v_target(j,:);
-            dij = xi - xj;
-            L = max(L1(eIdx), eps(class(L1)));
-            dir = dij / L;
-
-            w_hi = max(0, lam_e(eIdx) / lam_med - 1);
-            targetL = targetLam * L0_safe(eIdx);
-            delta = L - targetL;
-            corr = -opts.w_len * w_hi * delta * dir;
-
-            g(i,:) = g(i,:) + corr;
-            g(j,:) = g(j,:) - corr;
-        end
-
-        % Low-stretch edges: push longer.
-        for kk = 1:numel(idLo)
-            eIdx = idLo(kk);
-            i = E(eIdx,1);
-            j = E(eIdx,2);
-
-            xi = v_target(i,:);
-            xj = v_target(j,:);
-            dij = xi - xj;
-            L = max(L1(eIdx), eps(class(L1)));
-            dir = dij / L;
-
-            w_lo = max(0, 1 - lam_e(eIdx) / lam_med);
-            targetL = targetLam * L0_safe(eIdx);
-            delta = L - targetL;
-            corr = -opts.w_len * w_lo * delta * dir;
-
-            g(i,:) = g(i,:) + corr;
-            g(j,:) = g(j,:) - corr;
-        end
+        g = g + ratio_edge_correction(v_target, edgeI, edgeJ, L0_safe, scale_facs, highLin, lam_ref, opts.w_ratio, -1);
+        g = g + ratio_edge_correction(v_target, edgeI, edgeJ, L0_safe, scale_facs, lowLin,  lam_ref, opts.w_ratio, +1);
     end
 
-    % --------- angle constraints on triangles ---------
-    [triAngles, maxTriAngle, maxAngleViol] = triangle_internal_angles(v_target, f_out, alphaMax);
+    if angleViol > 0
+        [triAngles, maxAnglePerTri, ~] = triangle_internal_angles(v_target, f_out, alphaMax);
+        violTri = find(maxAnglePerTri > alphaMax);
+        for tt = 1:numel(violTri)
+            t = violTri(tt);
+            tri = f_out(t,:);
+            [~, kLoc] = max(triAngles(t,:));
 
-    violTri = find(maxTriAngle > alphaMax);
-    for tt = 1:numel(violTri)
-        t = violTri(tt);
-        tri = f_out(t,:);
-        a = tri(1); b = tri(2); c = tri(3);
+            if kLoc == 1
+                iV = tri(1); jV = tri(2); kV = tri(3);
+            elseif kLoc == 2
+                iV = tri(2); jV = tri(3); kV = tri(1);
+            else
+                iV = tri(3); jV = tri(1); kV = tri(2);
+            end
 
-        [~, kLoc] = max(triAngles(t,:));
-        if kLoc == 1
-            iV = a; jV = b; kV = c;
-        elseif kLoc == 2
-            iV = b; jV = c; kV = a;
-        else
-            iV = c; jV = a; kV = b;
-        end
-
-        excess = maxTriAngle(t) - alphaMax;
-        midJK = 0.5 * (v_target(jV,:) + v_target(kV,:));
-        dirI = midJK - v_target(iV,:);
-
-        nrm = norm(dirI);
-        if nrm > 0
-            dirI = dirI / nrm;
-            w = opts.w_ang * excess;
-            g(iV,:) = g(iV,:) + w * dirI;
-            g(jV,:) = g(jV,:) - 0.5 * w * dirI;
-            g(kV,:) = g(kV,:) - 0.5 * w * dirI;
-        end
-    end
-
-    % --------- Laplacian smoothing (optional) ---------
-    if opts.w_smooth > 0
-        lap = zeros(size(v_target), 'like', v_target);
-        for vi = 1:size(v_target,1)
-            nb = vertNbrs{vi};
-            if ~isempty(nb)
-                lap(vi,:) = mean(v_target(nb,:), 1) - v_target(vi,:);
+            excess = maxAnglePerTri(t) - alphaMax;
+            midJK = 0.5 * (v_target(jV,:) + v_target(kV,:));
+            dirI = midJK - v_target(iV,:);
+            nrm = norm(dirI);
+            if nrm > 0
+                dirI = dirI / nrm;
+                w = opts.w_ang * 2 * excess;
+                g(iV,:) = g(iV,:) + w * dirI;
+                g(jV,:) = g(jV,:) - 0.5 * w * dirI;
+                g(kV,:) = g(kV,:) - 0.5 * w * dirI;
             end
         end
-        g = g + opts.w_smooth * lap;
     end
 
-    % --------- project update to surface tangent plane ---------
+    if opts.w_smooth > 0
+        g = g + opts.w_smooth * laplacian_smoothing(v_target, vertNbrs);
+    end
+
     n = faceNormalsAtPts;
     dotgn = sum(g .* n, 2);
     g_t = g - dotgn .* n;
+    % Remove rigid translation mode to avoid global drift.
+    g_t = g_t - mean(g_t, 1);
+    g_t = cap_row_norms(g_t, opts.maxDisp);
 
-    dv = opts.step * g_t;
-    v_try = v_target + dv;
+    accepted = false;
+    stepCur = opts.step;
+    stepUsed = 0;
+    v_prev = v_target;
 
-    % --------- reproject back to surface ---------
-    [v_new, anchorFace, faceNormalsAtPts] = project_points_to_surface(v_try, surfV, surfF, triData, anchorFace);
+    for bt = 1:opts.maxBacktrack
+        dv = stepCur * g_t;
+        v_try = v_target + dv;
+        [v_new, anchorFaceNew, faceNormalsNew] = project_points_to_surface(v_try, surfV, surfF, triData, anchorFace);
 
-    rmsUpdate = sqrt(mean(sum((v_new - v_target).^2, 2)));
-    v_target = v_new;
+        scale_facs_new = calculate_scale_facs(v_out, v_new, f_out);
+        lam_new = scale_facs_new(:);
+        lam_new = lam_new(isfinite(lam_new));
+        minLamNew = min(lam_new);
+        maxLamNew = max(lam_new);
+        ratioNew = maxLamNew / max(minLamNew, eps(class(minLamNew)));
 
-    histMaxScale(it) = maxScaleViol;
-    histMaxAngle(it) = maxAngleViol;
-    histRmsUpdate(it) = rmsUpdate;
+        if isfield(opts, 'lamHardMin') && ~isempty(opts.lamHardMin) && minLamNew < opts.lamHardMin
+            stepCur = 0.5 * stepCur;
+            continue;
+        end
+        if isfield(opts, 'lamHardMax') && ~isempty(opts.lamHardMax) && maxLamNew > opts.lamHardMax
+            stepCur = 0.5 * stepCur;
+            continue;
+        end
 
-    if opts.verbose
-        fprintf('[reparameterization] iter %d/%d | maxScaleViol=%.4e | maxAngleViol=%.4e | rmsUpdate=%.4e\n', ...
-            it, nIter, maxScaleViol, maxAngleViol, rmsUpdate);
+        [~, maxAnglePerTriNew, ~] = triangle_internal_angles(v_new, f_out, alphaMax);
+        maxAngleNew = max(maxAnglePerTriNew);
+        [J_new, ratioViolNew, angleViolNew, ~] = objective_value(v_new, ratioNew, maxAngleNew, ratio_max, alphaMax, vertNbrs, opts);
+        merit_new = constraint_merit(ratioViolNew, angleViolNew);
+
+        acceptStep = false;
+        if merit_new < merit_old - 1e-12
+            acceptStep = true;
+        elseif merit_new <= merit_old + 1e-12 && J_new <= J_old + 1e-12 ...
+                && ratioViolNew <= ratioViol + 1e-12 && angleViolNew <= angleViol + 1e-12
+            acceptStep = true;
+        end
+
+        if acceptStep
+            accepted = true;
+            v_target = v_new;
+            anchorFace = anchorFaceNew;
+            faceNormalsAtPts = faceNormalsNew;
+            stepUsed = stepCur;
+            histRatio(it) = ratioNew;
+            histMinLam(it) = minLamNew;
+            histMaxLam(it) = maxLamNew;
+            histMaxAngle(it) = maxAngleNew;
+            histObj(it) = J_new;
+            histRmsUpdate(it) = sqrt(mean(sum((v_new - v_prev).^2, 2)));
+            break;
+        end
+
+        stepCur = 0.5 * stepCur;
     end
 
-    if maxScaleViol < 1e-6 && maxAngleViol < 1e-6 && rmsUpdate < 1e-8
-        histMaxScale = histMaxScale(1:it);
+    histStepAccepted(it) = stepUsed;
+
+    if ~accepted
+        status = "stalled";
+        histRatio = histRatio(1:it);
+        histMinLam = histMinLam(1:it);
+        histMaxLam = histMaxLam(1:it);
         histMaxAngle = histMaxAngle(1:it);
+        histObj = histObj(1:it);
+        histStepAccepted = histStepAccepted(1:it);
+        histRmsUpdate = histRmsUpdate(1:it);
+        break;
+    end
+
+    if opts.verbose
+        fprintf(['[reparameterization] iter %d/%d | ratio=%.6f | minLam=%.6f | ' ...
+                 'maxLam=%.6f | maxAngleDeg=%.4f | stepUsed=%.4e | J=%.6e\n'], ...
+                 it, nIter, histRatio(it), histMinLam(it), histMaxLam(it), ...
+                 rad2deg(histMaxAngle(it)), stepUsed, histObj(it));
+    end
+
+    if ratioViolNew < opts.tol_ratio && angleViolNew < opts.tol_ang && histRmsUpdate(it) < opts.tol_rms
+        status = "converged";
+        histRatio = histRatio(1:it);
+        histMinLam = histMinLam(1:it);
+        histMaxLam = histMaxLam(1:it);
+        histMaxAngle = histMaxAngle(1:it);
+        histObj = histObj(1:it);
+        histStepAccepted = histStepAccepted(1:it);
         histRmsUpdate = histRmsUpdate(1:it);
         break;
     end
 end
 
-[finalScaleFactors, ~] = compute_scale_factors(v_target, E, L0_safe);
+finalScaleFactors = calculate_scale_facs(v_out, v_target, f_out);
 [~, finalMaxAnglePerTri, ~] = triangle_internal_angles(v_target, f_out, alphaMax);
+lam_final = finalScaleFactors(:);
+lam_final = lam_final(isfinite(lam_final));
+
+% Keep v_initial on the same flattened plane as vt_mesh (z = 0).
+v_initial(:,3) = 0;
+% Match v_initial centroid to vt_mesh centroid on XY plane.
+c_vt_xy = mean(vt_mesh, 1);
+c_init_xy = mean(v_initial(:,1:2), 1);
+v_initial(:,1:2) = v_initial(:,1:2) + (c_vt_xy - c_init_xy);
 
 info = struct();
-info.history.maxScaleViolation = histMaxScale;
-info.history.maxAngleViolation = histMaxAngle;
+info.history.minLam = histMinLam;
+info.history.maxLam = histMaxLam;
+info.history.ratio = histRatio;
+info.history.maxAngle = histMaxAngle;
 info.history.rmsUpdate = histRmsUpdate;
+info.history.stepAccepted = histStepAccepted;
+info.history.obj = histObj;
 info.finalScaleFactors = finalScaleFactors;
+info.finalMinLam = min(lam_final);
+info.finalMaxLam = max(lam_final);
+info.finalRatio = info.finalMaxLam / max(info.finalMinLam, eps(class(info.finalMinLam)));
 info.finalMaxAngle = max(finalMaxAnglePerTri);
-info.edgeList = E;
-
+info.v_out_transformed = v_out;
+info.vt_mesh_transformed = vt_mesh3;
+info.v_mesh_transformed = v_mesh;
+info.q_registered = q_reg;
+info.v_initial_xy_shift = c_vt_xy - c_init_xy;
+info.status = status;
 end
 
 function opts = fill_default_opts(opts)
 if ~isfield(opts, 'nIter') || isempty(opts.nIter), opts.nIter = 60; end
 if ~isfield(opts, 'step') || isempty(opts.step), opts.step = 0.2; end
-if ~isfield(opts, 'w_len') || isempty(opts.w_len), opts.w_len = 1.0; end
+if ~isfield(opts, 'w_ratio') || isempty(opts.w_ratio), opts.w_ratio = 1.0; end
 if ~isfield(opts, 'w_ang') || isempty(opts.w_ang), opts.w_ang = 0.5; end
 if ~isfield(opts, 'w_smooth') || isempty(opts.w_smooth), opts.w_smooth = 0.05; end
 if ~isfield(opts, 'verbose') || isempty(opts.verbose), opts.verbose = false; end
 if ~isfield(opts, 'qFrac') || isempty(opts.qFrac), opts.qFrac = 0.10; end
+if ~isfield(opts, 'maxBacktrack') || isempty(opts.maxBacktrack), opts.maxBacktrack = 10; end
+if ~isfield(opts, 'tol_ratio') || isempty(opts.tol_ratio), opts.tol_ratio = 1e-4; end
+if ~isfield(opts, 'tol_ang') || isempty(opts.tol_ang), opts.tol_ang = 1e-6; end
+if ~isfield(opts, 'tol_rms') || isempty(opts.tol_rms), opts.tol_rms = 1e-8; end
+if ~isfield(opts, 'maxDisp') || isempty(opts.maxDisp), opts.maxDisp = inf; end
+if ~isfield(opts, 'lamHardMin'), opts.lamHardMin = []; end
+if ~isfield(opts, 'lamHardMax'), opts.lamHardMax = []; end
+end
+
+function g = ratio_edge_correction(v_target, edgeI, edgeJ, L0_safe, scale_facs, linIdx, lam_ref, w_ratio, signMode)
+g = zeros(size(v_target), 'like', v_target);
+if isempty(linIdx)
+    return;
+end
+
+[triIdx, edgeIdx] = ind2sub(size(scale_facs), linIdx);
+iIdx = edgeI(linIdx);
+jIdx = edgeJ(linIdx);
+
+xi = v_target(iIdx,:);
+xj = v_target(jIdx,:);
+dij = xi - xj;
+Lcur = sqrt(sum(dij.^2, 2));
+Lsafe = max(Lcur, eps(class(Lcur)));
+dir = dij ./ Lsafe;
+
+L0sel = L0_safe(sub2ind(size(L0_safe), triIdx, edgeIdx));
+targetL = lam_ref .* L0sel;
+
+if signMode < 0
+    delta = max(0, Lcur - targetL);
+    corr = -w_ratio * delta .* dir;
+else
+    delta = max(0, targetL - Lcur);
+    corr = w_ratio * delta .* dir;
+end
+
+g = scatter_add_edges(size(v_target,1), iIdx, jIdx, corr);
+end
+
+function g = scatter_add_edges(nV, iIdx, jIdx, corr)
+g = zeros(nV, 3, 'like', corr);
+for d = 1:3
+    g(:,d) = g(:,d) + accumarray(iIdx, corr(:,d), [nV,1], @sum, 0);
+    g(:,d) = g(:,d) - accumarray(jIdx, corr(:,d), [nV,1], @sum, 0);
+end
+end
+
+function [J, ratioViol, angleViol, phi_smooth] = objective_value(v_target, ratio, maxAngle, ratio_max, alphaMax, vertNbrs, opts)
+ratioViol = max(0, log(ratio / ratio_max));
+angleViol = max(0, maxAngle - alphaMax);
+phi_smooth = smoothing_energy(v_target, vertNbrs);
+J = opts.w_ratio * ratioViol^2 + opts.w_ang * angleViol^2 + opts.w_smooth * phi_smooth;
+end
+
+function m = constraint_merit(ratioViol, angleViol)
+m = max(ratioViol, angleViol);
+end
+
+function phi_smooth = smoothing_energy(v_target, vertNbrs)
+phi_smooth = 0;
+nCount = 0;
+for vi = 1:size(v_target,1)
+    nb = vertNbrs{vi};
+    if ~isempty(nb)
+        d = v_target(vi,:) - mean(v_target(nb,:), 1);
+        phi_smooth = phi_smooth + sum(d.^2);
+        nCount = nCount + 1;
+    end
+end
+if nCount > 0
+    phi_smooth = phi_smooth / nCount;
+end
+end
+
+function lap = laplacian_smoothing(v_target, vertNbrs)
+lap = zeros(size(v_target), 'like', v_target);
+for vi = 1:size(v_target,1)
+    nb = vertNbrs{vi};
+    if ~isempty(nb)
+        lap(vi,:) = mean(v_target(nb,:), 1) - v_target(vi,:);
+    end
+end
+end
+
+function dv = cap_row_norms(dv, maxDisp)
+if ~isfinite(maxDisp) || maxDisp <= 0
+    return;
+end
+nrm = sqrt(sum(dv.^2, 2));
+scale = ones(size(nrm), 'like', nrm);
+mask = nrm > maxDisp;
+scale(mask) = maxDisp ./ nrm(mask);
+dv = dv .* scale;
+end
+
+function [edgeI, edgeJ] = tri_edge_pairs(f_out)
+edgeI = [f_out(:,1), f_out(:,2), f_out(:,3)];
+edgeJ = [f_out(:,2), f_out(:,3), f_out(:,1)];
+end
+
+function Ltri = tri_edge_lengths(V, f_out)
+edge12 = sqrt(sum((V(f_out(:,2),:) - V(f_out(:,1),:)).^2, 2));
+edge23 = sqrt(sum((V(f_out(:,3),:) - V(f_out(:,2),:)).^2, 2));
+edge31 = sqrt(sum((V(f_out(:,1),:) - V(f_out(:,3),:)).^2, 2));
+Ltri = [edge12, edge23, edge31];
 end
 
 function [E, vertNbrs] = build_edge_list_and_vertex_neighbors(f_out, nV)
@@ -241,16 +432,6 @@ end
 for i = 1:nV
     vertNbrs{i} = unique(vertNbrs{i});
 end
-end
-
-function L = edge_lengths(V, E)
-d = V(E(:,1),:) - V(E(:,2),:);
-L = sqrt(sum(d.^2, 2));
-end
-
-function [lam_e, L1] = compute_scale_factors(v_target, E, L0)
-L1 = edge_lengths(v_target, E);
-lam_e = L1 ./ max(L0, eps(class(L0)));
 end
 
 function [ang, maxAngPerTri, maxViol] = triangle_internal_angles(V, f_out, alphaMax)
@@ -298,7 +479,6 @@ fn(valid,:) = fn(valid,:) ./ fnNorm(valid);
 fn(~valid,:) = repmat([0 0 1], sum(~valid), 1);
 fc = (p1 + p2 + p3) / 3;
 
-% vertex -> faces adjacency
 nV = size(surfV,1);
 v2f = cell(nV,1);
 for f = 1:F
@@ -308,11 +488,10 @@ for f = 1:F
     v2f{vv(3)}(end+1) = f;
 end
 
-% face -> face adjacency via shared edges
 E = [surfF(:,[1 2]); surfF(:,[2 3]); surfF(:,[3 1])];
 fid = [(1:F)'; (1:F)'; (1:F)'];
 E = sort(E,2);
-[Eu, ~, ic] = unique(E, 'rows'); %#ok<ASGLU>
+[~, ~, ic] = unique(E, 'rows');
 faceNbrs = cell(F,1);
 for k = 1:numel(ic)
     grp = find(ic == ic(k));
@@ -377,7 +556,6 @@ for i = 1:nq
         cand = [anchorFace(i); faceNbrs{anchorFace(i)}(:)];
         cand = unique(cand);
 
-        % Expand one more ring if candidate list is tiny.
         if numel(cand) < 6
             ring2 = cand;
             for ii = 1:numel(cand)
@@ -386,7 +564,6 @@ for i = 1:nq
             cand = unique(ring2);
         end
     else
-        % global coarse search by face-center distance (one-time expensive fallback)
         d2 = sum((fc - q).^2, 2);
         [~, idx] = sort(d2, 'ascend');
         K = min(30, numel(idx));
@@ -396,7 +573,6 @@ for i = 1:nq
     [cp, fBest, ~] = closest_point_on_mesh_faces(q, surfV, surfF, cand);
 
     if fBest == 0
-        % Absolute fallback over all faces
         [cp, fBest, ~] = closest_point_on_mesh_faces(q, surfV, surfF, (1:size(surfF,1)).');
     end
 
@@ -405,7 +581,6 @@ for i = 1:nq
     n_at_point(i,:) = faceNormals(fBest,:);
 end
 
-% Safety fallback if some normals are zero
 nrm = sqrt(sum(n_at_point.^2,2));
 bad = nrm < eps(class(vq));
 if any(bad)
@@ -445,7 +620,6 @@ end
 end
 
 function cp = closest_point_on_triangle(p, a, b, c)
-% Closest point on triangle (Ericson, Real-Time Collision Detection).
 ab = b - a;
 ac = c - a;
 ap = p - a;
@@ -494,7 +668,6 @@ if va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0
     return;
 end
 
-% Inside face region
 n = cross(ab, ac);
 n2 = dot(n, n);
 if n2 <= eps
@@ -505,8 +678,44 @@ cp = p - (dot(p - a, n) / n2) * n;
 end
 
 function D2 = pdist2_local(A, B)
-% Squared pairwise distances (toolbox-free)
 AA = sum(A.^2, 2);
 BB = sum(B.^2, 2)';
 D2 = max(AA + BB - 2*(A*B'), 0);
+end
+
+function [v_initial, v_target] = initialize_pair_from_surface(v_out, q_reg, uv, surfV, surfF)
+q = q_reg;
+
+TR = triangulation(surfF, uv);
+[ti, bc] = pointLocation(TR, q);
+
+v_target = zeros(size(q,1), 3, 'like', surfV);
+v_initial = [v_out(:,1:2), zeros(size(v_out,1),1, 'like', v_out)];
+inside = ~isnan(ti);
+if any(inside)
+    faces = surfF(ti(inside), :);
+    v_target(inside,:) = ...
+        bc(inside,1) .* surfV(faces(:,1),:) + ...
+        bc(inside,2) .* surfV(faces(:,2),:) + ...
+        bc(inside,3) .* surfV(faces(:,3),:);
+end
+
+outside = find(~inside);
+if isempty(outside)
+    return;
+end
+
+uv_centers = (uv(surfF(:,1),:) + uv(surfF(:,2),:) + uv(surfF(:,3),:)) / 3;
+for kk = 1:numel(outside)
+    idx = outside(kk);
+    d2 = sum((uv_centers - q(idx,:)).^2, 2);
+    [~, fIdx] = min(d2);
+    tri_uv = uv(surfF(fIdx,:), :);
+    tri_uv3 = [tri_uv, zeros(3,1, 'like', tri_uv)];
+    p3 = [q(idx,:), 0];
+    bc_loc = cart2barycentric(tri_uv3, p3);
+    v_target(idx,:) = bc_loc(1) * surfV(surfF(fIdx,1),:) + ...
+                      bc_loc(2) * surfV(surfF(fIdx,2),:) + ...
+                      bc_loc(3) * surfV(surfF(fIdx,3),:);
+end
 end
