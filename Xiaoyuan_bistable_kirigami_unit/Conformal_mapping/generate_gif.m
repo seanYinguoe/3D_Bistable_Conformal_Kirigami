@@ -79,8 +79,8 @@ for k = 0:numFrames
     ylabel('Y');
     zlabel('Z');
     title(['Deployment Progress: ' num2str(alpha*100, '%.1f') '%']);
-    %view([45, 45]);
-    view([45, 25]);
+    view([45, 45]);
+    %view([45, 25]);
     hold off;
 
     frame = getframe(fig);
