@@ -161,6 +161,25 @@ triangle_new(41,:) = triangle_new(43,:);
 triangle_new(39,:) = triangle_new(40,:) + t/(norm(p3-p1))*(p3-p1);
 triangle_new(42,:) = triangle_new(41,:) + t/(norm(C_new-A_new))*(C_new-A_new);
 
+% Synchronize void vertices with deformed shared nodes.
+% Each void polygon is [A F E D C B], where A/F/E/D are shared with
+% flank/filament/inner geometry and must remain identical after deformation.
+% Void 1 shared nodes
+triangle_new(1,:)  = triangle_new(19,:); % A1
+triangle_new(2,:)  = triangle_new(31,:); % F1
+triangle_new(3,:)  = triangle_new(34,:); % E1
+triangle_new(4,:)  = triangle_new(43,:); % D1
+% Void 2 shared nodes
+triangle_new(7,:)  = triangle_new(23,:); % A2
+triangle_new(8,:)  = triangle_new(35,:); % F2
+triangle_new(9,:)  = triangle_new(38,:); % E2
+triangle_new(10,:) = triangle_new(44,:); % D2
+% Void 3 shared nodes
+triangle_new(13,:) = triangle_new(27,:); % A3
+triangle_new(14,:) = triangle_new(39,:); % F3
+triangle_new(15,:) = triangle_new(42,:); % E3
+triangle_new(16,:) = triangle_new(45,:); % D3
+
 % Flip over the triangle, if the unit is downwards
 if i_out == 0 % Upwards unit
     triangle_new = [triangle_new,zeros(size(triangle_new,1),1)];
