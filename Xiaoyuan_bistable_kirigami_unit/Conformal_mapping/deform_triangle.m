@@ -148,17 +148,17 @@ triangle_new(45,:) = C_new;
 % Create the new filaments
 triangle_new(32,:) = triangle_new(20,:);
 triangle_new(33,:) = triangle_new(44,:);
-triangle_new(31,:) = triangle_new(32,:) + t/(norm(p1-p2))*(p1-p2);
+triangle_new(31,:) = triangle_new(32,:) + t/(norm(A_new-B_new))*(A_new-B_new);
 triangle_new(34,:) = triangle_new(33,:) + t/(norm(A_new-B_new))*(A_new-B_new);
 
 triangle_new(37,:) = triangle_new(45,:);
 triangle_new(36,:) = triangle_new(24,:);
-triangle_new(35,:) = triangle_new(36,:) + t/(norm(p2-p3))*(p2-p3);
+triangle_new(35,:) = triangle_new(36,:) + t/(norm(B_new-C_new))*(B_new-C_new);
 triangle_new(38,:) = triangle_new(37,:) + t/(norm(B_new-C_new))*(B_new-C_new);
 
 triangle_new(40,:) = triangle_new(28,:);
 triangle_new(41,:) = triangle_new(43,:);
-triangle_new(39,:) = triangle_new(40,:) + t/(norm(p3-p1))*(p3-p1);
+triangle_new(39,:) = triangle_new(40,:) + t/(norm(C_new-A_new))*(C_new-A_new);
 triangle_new(42,:) = triangle_new(41,:) + t/(norm(C_new-A_new))*(C_new-A_new);
 
 % Synchronize void vertices with deformed shared nodes.
