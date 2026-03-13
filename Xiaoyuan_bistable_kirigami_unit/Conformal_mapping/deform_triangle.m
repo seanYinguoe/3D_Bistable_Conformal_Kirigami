@@ -58,7 +58,9 @@ tri_new = [p1;p2;p3];
 tri_new = tri_new(:);
 
 %% Move and Rotate Flanks to Fit Outer Triangle
-triangle_new = zeros(size(triangle));
+% Keep canonical vertex ordering from triangle_unit.
+% This preserves fixed indexing (e.g., void nodes 1:18) unless explicitly updated.
+triangle_new = triangle;
 
 % Indecies of inner triangle
 f_flank = [19 20 21 22;

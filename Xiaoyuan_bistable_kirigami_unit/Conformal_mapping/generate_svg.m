@@ -1,18 +1,20 @@
 function [output_path, info] = generate_svg(tessellation, varargin)
-%GENERATE_SVG Export laser-cut SVG from compact-state tessellation.
+%GENERATE_SVG Export kirigami cut pattern from topology (edge connectivity).
 %   output_path = generate_svg(tessellation)
 %   output_path = generate_svg(tessellation, filename)
-%   [output_path, info] = generate_svg(...)
+%   output_path = generate_svg(tessellation, filename, snap_tol)
 %
-% Path order in SVG:
-%   1) outer boundary cut(s)
-%   2) internal void cut(s)
+% Output contains:
+%   1) global outer boundary loops (from single-use cell outer edges)
+%   2) void loops (direct from f_void for each cell)
+%
+% No point-cloud boundary()/convhull() is used.
 
 if nargin < 1 || ~iscell(tessellation)
-    error('tessellation must be a cell array of unit vertex sets.');
+    error('tessellation must be a cell array.');
 end
 
-filename = resolve_svg_filename(varargin{:});
+[filename, snap_tol] = resolve_inputs(varargin{:});
 func_dir = fileparts(mfilename('fullpath'));
 output_dir = fullfile(func_dir, 'output');
 if ~exist(output_dir, 'dir')
@@ -20,176 +22,356 @@ if ~exist(output_dir, 'dir')
 end
 output_path = fullfile(output_dir, filename);
 
-% Face connectivity consistent with plot_triangle.m
-f_void = [1 2 3 4 5 6; 7 8 9 10 11 12; 13 14 15 16 17 18];
-f_flank = [19 20 21 22; 23 24 25 26; 27 28 29 30];
-f_filament = [31 32 33 34; 35 36 37 38; 39 40 41 42];
-f_inner = [43 44 45];
+% Known per-cell face indexing
+f_void = [1 2 3 4 5 6;
+          7 8 9 10 11 12;
+          13 14 15 16 17 18];
 
-solid_all = polyshape();
-void_all = polyshape();
-has_solid = false;
-has_void = false;
+% Per-cell outer boundary vertex ids (triangle corners in unit indexing)
+% (from deform_triangle mapping: 22->p1, 26->p2, 30->p3)
+f_outer = [22 26; 26 30; 30 22];
+
+% Collect all coordinates for scale
 all_xy = zeros(0,2);
-
-for k = 1:numel(tessellation)
-    V = tessellation{k};
-    if isempty(V)
+for i = 1:numel(tessellation)
+    V = tessellation{i};
+    if isempty(V), continue; end
+    if size(V,2) < 2
         continue;
     end
-    if size(V,2) < 2 || size(V,1) < 45
-        error('tessellation{%d} must be at least 45x2.', k);
+    all_xy = [all_xy; V(:,1:2)]; %#ok<AGROW>
+end
+if isempty(all_xy)
+    error('No valid XY data in tessellation.');
+end
+
+if isempty(snap_tol)
+    span = max(max(all_xy,[],1) - min(all_xy,[],1));
+    snap_tol = max(1e-8, 1e-6 * max(span, 1));
+else
+    snap_tol = max(1e-12, abs(snap_tol));
+end
+
+% Global snapped point table + edge counting
+point_map = containers.Map('KeyType','char', 'ValueType','uint32');
+sum_xy = zeros(0,2);
+cnt_xy = zeros(0,1);
+
+edge_map_outer = containers.Map('KeyType','char', 'ValueType','uint32');
+edge_tbl_outer = zeros(0,3,'uint32'); % [count, i, j]
+edge_map_void = containers.Map('KeyType','char', 'ValueType','uint32');
+edge_tbl_void = zeros(0,3,'uint32'); % [count, i, j]
+
+n_invalid_cells = 0;
+
+for i = 1:numel(tessellation)
+    V = tessellation{i};
+    if isempty(V) || size(V,2) < 2 || size(V,1) < 30
+        n_invalid_cells = n_invalid_cells + 1;
+        continue;
     end
     XY = V(:,1:2);
-    all_xy = [all_xy; XY]; %#ok<AGROW>
 
-    p_solid = polyshape();
-    for j = 1:size(f_flank,1)
-        p_solid = union(p_solid, polyshape(XY(f_flank(j,:),1), XY(f_flank(j,:),2), ...
-            'Simplify', true, 'KeepCollinearPoints', true));
+    % 1) Void edges (topology). Shared edges are removed later.
+    for r = 1:size(f_void,1)
+        idx = f_void(r,:);
+        P = XY(idx,:);
+        P = sanitize_points(P, snap_tol);
+        if size(P,1) < 2
+            continue;
+        end
+        ids = zeros(size(P,1),1,'uint32');
+        for m = 1:size(P,1)
+            [ids(m), point_map, sum_xy, cnt_xy] = register_point(P(m,:), snap_tol, point_map, sum_xy, cnt_xy);
+        end
+        for m = 1:numel(ids)
+            a = ids(m);
+            b = ids(mod(m, numel(ids)) + 1);
+            if a == b
+                continue;
+            end
+            [edge_map_void, edge_tbl_void] = add_undirected_edge(a, b, edge_map_void, edge_tbl_void);
+        end
     end
-    for j = 1:size(f_filament,1)
-        p_solid = union(p_solid, polyshape(XY(f_filament(j,:),1), XY(f_filament(j,:),2), ...
-            'Simplify', true, 'KeepCollinearPoints', true));
-    end
-    p_solid = union(p_solid, polyshape(XY(f_inner,1), XY(f_inner,2), ...
-        'Simplify', true, 'KeepCollinearPoints', true));
 
-    p_void = polyshape();
-    for j = 1:size(f_void,1)
-        p_void = union(p_void, polyshape(XY(f_void(j,:),1), XY(f_void(j,:),2), ...
-            'Simplify', true, 'KeepCollinearPoints', true));
-    end
-
-    if ~has_solid
-        solid_all = p_solid;
-        has_solid = true;
-    else
-        solid_all = union(solid_all, p_solid);
-    end
-    if ~has_void
-        void_all = p_void;
-        has_void = true;
-    else
-        void_all = union(void_all, p_void);
+    % 2) Outer edges for topology counting
+    for e = 1:size(f_outer,1)
+        aLoc = f_outer(e,1);
+        bLoc = f_outer(e,2);
+        if aLoc > size(XY,1) || bLoc > size(XY,1)
+            continue;
+        end
+        pa = XY(aLoc,:);
+        pb = XY(bLoc,:);
+        if ~all(isfinite(pa)) || ~all(isfinite(pb))
+            continue;
+        end
+        [idA, point_map, sum_xy, cnt_xy] = register_point(pa, snap_tol, point_map, sum_xy, cnt_xy);
+        [idB, point_map, sum_xy, cnt_xy] = register_point(pb, snap_tol, point_map, sum_xy, cnt_xy);
+        if idA == idB
+            continue;
+        end
+        [edge_map_outer, edge_tbl_outer] = add_undirected_edge(idA, idB, edge_map_outer, edge_tbl_outer);
     end
 end
 
-if isempty(all_xy)
-    error('tessellation is empty.');
+if isempty(sum_xy)
+    error('No valid outer-boundary edges extracted.');
+end
+pts = sum_xy ./ max(cnt_xy, 1);
+
+% Keep only single-use outer edges (global boundary edges)
+outer_edges = single_use_edges(edge_map_outer, edge_tbl_outer);
+if isempty(outer_edges)
+    error('No single-use outer edges found for global boundary.');
 end
 
-% Boundary cut(s): only outer contours of the solid sheet
-outer_sheet = rmholes(solid_all);
-
-% Void cut(s): internal void polygons clipped to sheet
-void_cut = intersect(void_all, outer_sheet);
-if (~has_void) || isempty(void_cut) || area(void_cut) <= 0
-    % fallback: extract holes directly from solid geometry
-    [xh, yh] = holes(solid_all);
-    void_path_data = loops_to_paths(xh, yh);
-else
-    [xv, yv] = boundary(void_cut);
-    void_path_data = loops_to_paths(xv, yv);
+% Reconstruct ordered boundary loops
+boundary_loops = reconstruct_loops(outer_edges);
+boundary_loops = filter_short_loops(boundary_loops);
+if isempty(boundary_loops)
+    error('Failed to reconstruct global boundary loop(s).');
 end
 
-[xb, yb] = boundary(outer_sheet);
-boundary_path_data = loops_to_paths(xb, yb);
-
-if isempty(boundary_path_data)
-    error('No boundary extracted from tessellation.');
+% Convert boundary loops to SVG paths
+boundary_paths = cell(numel(boundary_loops),1);
+for i = 1:numel(boundary_loops)
+    ids = boundary_loops{i};
+    P = pts(ids, :);
+    boundary_paths{i} = points_to_closed_path(P);
 end
 
-% SVG canvas
+% Keep only single-use void edges (shared/internal void edges removed)
+void_edges = single_use_edges(edge_map_void, edge_tbl_void);
+void_loops = reconstruct_loops(void_edges);
+void_loops = filter_short_loops(void_loops);
+void_paths = cell(numel(void_loops),1);
+for i = 1:numel(void_loops)
+    ids = void_loops{i};
+    P = pts(ids, :);
+    void_paths{i} = points_to_closed_path(P);
+end
+
+% SVG canvas from all data points
 xmin = min(all_xy(:,1)); xmax = max(all_xy(:,1));
 ymin = min(all_xy(:,2)); ymax = max(all_xy(:,2));
-span = max([xmax-xmin, ymax-ymin, 1e-6]);
-pad = 0.02 * span;
-vb_x = xmin - pad;
-vb_y = ymin - pad;
-vb_w = (xmax - xmin) + 2*pad;
-vb_h = (ymax - ymin) + 2*pad;
+span2 = max([xmax-xmin, ymax-ymin, 1e-6]);
+pad = 0.02 * span2;
+vb = [xmin-pad, ymin-pad, (xmax-xmin)+2*pad, (ymax-ymin)+2*pad];
 
 fid = fopen(output_path, 'w');
 if fid < 0
-    error('Cannot open file for writing: %s', output_path);
+    error('Cannot open %s for writing.', output_path);
 end
-cleanup = onCleanup(@() fclose(fid));
+cleanup = onCleanup(@() fclose(fid)); %#ok<NASGU>
 
 fprintf(fid, '<?xml version="1.0" encoding="UTF-8"?>\n');
 fprintf(fid, '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" ');
-fprintf(fid, 'viewBox="%.9g %.9g %.9g %.9g">\n', vb_x, vb_y, vb_w, vb_h);
+fprintf(fid, 'viewBox="%.9g %.9g %.9g %.9g">\n', vb(1), vb(2), vb(3), vb(4));
 fprintf(fid, '  <title>Kirigami cut pattern</title>\n');
-fprintf(fid, '  <desc>Path order: boundary first, then void cuts.</desc>\n');
+fprintf(fid, '  <desc>Topology-based global boundary + direct void loops.</desc>\n');
 
-% Cut style: red stroke, no fill (common laser workflow)
-fprintf(fid, '  <g id="boundary_cut" fill="none" stroke="#ff0000" stroke-width="0.05">\n');
-for i = 1:numel(boundary_path_data)
-    fprintf(fid, '    <path d="%s" />\n', boundary_path_data{i});
+fprintf(fid, '  <g id="boundary_cut" fill="none" stroke="#000000" stroke-width="0.05" stroke-linecap="round" stroke-linejoin="round">\n');
+for i = 1:numel(boundary_paths)
+    fprintf(fid, '    <path d="%s" />\n', boundary_paths{i});
 end
 fprintf(fid, '  </g>\n');
 
-fprintf(fid, '  <g id="void_cut" fill="none" stroke="#ff0000" stroke-width="0.05">\n');
-for i = 1:numel(void_path_data)
-    fprintf(fid, '    <path d="%s" />\n', void_path_data{i});
+fprintf(fid, '  <g id="void_cut" fill="none" stroke="#000000" stroke-width="0.05" stroke-linecap="round" stroke-linejoin="round">\n');
+for i = 1:numel(void_paths)
+    fprintf(fid, '    <path d="%s" />\n', void_paths{i});
 end
 fprintf(fid, '  </g>\n');
 fprintf(fid, '</svg>\n');
 
 info = struct();
-info.n_boundary_paths = numel(boundary_path_data);
-info.n_void_paths = numel(void_path_data);
 info.output_path = output_path;
-info.viewBox = [vb_x, vb_y, vb_w, vb_h];
+info.n_boundary_loops = numel(boundary_paths);
+info.n_void_paths = numel(void_paths);
+info.n_outer_edges = size(outer_edges,1);
+info.n_invalid_cells = n_invalid_cells;
+info.snap_tol = snap_tol;
+info.viewBox = vb;
 end
 
-function paths = loops_to_paths(x, y)
-paths = {};
-if isempty(x) || isempty(y)
+function [id, point_map, sum_xy, cnt_xy] = register_point(p, tol, point_map, sum_xy, cnt_xy)
+key = snap_key(p, tol);
+if isKey(point_map, key)
+    id = point_map(key);
+else
+    id = uint32(size(sum_xy,1) + 1);
+    point_map(key) = id;
+    sum_xy(end+1,:) = [0, 0];
+    cnt_xy(end+1,1) = 0;
+end
+sum_xy(id,:) = sum_xy(id,:) + p;
+cnt_xy(id,1) = cnt_xy(id,1) + 1;
+end
+
+function [edge_map, edge_tbl] = add_undirected_edge(a, b, edge_map, edge_tbl)
+if a < b
+    i = a; j = b;
+else
+    i = b; j = a;
+end
+key = edge_key(i, j);
+if isKey(edge_map, key)
+    idx = edge_map(key);
+    edge_tbl(idx,1) = edge_tbl(idx,1) + 1;
+else
+    idx = uint32(size(edge_tbl,1) + 1);
+    edge_map(key) = idx;
+    edge_tbl(idx,:) = [1, i, j];
+end
+end
+
+function E = single_use_edges(edge_map, edge_tbl)
+keys = edge_map.keys;
+E = zeros(0,2,'uint32');
+for i = 1:numel(keys)
+    idx = edge_map(keys{i});
+    if edge_tbl(idx,1) == 1
+        E(end+1,:) = edge_tbl(idx,2:3); %#ok<AGROW>
+    end
+end
+end
+
+function loops = reconstruct_loops(E)
+loops = {};
+if isempty(E), return; end
+
+E = double(E);
+nE = size(E,1);
+maxV = max(E(:));
+adj = cell(maxV,1);
+for e = 1:nE
+    a = E(e,1); b = E(e,2);
+    adj{a}(end+1) = e;
+    adj{b}(end+1) = e;
+end
+
+used = false(nE,1);
+for e0 = 1:nE
+    if used(e0), continue; end
+    used(e0) = true;
+    a = E(e0,1); b = E(e0,2);
+    loop = [a; b];
+    prev = a;
+    curr = b;
+
+    while true
+        cand = adj{curr};
+        nextEdge = 0;
+        nextV = 0;
+        for k = 1:numel(cand)
+            ee = cand(k);
+            if used(ee), continue; end
+            u = E(ee,1); v = E(ee,2);
+            nv = u + v - curr;
+            if nv == prev
+                continue;
+            end
+            nextEdge = ee;
+            nextV = nv;
+            break;
+        end
+        if nextEdge == 0
+            break;
+        end
+        used(nextEdge) = true;
+        loop(end+1,1) = nextV; %#ok<AGROW>
+        prev = curr;
+        curr = nextV;
+        if curr == loop(1)
+            break;
+        end
+    end
+
+    loop = clean_loop(loop);
+    if numel(loop) >= 3
+        loops{end+1} = loop; %#ok<AGROW>
+    end
+end
+end
+
+function loops = filter_short_loops(loops)
+if isempty(loops), return; end
+keep = true(numel(loops),1);
+for i = 1:numel(loops)
+    if numel(loops{i}) < 3
+        keep(i) = false;
+    end
+end
+loops = loops(keep);
+end
+
+function P = sanitize_points(P, tol)
+if isempty(P) || size(P,2) ~= 2
+    P = [];
     return;
 end
-nanBreak = isnan(x) | isnan(y);
-idx = [0; find(nanBreak); numel(x)+1];
-for k = 1:numel(idx)-1
-    s = idx(k)+1;
-    e = idx(k+1)-1;
-    if e - s + 1 < 3
-        continue;
-    end
-    xx = x(s:e);
-    yy = y(s:e);
-    if hypot(xx(end)-xx(1), yy(end)-yy(1)) < 1e-12
-        xx(end) = [];
-        yy(end) = [];
-    end
-    if numel(xx) < 3
-        continue;
-    end
-    d = sprintf('M %.9g %.9g', xx(1), yy(1));
-    for i = 2:numel(xx)
-        d = sprintf('%s L %.9g %.9g', d, xx(i), yy(i)); %#ok<AGROW>
-    end
-    d = sprintf('%s Z', d);
-    paths{end+1} = d; %#ok<AGROW>
+P = P(all(isfinite(P),2), :);
+if isempty(P), return; end
+
+if tol > 0
+    P = round(P / tol) * tol;
+end
+
+if size(P,1) >= 2
+    d = hypot(diff(P(:,1)), diff(P(:,2)));
+    thr = max(tol, 1e-12);
+    keep = [true; d > thr];
+    P = P(keep,:);
 end
 end
 
-function filename = resolve_svg_filename(varargin)
-filename = 'tessellation_pattern.svg';
+function loop = clean_loop(loop)
+if isempty(loop), return; end
+keep = [true; diff(loop) ~= 0];
+loop = loop(keep);
+if numel(loop) >= 2 && loop(1) == loop(end)
+    loop(end) = [];
+end
+end
+
+function d = points_to_closed_path(P)
+d = sprintf('M %.9g %.9g', P(1,1), P(1,2));
+for i = 2:size(P,1)
+    d = sprintf('%s L %.9g %.9g', d, P(i,1), P(i,2)); %#ok<AGROW>
+end
+d = sprintf('%s Z', d);
+end
+
+function key = snap_key(p, tol)
+sx = round(p(1) / tol);
+sy = round(p(2) / tol);
+key = sprintf('%d_%d', sx, sy);
+end
+
+function key = edge_key(i, j)
+key = sprintf('%u_%u', i, j);
+end
+
+function [filename, snap_tol] = resolve_inputs(varargin)
+filename = 'tessellation_cut_pattern.svg';
+snap_tol = [];
 for k = numel(varargin):-1:1
     arg = varargin{k};
     if isstring(arg) && isscalar(arg)
         filename = char(arg);
-        break;
+        continue;
     end
     if ischar(arg)
         filename = arg;
-        break;
+        continue;
+    end
+    if isnumeric(arg) && isscalar(arg) && isfinite(arg)
+        snap_tol = double(arg);
     end
 end
 [~, name, ext] = fileparts(filename);
 if isempty(name)
-    filename = 'tessellation_pattern.svg';
+    filename = 'tessellation_cut_pattern.svg';
 elseif isempty(ext)
     filename = [filename '.svg'];
 end
