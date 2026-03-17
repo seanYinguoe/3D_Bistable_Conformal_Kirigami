@@ -1,4 +1,4 @@
-function [E_total,alpha] = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N)
+function [E_total,alpha] = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,beta,t,nD,N,plot_flag)
 % Inputs:
 %   q1, q2, q3 - Unit node coordinates (1x3 vectors)
 %   edgeLen    - Original triangle edge length
@@ -7,10 +7,15 @@ function [E_total,alpha] = deform_triangle_anisotropic(q1,q2,q3,edgeLen,l1,l4,be
 %   t          - Thickness of filaments
 %   nD         - Number of deployment steps
 %   N          - Number of nodes per ligament
+%   plot_flag  - Optional, true to plot energy curve and deployed unit
 %
 % Output:
 %   E_total    - Deployed energy
 %   alpha      - Deployment fraction (0 to 1)
+
+if nargin < 11 || isempty(plot_flag)
+    plot_flag = false;
+end
 
 %% Helper
 wrap  = @(th) atan2(sin(th), cos(th));
@@ -89,23 +94,26 @@ for k = 1:nD
 end
 
 %% Plot energy curve
-% figure('Color','w');
-% hold on; box on;
-% plot(alpha, E_total, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 1);
-% xlabel('Deployment', 'Interpreter','tex', ...
-%        'FontSize',20);
-% ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
-%        'FontSize',20);
-% set(gca, 'FontName','Times New Roman','FontSize',20);
-% legend('Location','northwest','Box','off', 'Fontsize',18);
-% grid off;
-% axis square;
+if plot_flag
+    figure('Color','w');
+    hold on; box on;
+    plot(alpha, E_total, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 1, ...
+        'DisplayName', 'Unit energy');
+    xlabel('Deployment', 'Interpreter','tex', 'FontSize',20);
+    ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', 'FontSize',20);
+    set(gca, 'FontName','Times New Roman','FontSize',20);
+    legend('Location','northwest','Box','off', 'Fontsize',18);
+    grid off;
+    axis square;
+end
 
 %% Plot configuration
-figure()
-colour = {'white', [0.9216 0.8863 0.4235], [0.7059 0.9608 0.4118], [0.9216 0.8863 0.4235]};
-triangle = update_triangle(last_pack.B,last_pack.A,last_pack.C,flank_B,flank_A,flank_C, ...
-                           last_pack.XYB,last_pack.XYA,last_pack.XYC,colour);
+if plot_flag
+    figure()
+    colour = {'white', [0.9216 0.8863 0.4235], [0.7059 0.9608 0.4118], [0.9216 0.8863 0.4235]};
+    triangle = update_triangle(last_pack.B,last_pack.A,last_pack.C,flank_B,flank_A,flank_C, ...
+                               last_pack.XYB,last_pack.XYA,last_pack.XYC,colour); %#ok<NASGU>
+end
 
 % Define function that can get deployed unit
     function [B_flank_def, A_flank_def, C_flank_def,...
