@@ -63,23 +63,27 @@ mask = isfinite(anisotropy_filled.eta_val) & isfinite(anisotropy_filled.eps_bist
 anisotropy_filter = anisotropy_filled(mask,:);
 
 % Reparaterization based on the admissable range
-opts = struct('ratioTarget', 1.60/1.15);
-[v_initial, v_target, info_repa] = reparameterization(v_out, f_out, vt_mesh, v_mesh, f_mesh, anisotropy_filter,opts);
+opts = struct();
+[v_initial, v_target, max_ang, v_target0] = reparameterization(v_out, f_out, vt_mesh, v_mesh, f_mesh);
 
 scale_facs_repa = calculate_scale_facs(v_initial, v_target, f_out);
 min_scale_factor = min(scale_facs_repa(:));
 max_scale_factor = max(scale_facs_repa(:));
-disp("Min scale factor: " + num2str(min_scale_factor) + ...
-     ", Max scale factor: " + num2str(max_scale_factor))
 
-if max_scale_factor > 1.70
-    disp("Warning: The stretch factors are out of range")
-end
+% Rescale target edges
+rescale_factor = 1.15/min_scale_factor;
+[v_target, scale_facs, ~] = rescale_target_edges(v_initial, f_out, obj_2D, v_target, rescale_factor, opts);
+
+lam_min_adm = 1 + min(anisotropy_filter.eps_bist);
+lam_max_adm = 1 + max(anisotropy_filter.eps_bist);
+disp("Min scale factor: " + num2str(min(scale_facs(:))) + ...
+     ", Max scale factor: " + num2str(max(scale_facs(:))) + ...
+     " | admissible [" + num2str(lam_min_adm) + ", " + num2str(lam_max_adm) + "]" + ...
+     " | max angle: " + num2str(max_ang));
 
 %% Plot grid deployment
-grid_deployment(v_target, v_initial, f_out);
+grid_deployment(v_target0, v_initial, f_out);
 
-scale_facs = scale_facs_repa;
 [anisotropy_level, ~] = scale_facs_to_angles(scale_facs);
 
 % Visulalize the scale factor on the edge
@@ -100,7 +104,7 @@ params = [edgeLen % The length of a unit
     ];
 
 % Find optimal beta for each unit based on anisotropy_level
-[opt_beta, bistability, info] = assign_opt_beta(anisotropy_level, anisotropy_filter);
+[opt_beta, bistability, ~] = assign_opt_beta(anisotropy_level, anisotropy_filter);
 opt_t = assign_thickness(bistability, t_min, t_max);   % thr = 0.4
 
 tessellation = tessellated_triangle(f_out, i_out, params,v_initial,opt_beta,opt_t); % Tessellate bistable triangle into fitted grids
@@ -122,65 +126,91 @@ tessellation_target = tessellated_triangle(f_out, i_out, params, v_target, opt_b
 
 tessellation_deployment(tessellation,tessellation_target); % Plot deployment
 
-% Create deployment figure
+
+%% Calculate the energy
+% Plot selected unit from the tessellation
+i = 1;
+nD = 150;
+Nseg = 8;
+[q1, q2, q3, is_valid, reason] = scale_facs_to_q(scale_facs(i,:), edgeLen);
+[E_sel, alpha_sel] = deform_triangle_anisotropic( ...
+    q1, q2, q3, edgeLen, l1, l4, opt_beta(i), opt_t(i), nD, Nseg, true);
+
+% Plot global energy
+[E_total, E_unit, info] = calculate_global_energy(params, opt_beta, opt_t, scale_facs, false);
+alpha = linspace(0, 1, nD);
+
+% Plot energy curve
+figure('Color','w');
+hold on; box on;
+plot(alpha, E_total, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 1, ...
+    'DisplayName', 'Global energy');
+xlabel('Deployment', 'Interpreter','tex', ...
+       'FontSize',20);
+ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
+       'FontSize',20);
+set(gca, 'FontName','Times New Roman','FontSize',20);
+legend('Location','northwest','Box','off', 'Fontsize',18);
+grid off;
+axis square;
+
+
+%% Create deployment figure
 generate_gif(tessellation, tessellation_target, modelname);
 
 % Create svg cut pattern for fabrication
 generate_svg(tessellation, 'quarter_dome_pattern');
 
 
-
-%% Plot the original configurations
-figure()
-patch('Vertices', obj_2D.v, 'Faces', obj_2D.f.v, ...
-      'FaceVertexCData', obj_2D.v(:,3),...
-      'FaceColor', 'interp', 'EdgeColor', 'none');
-axis equal;          % Equal scaling for all axes
-axis off;
-view(3);             % Set default 3D view angle
-camlight;            % Add light source
-lighting gouraud;    % Smooth lighting across surfaces
-
-figure()
-axis equal
-axis off;
-patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.v, ...
-    'FaceColor', 'none', 'EdgeColor', 'black'); % Plot 2D figure
-view(3);             % Set default 3D view angle
-camlight;            % Add a light source for better visualization
-material shiny;                % Make the surface shiny (adjustable)
-lighting gouraud;    % Smooth lighting across surfaces
-
-% %% Plot the Overlaid grids(unfiltered)
-% figure(); 
-% hold on;
-% TR = triangulation(f_mesh, v_mesh);
-% B  = freeBoundary(TR);   % boundary edges only
-% patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', '[0.78 0.80 0.88]', 'EdgeColor', [0.7 0.7 0.7],'LineWidth',0.5); % Plot mesh surface
-% for i = 1:size(B,1)
-%     plot(v_mesh(B(i,:),1), v_mesh(B(i,:),2), 'Color', [0.5 0.5 0.5], 'LineWidth', 1.5);
-% end
-% plotgrid(f_grid,v_grid)
-% axis equal;
+% %% Plot the original configurations
+% figure()
+% patch('Vertices', obj_2D.v, 'Faces', obj_2D.f.v, ...
+%       'FaceVertexCData', obj_2D.v(:,3),...
+%       'FaceColor', 'interp', 'EdgeColor', 'none');
+% axis equal;          % Equal scaling for all axes
 % axis off;
-% hold off
-
-%% Plot the scale_factor colormap of mesh surface
-figure()
-patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceVertexCData', scale_facs, 'FaceColor', 'flat', 'EdgeColor', 'none');
-colormap summer; 
-c = colorbar; 
-c.FontSize = 18;
-axis equal; 
-axis off
-
-%% Plot the scale_area colormap of overlaid grips
-figure()
-patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceVertexCData', scale_area, 'FaceColor', 'flat', 'EdgeColor', 'none');
-colormap summer; 
-c = colorbar; 
-c.FontSize = 18;
-axis equal; 
-axis off
-
-
+% view(3);             % Set default 3D view angle
+% camlight;            % Add light source
+% lighting gouraud;    % Smooth lighting across surfaces
+% 
+% figure()
+% axis equal
+% axis off;
+% patch('Vertices', obj_2D.vt, 'Faces', obj_2D.f.v, ...
+%     'FaceColor', 'none', 'EdgeColor', 'black'); % Plot 2D figure
+% view(3);             % Set default 3D view angle
+% camlight;            % Add a light source for better visualization
+% material shiny;                % Make the surface shiny (adjustable)
+% lighting gouraud;    % Smooth lighting across surfaces
+% 
+% % %% Plot the Overlaid grids(unfiltered)
+% % figure(); 
+% % hold on;
+% % TR = triangulation(f_mesh, v_mesh);
+% % B  = freeBoundary(TR);   % boundary edges only
+% % patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', '[0.78 0.80 0.88]', 'EdgeColor', [0.7 0.7 0.7],'LineWidth',0.5); % Plot mesh surface
+% % for i = 1:size(B,1)
+% %     plot(v_mesh(B(i,:),1), v_mesh(B(i,:),2), 'Color', [0.5 0.5 0.5], 'LineWidth', 1.5);
+% % end
+% % plotgrid(f_grid,v_grid)
+% % axis equal;
+% % axis off;
+% % hold off
+% 
+% %% Plot the scale_fac tor colormap of mesh surface
+% figure()
+% patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceVertexCData', scale_facs, 'FaceColor', 'flat', 'EdgeColor', 'none');
+% colormap summer; 
+% c = colorbar; 
+% c.FontSize = 18;
+% axis equal; 
+% axis off
+% 
+% %% Plot the scale_area colormap of overlaid grips
+% figure()
+% patch('Vertices', v_out(:,1:2), 'Faces', f_out, 'FaceVertexCData', scale_area, 'FaceColor', 'flat', 'EdgeColor', 'none');
+% colormap summer; 
+% c = colorbar; 
+% c.FontSize = 18;
+% axis equal; 
+% axis off
