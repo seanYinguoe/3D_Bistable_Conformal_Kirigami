@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="-13.2903811 -15.3 13.5903811 15.6">
+  <title>Kirigami cut pattern</title>
+  <desc>Topology-based cut paths with optional engrave paths.</desc>
+  <g id="cut" fill="none" stroke="#FF0000" stroke-width="0.05" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 0 0 L -12.9903811 -7.5 L -8.8817842e-16 -15 Z" />
+    <path d="M -7.71579 -7.855845 L -8.995905 -7.285905 L -11.04183 -6.375 L -12.34086 -7.125 L -2.456715 -11.5257 L -2.60319 -10.132125 Z" />
+    <path d="M -0.649515 -14.625 L -1.78047 -3.86472 L -2.91411 -4.68837 L -2.329125 -10.25415 L -2.18265 -11.647725 L -1.94856 -13.875 Z" />
+    <path d="M 0 -0.75 L -8.75319 -7.109565 L -7.473075 -7.679505 L -2.945475 -4.390005 L -1.811835 -3.56637 L 0 -2.25 Z" />
+  </g>
+</svg>
