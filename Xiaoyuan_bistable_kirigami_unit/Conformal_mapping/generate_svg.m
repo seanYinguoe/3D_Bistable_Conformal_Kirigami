@@ -1,8 +1,9 @@
 function [output_path, info] = generate_svg(tessellation, varargin)
-%GENERATE_SVG Export kirigami cut pattern from topology (edge connectivity).
+%GENERATE_SVG Export kirigami cut/engrave pattern from topology.
 %   output_path = generate_svg(tessellation)
 %   output_path = generate_svg(tessellation, filename)
-%   output_path = generate_svg(tessellation, filename, snap_tol)
+%   output_path = generate_svg(tessellation, filename, add_engrave)
+%   output_path = generate_svg(tessellation, filename, add_engrave, snap_tol)
 %
 % Output contains:
 %   1) global outer boundary loops (from single-use cell outer edges)
@@ -14,7 +15,8 @@ if nargin < 1 || ~iscell(tessellation)
     error('tessellation must be a cell array.');
 end
 
-[filename, snap_tol] = resolve_inputs(varargin{:});
+% ========================= INPUT PARSING =========================
+[filename, add_engrave, snap_tol] = resolve_inputs(varargin{:});
 func_dir = fileparts(mfilename('fullpath'));
 output_dir = fullfile(func_dir, 'output');
 if ~exist(output_dir, 'dir')
@@ -120,6 +122,7 @@ if isempty(sum_xy)
 end
 pts = sum_xy ./ max(cnt_xy, 1);
 
+% ======================= CUT EDGE EXPORT ========================
 % Keep only single-use outer edges (global boundary edges)
 outer_edges = single_use_edges(edge_map_outer, edge_tbl_outer);
 if isempty(outer_edges)
@@ -152,6 +155,25 @@ for i = 1:numel(void_loops)
     void_paths{i} = points_to_closed_path(P);
 end
 
+% ==================== ENGRAVE EDGE DETECTION ====================
+% Engrave edges are shared panel/flank boundaries across neighboring units:
+% use multi-use outer edges (count >= 2), then remove any edge that is
+% already exported as a cut edge.
+engrave_edges = zeros(0,2,'uint32');
+engrave_paths = {};
+if add_engrave
+    shared_outer_edges = multi_use_edges(edge_map_outer, edge_tbl_outer, 2);
+    cut_keys = build_edge_key_set([outer_edges; void_edges]);
+    keep = true(size(shared_outer_edges,1),1);
+    for i = 1:size(shared_outer_edges,1)
+        if isKey(cut_keys, edge_key(shared_outer_edges(i,1), shared_outer_edges(i,2)))
+            keep(i) = false;
+        end
+    end
+    engrave_edges = shared_outer_edges(keep,:);
+    engrave_paths = edges_to_path_segments(engrave_edges, pts);
+end
+
 % SVG canvas from all data points
 xmin = min(all_xy(:,1)); xmax = max(all_xy(:,1));
 ymin = min(all_xy(:,2)); ymax = max(all_xy(:,2));
@@ -169,28 +191,39 @@ fprintf(fid, '<?xml version="1.0" encoding="UTF-8"?>\n');
 fprintf(fid, '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" ');
 fprintf(fid, 'viewBox="%.9g %.9g %.9g %.9g">\n', vb(1), vb(2), vb(3), vb(4));
 fprintf(fid, '  <title>Kirigami cut pattern</title>\n');
-fprintf(fid, '  <desc>Topology-based global boundary + direct void loops.</desc>\n');
+fprintf(fid, '  <desc>Topology-based cut paths with optional engrave paths.</desc>\n');
 
-fprintf(fid, '  <g id="boundary_cut" fill="none" stroke="#000000" stroke-width="0.05" stroke-linecap="round" stroke-linejoin="round">\n');
+% ======================== CUT PATH EXPORT ========================
+fprintf(fid, '  <g id="cut" fill="none" stroke="#FF0000" stroke-width="0.05" stroke-linecap="round" stroke-linejoin="round">\n');
 for i = 1:numel(boundary_paths)
     fprintf(fid, '    <path d="%s" />\n', boundary_paths{i});
 end
-fprintf(fid, '  </g>\n');
-
-fprintf(fid, '  <g id="void_cut" fill="none" stroke="#000000" stroke-width="0.05" stroke-linecap="round" stroke-linejoin="round">\n');
 for i = 1:numel(void_paths)
     fprintf(fid, '    <path d="%s" />\n', void_paths{i});
 end
 fprintf(fid, '  </g>\n');
+
+if add_engrave
+    % ====================== ENGRAVE EDGE EXPORT =====================
+    fprintf(fid, '  <g id="engrave" fill="none" stroke="#0000FF" stroke-width="0.05" stroke-linecap="round" stroke-linejoin="round">\n');
+    for i = 1:numel(engrave_paths)
+        fprintf(fid, '    <path d="%s" />\n', engrave_paths{i});
+    end
+    fprintf(fid, '  </g>\n');
+end
+
 fprintf(fid, '</svg>\n');
 
 info = struct();
 info.output_path = output_path;
 info.n_boundary_loops = numel(boundary_paths);
 info.n_void_paths = numel(void_paths);
+info.n_engrave_paths = numel(engrave_paths);
 info.n_outer_edges = size(outer_edges,1);
+info.n_engrave_edges = size(engrave_edges,1);
 info.n_invalid_cells = n_invalid_cells;
 info.snap_tol = snap_tol;
+info.add_engrave = add_engrave;
 info.viewBox = vb;
 end
 
@@ -231,6 +264,20 @@ E = zeros(0,2,'uint32');
 for i = 1:numel(keys)
     idx = edge_map(keys{i});
     if edge_tbl(idx,1) == 1
+        E(end+1,:) = edge_tbl(idx,2:3); %#ok<AGROW>
+    end
+end
+end
+
+function E = multi_use_edges(edge_map, edge_tbl, min_count)
+if nargin < 3 || isempty(min_count)
+    min_count = 2;
+end
+keys = edge_map.keys;
+E = zeros(0,2,'uint32');
+for i = 1:numel(keys)
+    idx = edge_map(keys{i});
+    if edge_tbl(idx,1) >= min_count
         E(end+1,:) = edge_tbl(idx,2:3); %#ok<AGROW>
     end
 end
@@ -342,6 +389,17 @@ end
 d = sprintf('%s Z', d);
 end
 
+function paths = edges_to_path_segments(E, pts)
+paths = cell(size(E,1),1);
+for i = 1:size(E,1)
+    a = double(E(i,1));
+    b = double(E(i,2));
+    pa = pts(a,:);
+    pb = pts(b,:);
+    paths{i} = sprintf('M %.9g %.9g L %.9g %.9g', pa(1), pa(2), pb(1), pb(2));
+end
+end
+
 function key = snap_key(p, tol)
 sx = round(p(1) / tol);
 sy = round(p(2) / tol);
@@ -352,19 +410,46 @@ function key = edge_key(i, j)
 key = sprintf('%u_%u', i, j);
 end
 
-function [filename, snap_tol] = resolve_inputs(varargin)
+function M = build_edge_key_set(E)
+M = containers.Map('KeyType','char', 'ValueType','logical');
+for i = 1:size(E,1)
+    a = E(i,1);
+    b = E(i,2);
+    if a < b
+        key = edge_key(a, b);
+    else
+        key = edge_key(b, a);
+    end
+    M(key) = true;
+end
+end
+
+function [filename, add_engrave, snap_tol] = resolve_inputs(varargin)
 filename = 'tessellation_cut_pattern.svg';
+add_engrave = false;
 snap_tol = [];
-for k = numel(varargin):-1:1
-    arg = varargin{k};
+
+if nargin >= 1 && ~isempty(varargin{1})
+    arg = varargin{1};
     if isstring(arg) && isscalar(arg)
         filename = char(arg);
-        continue;
-    end
-    if ischar(arg)
+    elseif ischar(arg)
         filename = arg;
-        continue;
     end
+end
+
+if nargin >= 2 && ~isempty(varargin{2})
+    arg = varargin{2};
+    if islogical(arg) && isscalar(arg)
+        add_engrave = arg;
+    elseif isnumeric(arg) && isscalar(arg)
+        % Backward-compatible fallback: treat 3rd argument as snap_tol.
+        snap_tol = double(arg);
+    end
+end
+
+if nargin >= 3 && ~isempty(varargin{3})
+    arg = varargin{3};
     if isnumeric(arg) && isscalar(arg) && isfinite(arg)
         snap_tol = double(arg);
     end

@@ -63,6 +63,9 @@ tri_new = tri_new(:);
 triangle_new = triangle;
 
 % Indecies of inner triangle
+f_void = [1 2 3 4 5 6;
+    7 8 9 10 11 12;
+    13 14 15 16 17 18];
 f_flank = [19 20 21 22;
     23 24 25 26;
     27 28 29 30];
@@ -90,6 +93,16 @@ flank1 = real((flank1-p1)*rotation(-flank1_r) + p1);
 flank2 = real((flank2-p2)*rotation(-flank2_r) + p2);
 flank3 = real((flank3-p3)*rotation(-flank3_r) + p3);
 
+% Move/rotate voids with the same rigid transforms as their corresponding
+% flank sectors so void coordinates stay consistent with deformed wedges.
+void1 = triangle(f_void(1,:),:) + flank1_t;
+void2 = triangle(f_void(2,:),:) + flank2_t;
+void3 = triangle(f_void(3,:),:) + flank3_t;
+void1 = real((void1-p1)*rotation(-flank1_r) + p1);
+void2 = real((void2-p2)*rotation(-flank2_r) + p2);
+void3 = real((void3-p3)*rotation(-flank3_r) + p3);
+
+triangle_new(1:18,:) = [void1; void2; void3];
 triangle_new(19:30,:) = [flank1;flank2;flank3];
 
 
@@ -148,17 +161,24 @@ triangle_new(45,:) = C_new;
 % Create the new filaments
 triangle_new(32,:) = triangle_new(20,:);
 triangle_new(33,:) = triangle_new(44,:);
-triangle_new(31,:) = triangle_new(32,:) + t/(norm(A_new-B_new))*(A_new-B_new);
+% Outer filament edge follows local flank direction (beta-aware), not base edge.
+dir_f1 = flank1(1,:) - flank1(2,:);
+dir_f1 = dir_f1 / max(norm(dir_f1), eps);
+triangle_new(31,:) = triangle_new(32,:) + t * dir_f1;
 triangle_new(34,:) = triangle_new(33,:) + t/(norm(A_new-B_new))*(A_new-B_new);
 
 triangle_new(37,:) = triangle_new(45,:);
 triangle_new(36,:) = triangle_new(24,:);
-triangle_new(35,:) = triangle_new(36,:) + t/(norm(B_new-C_new))*(B_new-C_new);
+dir_f2 = flank2(1,:) - flank2(2,:);
+dir_f2 = dir_f2 / max(norm(dir_f2), eps);
+triangle_new(35,:) = triangle_new(36,:) + t * dir_f2;
 triangle_new(38,:) = triangle_new(37,:) + t/(norm(B_new-C_new))*(B_new-C_new);
 
 triangle_new(40,:) = triangle_new(28,:);
 triangle_new(41,:) = triangle_new(43,:);
-triangle_new(39,:) = triangle_new(40,:) + t/(norm(C_new-A_new))*(C_new-A_new);
+dir_f3 = flank3(1,:) - flank3(2,:);
+dir_f3 = dir_f3 / max(norm(dir_f3), eps);
+triangle_new(39,:) = triangle_new(40,:) + t * dir_f3;
 triangle_new(42,:) = triangle_new(41,:) + t/(norm(C_new-A_new))*(C_new-A_new);
 
 % Synchronize void vertices with deformed shared nodes.

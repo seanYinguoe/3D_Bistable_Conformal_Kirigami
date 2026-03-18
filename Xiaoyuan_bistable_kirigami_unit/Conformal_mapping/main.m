@@ -64,15 +64,15 @@ anisotropy_filter = anisotropy_filled(mask,:);
 
 % Reparaterization based on the admissable range
 opts = struct();
-[v_initial, v_target, max_ang, v_target0] = reparameterization(v_out, f_out, vt_mesh, v_mesh, f_mesh);
+[v_initial, v_repa, max_ang, v_target0] = reparameterization(v_out, f_out, vt_mesh, v_mesh, f_mesh);
 
-scale_facs_repa = calculate_scale_facs(v_initial, v_target, f_out);
+scale_facs_repa = calculate_scale_facs(v_initial, v_target0, f_out);
 min_scale_factor = min(scale_facs_repa(:));
 max_scale_factor = max(scale_facs_repa(:));
 
 % Rescale target edges
-rescale_factor = 1.15/min_scale_factor;
-[v_target, scale_facs, ~] = rescale_target_edges(v_initial, f_out, obj_2D, v_target, rescale_factor, opts);
+rescale_factor = 1.18/min_scale_factor;
+[v_target0, scale_facs, ~] = rescale_target_edges(v_initial, f_out, obj_2D, v_target0, rescale_factor, opts);
 
 lam_min_adm = 1 + min(anisotropy_filter.eps_bist);
 lam_max_adm = 1 + max(anisotropy_filter.eps_bist);
@@ -107,8 +107,7 @@ params = [edgeLen % The length of a unit
 [opt_beta, bistability, ~] = assign_opt_beta(anisotropy_level, anisotropy_filter);
 opt_t = assign_thickness(bistability, t_min, t_max);   % thr = 0.4
 
-tessellation = tessellated_triangle(f_out, i_out, params,v_initial,opt_beta,opt_t); % Tessellate bistable triangle into fitted grids
-
+tessellation = tessellated_triangle_initial(f_out, i_out, params, v_initial, opt_beta, opt_t);
 %% Plot the tessellated configuration
 %colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
 colour = {'white', [0.9216    0.8863    0.4235
@@ -159,7 +158,7 @@ axis square;
 generate_gif(tessellation, tessellation_target, modelname);
 
 % Create svg cut pattern for fabrication
-generate_svg(tessellation, 'quarter_dome_pattern');
+generate_svg(tessellation, 'quarter_dome_pattern',true);
 
 
 % %% Plot the original configurations
