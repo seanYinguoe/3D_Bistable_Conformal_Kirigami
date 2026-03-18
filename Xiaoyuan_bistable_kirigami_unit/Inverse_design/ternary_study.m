@@ -134,9 +134,11 @@ save('anisotropy_study.mat', 'anisotropy_study');
 % Save filled table
 save('anisotropy_filled.mat', 'anisotropy_filled');
 
+anisotropy_filled = anisotropy_filled_pi12;
+
 do_post_plot = true;   % set true to plot
 etaThreshold = 0.03;
-beta_plot = 0.209439510239320;
+beta_plot = 0.220462642357178;
 beta_tol = 1e-4;
 
 if do_post_plot

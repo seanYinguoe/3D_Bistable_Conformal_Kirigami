@@ -167,12 +167,12 @@ end
 
         % plot unit
         hold on
-        plot_triangle(triangle,colour)
+        plot_triangle(triangle,colour);
 
         % filaments
-        build_ligament(XYB, flankB, A, B, t, colour{3})
-        build_ligament(XYA, flankA, C, A, t, colour{3})
-        build_ligament(XYC, flankC, B, C, t, colour{3})
+        build_ligament(XYB, flankB, A, B, t, colour{3});
+        build_ligament(XYA, flankA, C, A, t, colour{3});
+        build_ligament(XYC, flankC, B, C, t, colour{3});
         hold off
         axis off
     end
