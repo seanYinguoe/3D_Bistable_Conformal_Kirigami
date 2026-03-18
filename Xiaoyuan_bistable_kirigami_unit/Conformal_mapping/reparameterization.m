@@ -69,7 +69,11 @@ q_reg = register_planar_to_uv(q_src, vt_mesh);
 [v_initial, v_target0] = initialize_pair_from_surface_old(v_out, q_reg, vt_mesh, v_mesh, f_mesh);
 
 triData = precompute_surface_data(v_mesh, f_mesh);
-[v_target, anchorFace, normals] = project_points_to_surface(v_target0, v_mesh, f_mesh, triData, zeros(size(v_target0,1),1)); %#ok<ASGLU>
+% Keep v_target0 unchanged as raw barycentric output; use a separate seed
+% for optimization preprocessing.
+[v_seed, anchorFace0, ~] = project_points_to_surface(v_target0, v_mesh, f_mesh, triData, zeros(size(v_target0,1),1));
+[v_seed, anchorFace0] = align_centroid_on_surface(v_seed, v_mesh, f_mesh, triData, anchorFace0, 4);
+[v_target, anchorFace, normals] = project_points_to_surface(v_seed, v_mesh, f_mesh, triData, anchorFace0); %#ok<ASGLU>
 
 L0 = tri_edge_lengths(v_initial, f_out);
 L0_safe = max(L0, eps(class(L0)));
@@ -127,6 +131,7 @@ end
 
 %% ------------------------- final evaluation ---------------------------
 [v_target, ~, ~] = project_points_to_surface(v_target, v_mesh, f_mesh, triData, anchorFace);
+[v_target, ~] = align_centroid_on_surface(v_target, v_mesh, f_mesh, triData, anchorFace, 4);
 state_final = evaluate_state(v_target, f_out, L0_safe, lam_min, lam_max, ratio_lim, vertNbrs, weights);
 
 % Fallback rule: if anisotropy score is worse than barycentric, return v_target0.
@@ -567,7 +572,8 @@ TR = triangulation(surfF, uv);
 [ti, bc] = pointLocation(TR, q);
 
 v_target = zeros(size(q,1), 3, 'like', surfV);
-v_initial = [v_out(:,1:2), zeros(size(v_out,1),1, 'like', v_out)];
+% v_initial is centroid-matched to vt_mesh through q_reg.
+v_initial = [q, zeros(size(q,1),1, 'like', q)];
 inside = ~isnan(ti);
 
 if any(inside)
@@ -595,5 +601,24 @@ for kk = 1:numel(outside)
     v_target(idx,:) = bc_loc(1) * surfV(surfF(fIdx,1),:) + ...
                       bc_loc(2) * surfV(surfF(fIdx,2),:) + ...
                       bc_loc(3) * surfV(surfF(fIdx,3),:);
+end
+end
+
+function [v_aligned, anchorFace] = align_centroid_on_surface(v_in, v_mesh, f_mesh, triData, anchorFace, nPass)
+% Shift by centroid difference and reproject, to match v_mesh placement
+% while remaining on the target surface.
+if nargin < 6 || isempty(nPass)
+    nPass = 3;
+end
+v_aligned = v_in;
+c_mesh = mean(v_mesh, 1);
+for k = 1:nPass
+    c_cur = mean(v_aligned, 1);
+    d = c_mesh - c_cur;
+    if ~all(isfinite(d)) || norm(d) < 1e-12
+        break;
+    end
+    v_aligned = v_aligned + d;
+    [v_aligned, anchorFace, ~] = project_points_to_surface(v_aligned, v_mesh, f_mesh, triData, anchorFace); %#ok<ASGLU>
 end
 end
