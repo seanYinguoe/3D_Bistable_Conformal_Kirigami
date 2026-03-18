@@ -58,9 +58,9 @@ hold off
 
 %% Reparametrization
 % Input admissable range
-load("Inverse_design/anisotropy_filled.mat")
-mask = isfinite(anisotropy_filled.eta_val) & isfinite(anisotropy_filled.eps_bist);
-anisotropy_filter = anisotropy_filled(mask,:);
+load("Inverse_design/anisotropy_filled_pi12.mat")
+mask = isfinite(anisotropy_filled_pi12.eta_val) & isfinite(anisotropy_filled_pi12.eps_bist);
+anisotropy_filter = anisotropy_filled_pi12(mask,:);
 
 % Reparaterization based on the admissable range
 opts = struct();
@@ -71,7 +71,7 @@ min_scale_factor = min(scale_facs_repa(:));
 max_scale_factor = max(scale_facs_repa(:));
 
 % Rescale target edges
-rescale_factor = 1.18/min_scale_factor;
+rescale_factor = 1.23/min_scale_factor;
 [v_target0, scale_facs, ~] = rescale_target_edges(v_initial, f_out, obj_2D, v_target0, rescale_factor, opts);
 
 lam_min_adm = 1 + min(anisotropy_filter.eps_bist);
@@ -93,8 +93,8 @@ plot_edge_stretch(scale_facs, v_initial, f_out)
 % Define the size of tessellation
 l1 = edgeLen * 0.85;
 l4 = edgeLen * 0.05; % the length of the filament 0.1
-t_min = edgeLen * 0.020; % minimum ligament thickness
-t_max = edgeLen * 0.025;  % maximum ligament thickness
+t_min = edgeLen * 0.016; % minimum ligament thickness
+t_max = edgeLen * 0.020;  % maximum ligament thickness
 t  = t_min; % default ligament thickness stored in params
 %beta = zeros(size(i_out)); % tilting angle initial
 params = [edgeLen % The length of a unit
@@ -128,7 +128,7 @@ tessellation_deployment(tessellation,tessellation_target); % Plot deployment
 
 %% Calculate the energy
 % Plot selected unit from the tessellation
-i = 1;
+i = 2;
 nD = 150;
 Nseg = 8;
 [q1, q2, q3, is_valid, reason] = scale_facs_to_q(scale_facs(i,:), edgeLen);
