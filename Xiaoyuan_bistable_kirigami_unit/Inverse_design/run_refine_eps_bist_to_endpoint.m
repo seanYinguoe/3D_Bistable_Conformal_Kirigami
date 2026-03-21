@@ -15,11 +15,10 @@ opts.epsFloor = 1e-4;
 opts.epsCeil = 2.0;
 opts.alphaTol = 1e-3;
 
-k = 16;
-anisotropy_filter_corr = refine_eps_bist_to_endpoint(anisotropy_filter(k,:), opts);
+anisotropy_filter_corr = refine_eps_bist_to_endpoint(anisotropy_filter, opts);
 % 
-% save('anisotropy_filter_corr.mat', 'anisotropy_filter_corr', 'opts');
-% fprintf('Saved: anisotropy_filter_corr.mat\n');
+save('anisotropy_filter_corr.mat', 'anisotropy_filter_corr', 'opts');
+fprintf('Saved: anisotropy_filter_corr.mat\n');
 
 % ---- Plot energy curve for the corrected row using deform_triangle_anisotropic ----
 nD = 150;
