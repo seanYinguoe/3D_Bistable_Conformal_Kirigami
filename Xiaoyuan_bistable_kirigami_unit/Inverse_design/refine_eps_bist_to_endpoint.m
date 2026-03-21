@@ -20,10 +20,11 @@ function anisotropy_study_corr = refine_eps_bist_to_endpoint(anisotropy_study_pi
 %   epsFloor      : 1e-4
 %   epsCeil       : 2.0
 %   alphaTol      : 1e-3
+%   alphaCloseTol : 0.02
 %
-% Update rule (path-consistent):
-%   eps_new = eps_old * (alpha_min / alphaTarget)
-% If alpha_min < alphaTarget, eps decreases (endpoint pulled toward minimum).
+% Update rule requested:
+%   eps_new = eps_old * alpha_old
+% Iterate until alpha is close to alphaTarget.
 
 if nargin < 2
     opts = struct();
@@ -50,6 +51,7 @@ opts = set_default(opts, 'relax', 0.8);
 opts = set_default(opts, 'epsFloor', 1e-4);
 opts = set_default(opts, 'epsCeil', 2.0);
 opts = set_default(opts, 'alphaTol', 1e-3);
+opts = set_default(opts, 'alphaCloseTol', 0.02);
 
 n = height(anisotropy_study_pi12);
 anisotropy_study_corr = anisotropy_study_pi12;
@@ -99,7 +101,7 @@ for i = 1:n
         continue;
     end
 
-    if alpha_curr >= opts.alphaTarget
+    if abs(alpha_curr - opts.alphaTarget) <= opts.alphaCloseTol
         anisotropy_study_corr.correction_status(i) = "accept_no_change";
         anisotropy_study_corr.alpha_new(i) = alpha_curr;
         anisotropy_study_corr.eta_new(i) = eta_eval;
@@ -115,11 +117,9 @@ for i = 1:n
 
     for it = 1:opts.maxIter
         n_iter = it;
-        % If alpha is too early (< target), reduce endpoint eps.
-        % If alpha is late (> target), increase endpoint eps.
-        raw_scale = alpha_prev / max(opts.alphaTarget, eps);
-        scale_fac = (1 - opts.relax) + opts.relax * raw_scale;
-        eps_next = eps_curr * scale_fac;
+        % Requested update rule:
+        % eps_new = eps_old * alpha_old
+        eps_next = eps_curr * alpha_prev;
         eps_next = min(max(eps_next, opts.epsFloor), opts.epsCeil);
 
         [okGeom, q1, q2, q3] = row_to_q(a1, a2, a3, eps_next, opts.edgeLen);
@@ -141,15 +141,16 @@ for i = 1:n
         eta_curr = eta_eval_next;
         alpha_prev = alpha_next;
 
-        if alpha_prev >= opts.alphaTarget
+        if abs(alpha_prev - opts.alphaTarget) <= opts.alphaCloseTol
             status = "converged_alpha_target";
             break;
         end
 
-        if abs(alpha_prev - anisotropy_study_corr.alpha_old(i)) < opts.alphaTol
+        if abs(alpha_prev - alpha_curr) < opts.alphaTol
             status = "stalled_alpha_change";
             break;
         end
+        alpha_curr = alpha_prev;
     end
 
     anisotropy_study_corr.eps_bist_new(i) = eps_curr;
@@ -226,4 +227,3 @@ if isfield(info, 'min_idx') && isfield(info, 'alpha_history') ...
     alpha_bist = info.alpha_history(info.min_idx);
 end
 end
-
