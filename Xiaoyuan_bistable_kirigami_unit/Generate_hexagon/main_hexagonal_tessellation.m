@@ -14,7 +14,7 @@ l4 = 0.05 * edgeLen; % thickness of flank
 l1 = 0.85 * edgeLen; % length of flank(not correct)
 
 % Set the parameters of a unit(variable)
-beta = pi/15; % titling angle
+beta = 0; % titling angle
 t  = edgeLen * 0.015; % thickness of filaments
 
 % Set the coulour of display
