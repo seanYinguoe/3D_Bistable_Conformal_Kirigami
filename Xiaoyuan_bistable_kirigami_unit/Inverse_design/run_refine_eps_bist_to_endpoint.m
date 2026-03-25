@@ -3,11 +3,11 @@
 % 
 % load('anisotropy_filter.mat', 'anisotropy_filter');
 % 
-% opts = struct();
-% opts.edgeLen = 15;
-% opts.l1 = opts.edgeLen * 0.85;
-% opts.l4 = opts.edgeLen * 0.05;
-% opts.t = opts.edgeLen * 0.015;
+opts = struct();
+opts.edgeLen = 15;
+opts.l1 = opts.edgeLen * 0.85;
+opts.l4 = opts.edgeLen * 0.05;
+opts.t = opts.edgeLen * 0.015;
 % opts.etaThreshold = 0.03;
 % opts.alphaTarget = 0.99;
 % opts.maxIter = 6;
@@ -21,11 +21,12 @@
 % fprintf('Saved: anisotropy_filter_corr.mat\n');
 
 % ---- Plot energy curve for the corrected row using deform_triangle_anisotropic ----
-nD = 200;
+nD = 150;
 Nseg = 8;
 
-k = 7;
+k = 2;
 
+anisotropy_filter_corr = anisotropy_filter_refine;
 row = anisotropy_filter_corr(k,:);
 
 a1 = row.a1;
@@ -40,7 +41,7 @@ else
     eps_use = row.eps_bist;
 end
 
-eps_use = 0.63;
+%eps_use = 0.63;
 
 lam3 = 1 + eps_use;
 lam1 = lam3 * sin(a1)/sin(a3);
@@ -56,9 +57,9 @@ q3_y = (L1^2 - L2^2 - L3^2) / (2*L3);
 q3_x = -sqrt(max(L2^2 - q3_y^2, 0));
 q3 = [q3_x, q3_y, 0];
 
-% [E_sel, alpha_sel] = deform_triangle_anisotropic( ...
-%     q1, q2, q3, opts.edgeLen, opts.l1, opts.l4, beta_row, opts.t, nD, Nseg, true);
+[E_sel, alpha_sel] = deform_triangle_anisotropic( ...
+    q1, q2, q3, opts.edgeLen, opts.l1, opts.l4, beta_row, opts.t, nD, Nseg, true);
 
 %Interactive deployment view (slider + energy marker + detailed unit button)
-interactive_triangle(q1, q2, q3, opts.edgeLen, opts.l1, opts.l4, beta_row, opts.t, nD, Nseg, true);
+%interactive_triangle(q1, q2, q3, opts.edgeLen, opts.l1, opts.l4, beta_row, opts.t, nD, Nseg, true);
 
