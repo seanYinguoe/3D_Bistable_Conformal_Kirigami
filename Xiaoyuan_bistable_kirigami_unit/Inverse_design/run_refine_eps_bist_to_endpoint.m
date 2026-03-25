@@ -24,7 +24,7 @@
 nD = 200;
 Nseg = 8;
 
-k = 134;
+k = 7;
 
 row = anisotropy_filter_corr(k,:);
 
@@ -39,6 +39,8 @@ if ismember('eps_bist_new', row.Properties.VariableNames) && isfinite(row.eps_bi
 else
     eps_use = row.eps_bist;
 end
+
+eps_use = 0.63;
 
 lam3 = 1 + eps_use;
 lam1 = lam3 * sin(a1)/sin(a3);
