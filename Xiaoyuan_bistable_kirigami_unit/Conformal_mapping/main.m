@@ -167,7 +167,7 @@ pbaspect([2.0 1 1]);      % rectangular look
 generate_gif(tessellation, tessellation_target, modelname);
 
 % Create svg cut pattern for fabrication
-generate_svg(tessellation, 'quarter_dome_pattern',true);
+generate_svg(tessellation, 'quarter_dome_pattern',false);
 
 
 % %% Plot the original configurations
