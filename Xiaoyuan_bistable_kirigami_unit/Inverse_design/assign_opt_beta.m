@@ -19,7 +19,7 @@ function [opt_beta, bistability, info] = assign_opt_beta(anisotropy_level, aniso
 %   1) find nearest samples in (a1,a2,a3),
 %   2) aggregate nearby samples by beta with distance weights,
 %   3) interpolate eps_bist(beta) and eta_val(beta),
-%   4) choose beta to match strain3 while favouring larger eta_val.
+%   4) choose beta to match strain3 by eps_bist as closely as possible.
 
 if nargin < 3
     opts = struct();
@@ -30,7 +30,7 @@ opts = fill_opts(opts);
 [a1, a2, a3, eps_bist, eta_val, beta] = unpack_study(anisotropy_study);
 
 nUnit = numel(strain3);
-beta_max = pi / 15;
+beta_max = pi / 10;
 beta_grid = linspace(0, beta_max, opts.nBetaEval).';
 
 opt_beta = zeros(nUnit, 1);
@@ -98,39 +98,42 @@ for i = 1:nUnit
         continue;
     end
 
-    feasible = isfinite(local.eps_hat) & isfinite(local.eta_hat) & (local.eta_hat >= opts.etaMin);
+    % Selection is driven by eps matching only (ignore eta in optimization).
+    feasible = isfinite(local.eps_hat);
     info.n_feasible(i) = nnz(feasible);
 
     if any(feasible)
         info.eps_bist_max(i) = max(local.eps_hat(feasible));
     end
 
-    if ~any(feasible) || strain3(i) > info.eps_bist_max(i) + opts.strainTol
+    if ~any(feasible)
         opt_beta(i) = 0;
         bistability(i) = NaN;
-        info.flag(i) = "monostable_out_of_range";
+        info.flag(i) = "no_eps_interp";
         continue;
     end
 
     eps_feas = local.eps_hat(feasible);
-    eta_feas = local.eta_hat(feasible);
     beta_feas = beta_grid(feasible);
     err_feas = abs(eps_feas - strain3(i));
-
-    within_tol = err_feas <= opts.strainTol;
-    if any(within_tol)
-        idx_pick = choose_best_tol(err_feas, eta_feas, within_tol);
-    else
-        J = opts.w_eps * err_feas - opts.w_eta * eta_feas;
-        idx_pick = choose_best_objective(J, err_feas, eta_feas);
-    end
+    [~, idx_pick] = min(err_feas);
 
     opt_beta(i) = clamp_beta(beta_feas(idx_pick), beta_max);
-    bistability(i) = eta_feas(idx_pick);
+    % keep bistability output for compatibility if eta interpolation exists
+    eta_feas = local.eta_hat(feasible);
+    if ~isempty(eta_feas) && all(isfinite(eta_feas))
+        bistability(i) = eta_feas(idx_pick);
+    else
+        bistability(i) = NaN;
+    end
     info.eps_pred(i) = eps_feas(idx_pick);
-    info.eta_pred(i) = eta_feas(idx_pick);
+    if exist('eta_feas', 'var') && numel(eta_feas) >= idx_pick
+        info.eta_pred(i) = eta_feas(idx_pick);
+    else
+        info.eta_pred(i) = NaN;
+    end
     info.beta_error(i) = err_feas(idx_pick);
-    info.flag(i) = "bistable";
+    info.flag(i) = "eps_matched";
 end
 end
 
@@ -239,7 +242,7 @@ end
 end
 
 function local = local_interp_beta(beta, eps_bist, eta_val, d_local, beta_grid, opts)
-beta_max = pi / 15;
+beta_max = pi / 10;
 valid_beta = isfinite(beta) & (beta >= 0) & (beta <= beta_max);
 
 beta = beta(valid_beta);
@@ -274,7 +277,7 @@ if numel(eta_data.beta_u) >= 2
     local.eta_hat = max(local.eta_hat, opts.etaClipMin);
 end
 
-local.n_support = min(sum(eps_mask), sum(eta_mask));
+local.n_support = sum(eps_mask);
 end
 
 function out = aggregate_by_beta(beta, values, weights, opts)
