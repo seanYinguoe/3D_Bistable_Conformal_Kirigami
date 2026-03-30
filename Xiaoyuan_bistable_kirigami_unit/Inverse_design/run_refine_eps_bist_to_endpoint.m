@@ -24,7 +24,7 @@ opts.t = opts.edgeLen * 0.015;
 nD = 150;
 Nseg = 8;
 
-k = 2;
+k = 18;
 
 anisotropy_filter_corr = anisotropy_filter_refine;
 row = anisotropy_filter_corr(k,:);

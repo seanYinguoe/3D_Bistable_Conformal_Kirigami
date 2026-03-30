@@ -58,21 +58,21 @@ hold off
 
 %% Reparametrization
 % Input admissable range
-load("Inverse_design/anisotropy_filled_pi12.mat")
-mask = isfinite(anisotropy_filled_pi12.eta_val) & isfinite(anisotropy_filled_pi12.eps_bist);
-anisotropy_filter = anisotropy_filled_pi12(mask,:);
+load("Inverse_design/anisotropy_filter_refine.mat")
+mask = (anisotropy_filter_refine.eta_val>0.10) & isfinite(anisotropy_filter_refine.eps_bist);
+anisotropy_filter = anisotropy_filter_refine(mask,:);
 
 % Reparaterization based on the admissable range
 opts = struct();
 [v_initial, v_repa, max_ang, v_target0] = reparameterization(v_out, f_out, vt_mesh, v_mesh, f_mesh);
 
-scale_facs_repa = calculate_scale_facs(v_initial, v_target0, f_out);
+scale_facs_repa = calculate_scale_facs(v_initial, v_repa, f_out);
 min_scale_factor = min(scale_facs_repa(:));
 max_scale_factor = max(scale_facs_repa(:));
 
 % Rescale target edges
-rescale_factor = 1.23/min_scale_factor;
-[v_target0, scale_facs, ~] = rescale_target_edges(v_initial, f_out, obj_2D, v_target0, rescale_factor, opts);
+rescale_factor = 1.20/min_scale_factor;
+[v_target, scale_facs, ~] = rescale_target_edges(v_initial, f_out, obj_2D, v_repa, rescale_factor, opts);
 
 lam_min_adm = 1 + min(anisotropy_filter.eps_bist);
 lam_max_adm = 1 + max(anisotropy_filter.eps_bist);
@@ -82,7 +82,7 @@ disp("Min scale factor: " + num2str(min(scale_facs(:))) + ...
      " | max angle: " + num2str(max_ang));
 
 %% Plot grid deployment
-grid_deployment(v_target0, v_initial, f_out);
+grid_deployment(v_target, v_initial, f_out);
 
 [anisotropy_level, ~] = scale_facs_to_angles(scale_facs);
 
@@ -128,30 +128,39 @@ tessellation_deployment(tessellation,tessellation_target); % Plot deployment
 
 %% Calculate the energy
 % Plot selected unit from the tessellation
-i = 2;
+i = 88;
 nD = 150;
 Nseg = 8;
 [q1, q2, q3, is_valid, reason] = scale_facs_to_q(scale_facs(i,:), edgeLen);
 [E_sel, alpha_sel] = deform_triangle_anisotropic( ...
     q1, q2, q3, edgeLen, l1, l4, opt_beta(i), opt_t(i), nD, Nseg, true);
 
-% Plot global energy
+%% Plot global energy
 [E_total, E_unit, info] = calculate_global_energy(params, opt_beta, opt_t, scale_facs, false);
 alpha = linspace(0, 1, nD);
 
 % Plot energy curve
+% Normalize axes
+Emax = max(E_total);
+E_norm = E_total ./ max(Emax, eps);   % E / Emax
+xi = 1.0;                             % set your xi here
+x_norm = alpha ./ xi;                 % deployment / xi
+
+% Plot energy curve
 figure('Color','w');
 hold on; box on;
-plot(alpha, E_total, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 1, ...
+plot(x_norm, E_norm, '-', 'Color',[0.85 0.33 0.10], 'LineWidth', 1.5, ...
     'DisplayName', 'Global energy');
-xlabel('Deployment', 'Interpreter','tex', ...
-       'FontSize',20);
-ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
-       'FontSize',20);
-set(gca, 'FontName','Times New Roman','FontSize',20);
-legend('Location','northwest','Box','off', 'Fontsize',18);
+xlabel('Deployment \xi', 'Interpreter','tex', 'FontSize',20);
+ylabel('E/E_{max}', 'Interpreter','tex', 'FontSize',20);
+set(gca, 'FontName','Times New Roman', 'FontSize',28, 'LineWidth',1.5);
+legend('Location','northwest','Box','off', 'FontSize',28);
 grid off;
-axis square;
+
+% Rectangle aspect (not square) + margin above 1
+xlim([min(x_norm), max(x_norm)]);
+ylim([0, 1.05]);          % slightly larger than 1
+pbaspect([2.0 1 1]);      % rectangular look
 
 
 %% Create deployment figure
@@ -197,13 +206,13 @@ generate_svg(tessellation, 'quarter_dome_pattern',true);
 % % hold off
 % 
 % %% Plot the scale_fac tor colormap of mesh surface
-% figure()
-% patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceVertexCData', scale_facs, 'FaceColor', 'flat', 'EdgeColor', 'none');
-% colormap summer; 
-% c = colorbar; 
-% c.FontSize = 18;
-% axis equal; 
-% axis off
+figure()
+patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceVertexCData', scale_facs, 'FaceColor', 'flat', 'EdgeColor', 'none');
+colormap summer; 
+c = colorbar; 
+c.FontSize = 18;
+axis equal; 
+axis off
 % 
 % %% Plot the scale_area colormap of overlaid grips
 % figure()

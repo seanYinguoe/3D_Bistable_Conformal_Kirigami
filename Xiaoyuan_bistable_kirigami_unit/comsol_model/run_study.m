@@ -45,7 +45,7 @@ edgeLen = 15;
 l1 = edgeLen * 0.85;
 l4 = edgeLen * 0.05;
 t  = edgeLen * 0.015;
-beta = pi/15;
+beta = pi/45;
 fname = 'pi40_015.txt';  % <- change to your actual file
 raw = fileread(fname);
 % capture lines that contain exactly two numbers (delta, energy)
@@ -63,7 +63,7 @@ E = 4.33e11;
 eps_fem = delta_fem ./ edgeLen;
 
 % Run semi-analyical result
-delta = 0:0.1:0.40*edgeLen;
+delta = 0:0.05:0.55*edgeLen;
 N = 10;
 [~, U_hbm] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, N);
 eps_hbm = delta./edgeLen;
@@ -77,7 +77,7 @@ figure('Color','w');
 hold on; box on;
 
 % semi-analytical
-plot(eps_hbm, U_hbm_norm, '-','Color',[0 0.45 0.74], 'LineWidth', 2, ...
+plot(eps_hbm, U_hbm_norm, '-','Color',[0 0.45 0.74], 'LineWidth', 3, ...
      'DisplayName','HBM');
 
 % % FEM
@@ -87,10 +87,11 @@ xlabel('Strain', 'Interpreter','tex', ...
        'FontSize',24);
 ylabel('U/U_{max}', 'Interpreter','tex', ...
        'FontSize',24);
-set(gca, 'FontName','Times New Roman','FontSize',24); 
+set(gca, 'FontName','Times New Roman','FontSize',30,'LineWidth',2); 
 %legend('Location','northwest','Box','off', 'Fontsize',18);  
 grid off;
 axis square;
+
 
 % %% sensetivity study on tilting angle beta and l2 or (l4)
 % % Scaning the titltign angle to get energy barrer and bistable delta
@@ -144,17 +145,17 @@ axis square;
 
 %% Plot anisotropic and isotropic deployment
 % isotropic
-plot(alpha, E_total_iso, '-','Color',[0.85 0.33 0.10], 'LineWidth', 1, ...
-     'DisplayName','Isotropic');
-
-% anisotropic
-plot(alpha, E_total_an, '-', 'Color',[0 0.45 0.74],'LineWidth', 1, ...
-     'DisplayName','Anisotropic');
-xlabel('Deployment', 'Interpreter','tex', ...
-       'FontSize',28);
-ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
-       'FontSize',28);
-set(gca, 'FontName','Times New Roman','FontSize',28); 
-legend('Location','northwest','Box','off', 'Fontsize',28);  
-grid off;
-axis square;
+% plot(alpha, E_total_iso, '-','Color',[0.85 0.33 0.10], 'LineWidth', 1, ...
+%      'DisplayName','Isotropic');
+% 
+% % anisotropic
+% plot(alpha, E_total_an, '-', 'Color',[0 0.45 0.74],'LineWidth', 1, ...
+%      'DisplayName','Anisotropic');
+% xlabel('Deployment', 'Interpreter','tex', ...
+%        'FontSize',28);
+% ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
+%        'FontSize',28);
+% set(gca, 'FontName','Times New Roman','FontSize',28); 
+% legend('Location','northwest','Box','off', 'Fontsize',28);  
+% grid off;
+% axis square;
