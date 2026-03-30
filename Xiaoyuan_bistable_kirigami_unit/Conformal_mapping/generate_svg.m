@@ -4,6 +4,7 @@ function [output_path, info] = generate_svg(tessellation, varargin)
 %   output_path = generate_svg(tessellation, filename)
 %   output_path = generate_svg(tessellation, filename, add_engrave)
 %   output_path = generate_svg(tessellation, filename, add_engrave, snap_tol)
+%   output_path = generate_svg(tessellation, filename, add_engrave, snap_tol, fillet_radius)
 %
 % Output contains:
 %   1) global outer boundary loops (from single-use cell outer edges)
@@ -16,7 +17,7 @@ if nargin < 1 || ~iscell(tessellation)
 end
 
 % ========================= INPUT PARSING =========================
-[filename, add_engrave, snap_tol] = resolve_inputs(varargin{:});
+[filename, add_engrave, snap_tol, fillet_radius] = resolve_inputs(varargin{:});
 func_dir = fileparts(mfilename('fullpath'));
 output_dir = fullfile(func_dir, 'output');
 if ~exist(output_dir, 'dir')
@@ -128,6 +129,11 @@ outer_edges = single_use_edges(edge_map_outer, edge_tbl_outer);
 if isempty(outer_edges)
     error('No single-use outer edges found for global boundary.');
 end
+boundary_vertex_mask = false(size(pts,1),1);
+boundary_vertex_mask(double(unique(outer_edges(:)))) = true;
+outer_edges_d = double(outer_edges);
+boundary_segA = pts(outer_edges_d(:,1), :);
+boundary_segB = pts(outer_edges_d(:,2), :);
 
 % Reconstruct ordered boundary loops
 boundary_loops = reconstruct_loops(outer_edges);
@@ -146,13 +152,27 @@ end
 
 % Keep only single-use void edges (shared/internal void edges removed)
 void_edges = single_use_edges(edge_map_void, edge_tbl_void);
-void_loops = reconstruct_loops(void_edges);
-void_loops = filter_short_loops(void_loops);
-void_paths = cell(numel(void_loops),1);
-for i = 1:numel(void_loops)
-    ids = void_loops{i};
-    P = pts(ids, :);
-    void_paths{i} = points_to_closed_path(P);
+void_paths = {};
+if ~isempty(void_edges)
+    % Vertex-based path reconstruction from edge graph.
+    [void_path_ids, void_path_closed, deg_void] = reconstruct_paths_from_edges(void_edges);
+    void_paths = cell(numel(void_path_ids),1);
+    for i = 1:numel(void_path_ids)
+        ids = void_path_ids{i};
+        P = pts(ids, :);
+        if fillet_radius > 0
+            % Proper corner fillets only at valid degree-2 vertices.
+            void_paths{i} = points_to_path_with_vertex_fillets( ...
+                P, ids, void_path_closed(i), deg_void, boundary_vertex_mask, ...
+                boundary_segA, boundary_segB, snap_tol, fillet_radius);
+        else
+            if void_path_closed(i)
+                void_paths{i} = points_to_closed_path(P);
+            else
+                void_paths{i} = points_to_open_path(P);
+            end
+        end
+    end
 end
 
 % ==================== ENGRAVE EDGE DETECTION ====================
@@ -224,6 +244,7 @@ info.n_engrave_edges = size(engrave_edges,1);
 info.n_invalid_cells = n_invalid_cells;
 info.snap_tol = snap_tol;
 info.add_engrave = add_engrave;
+info.fillet_radius = fillet_radius;
 info.viewBox = vb;
 end
 
@@ -389,6 +410,267 @@ end
 d = sprintf('%s Z', d);
 end
 
+function d = points_to_open_path(P)
+d = sprintf('M %.9g %.9g', P(1,1), P(1,2));
+for i = 2:size(P,1)
+    d = sprintf('%s L %.9g %.9g', d, P(i,1), P(i,2)); %#ok<AGROW>
+end
+end
+
+function d = points_to_path_with_vertex_fillets(P, ids, is_closed, deg_map, boundary_vertex_mask, boundary_segA, boundary_segB, snap_tol, r_in)
+% Replace each valid corner by exactly one tangent circular fillet arc.
+n = size(P,1);
+if n < 2 || ~isfinite(r_in) || r_in <= 0
+    if is_closed
+        d = points_to_closed_path(P);
+    else
+        d = points_to_open_path(P);
+    end
+    return;
+end
+
+hasF = false(n,1);
+Tin  = nan(n,2);
+Tout = nan(n,2);
+rEff = nan(n,1);
+sweep = zeros(n,1);
+
+for i = 1:n
+    if ~is_closed && (i == 1 || i == n)
+        continue; % never fillet open endpoints
+    end
+    vid = ids(i);
+    if vid < 1 || vid > numel(deg_map) || deg_map(vid) ~= 2
+        continue; % only corners shared by exactly two edges
+    end
+    if vid <= numel(boundary_vertex_mask) && boundary_vertex_mask(vid)
+        continue; % do not fillet any corner touching global outer boundary
+    end
+    % Also block fillets for points lying on boundary segments
+    if is_point_on_any_segment(P(i,:), boundary_segA, boundary_segB, max(snap_tol, 1e-8))
+        continue;
+    end
+
+    im1 = i - 1; ip1 = i + 1;
+    if is_closed
+        if im1 < 1, im1 = n; end
+        if ip1 > n, ip1 = 1; end
+    end
+    if im1 < 1 || ip1 > n
+        continue;
+    end
+
+    A = P(im1,:); B = P(i,:); C = P(ip1,:);
+    v1 = A - B; v2 = C - B;
+    L1 = norm(v1); L2 = norm(v2);
+    if L1 < 1e-12 || L2 < 1e-12
+        continue;
+    end
+    u1 = v1 / L1; u2 = v2 / L2;
+
+    cang = dot(u1, u2);
+    cang = min(max(cang, -1), 1);
+    phi = acos(cang);
+    if phi < 1e-5 || abs(pi - phi) < 1e-5
+        continue;
+    end
+
+    dtrim = r_in / tan(phi/2);
+    dtrim = min([dtrim, 0.45*L1, 0.45*L2]);
+    if ~isfinite(dtrim) || dtrim <= 1e-12
+        continue;
+    end
+    re = dtrim * tan(phi/2);
+
+    T1 = B + u1 * dtrim;
+    T2 = B + u2 * dtrim;
+    bvec = u1 + u2;
+    nb = norm(bvec);
+    if nb < 1e-12
+        continue;
+    end
+    bvec = bvec / nb;
+    O = B + bvec * (re / sin(phi/2));
+
+    w1 = T1 - O;
+    w2 = T2 - O;
+    zc = w1(1)*w2(2) - w1(2)*w2(1);
+
+    hasF(i) = true;
+    Tin(i,:) = T1;
+    Tout(i,:) = T2;
+    rEff(i) = re;
+    sweep(i) = zc > 0;
+end
+
+if is_closed
+    startPt = P(1,:);
+    if hasF(1), startPt = Tout(1,:); end
+    d = sprintf('M %.9g %.9g', startPt(1), startPt(2));
+    curPt = startPt;
+    for i = 1:n
+        j = i + 1;
+        if j > n, j = 1; end
+        endPt = P(j,:);
+        if hasF(j), endPt = Tin(j,:); end
+        if norm(endPt - curPt) > 1e-12
+            d = sprintf('%s L %.9g %.9g', d, endPt(1), endPt(2)); %#ok<AGROW>
+        end
+        if hasF(j)
+            d = sprintf('%s A %.9g %.9g 0 0 %d %.9g %.9g', ...
+                d, rEff(j), rEff(j), sweep(j), Tout(j,1), Tout(j,2)); %#ok<AGROW>
+            curPt = Tout(j,:);
+        else
+            curPt = endPt;
+        end
+    end
+    d = sprintf('%s Z', d);
+else
+    d = sprintf('M %.9g %.9g', P(1,1), P(1,2));
+    for i = 2:n-1
+        if hasF(i)
+            d = sprintf('%s L %.9g %.9g', d, Tin(i,1), Tin(i,2)); %#ok<AGROW>
+            d = sprintf('%s A %.9g %.9g 0 0 %d %.9g %.9g', ...
+                d, rEff(i), rEff(i), sweep(i), Tout(i,1), Tout(i,2)); %#ok<AGROW>
+        else
+            d = sprintf('%s L %.9g %.9g', d, P(i,1), P(i,2)); %#ok<AGROW>
+        end
+    end
+    d = sprintf('%s L %.9g %.9g', d, P(end,1), P(end,2));
+end
+end
+
+function [paths, is_closed, deg] = reconstruct_paths_from_edges(E)
+% Reconstruct open/closed connected paths from undirected edges.
+paths = {};
+is_closed = false(0,1);
+if isempty(E)
+    deg = zeros(0,1);
+    return;
+end
+E = double(E);
+nE = size(E,1);
+maxV = max(E(:));
+adj = cell(maxV,1);
+deg = zeros(maxV,1);
+for e = 1:nE
+    a = E(e,1); b = E(e,2);
+    adj{a}(end+1) = e;
+    adj{b}(end+1) = e;
+    deg(a) = deg(a) + 1;
+    deg(b) = deg(b) + 1;
+end
+used = false(nE,1);
+
+starts = find(deg > 0 & deg ~= 2);
+for s = starts(:).'
+    while true
+        e0 = first_unused_incident(s, adj, used);
+        if e0 == 0, break; end
+        [ids, used] = trace_path_from_start(s, e0, E, adj, used);
+        if numel(ids) >= 2
+            paths{end+1,1} = uint32(ids); %#ok<AGROW>
+            is_closed(end+1,1) = false; %#ok<AGROW>
+        end
+    end
+end
+
+for e0 = 1:nE
+    if used(e0), continue; end
+    a = E(e0,1);
+    [ids, used] = trace_path_from_start(a, e0, E, adj, used);
+    if numel(ids) >= 3
+        if ids(end) == ids(1)
+            ids(end) = [];
+        end
+        paths{end+1,1} = uint32(ids); %#ok<AGROW>
+        is_closed(end+1,1) = true; %#ok<AGROW>
+    end
+end
+end
+
+function tf = is_point_on_any_segment(P, A, B, tol)
+tf = false;
+if isempty(A) || isempty(B)
+    return;
+end
+for i = 1:size(A,1)
+    if point_on_segment(P, A(i,:), B(i,:), tol)
+        tf = true;
+        return;
+    end
+end
+end
+
+function tf = point_on_segment(P, A, B, tol)
+AB = B - A;
+AP = P - A;
+LAB2 = dot(AB, AB);
+if LAB2 < 1e-16
+    tf = norm(P - A) <= tol;
+    return;
+end
+t = dot(AP, AB) / LAB2;
+if t < -1e-9 || t > 1+1e-9
+    tf = false;
+    return;
+end
+t = min(max(t, 0), 1);
+Q = A + t*AB;
+tf = norm(P - Q) <= tol;
+end
+
+function e0 = first_unused_incident(v, adj, used)
+e0 = 0;
+if v < 1 || v > numel(adj), return; end
+cand = adj{v};
+for k = 1:numel(cand)
+    if ~used(cand(k))
+        e0 = cand(k);
+        return;
+    end
+end
+end
+
+function [ids, used] = trace_path_from_start(v_start, e_start, E, adj, used)
+ids = v_start;
+used(e_start) = true;
+a = E(e_start,1); b = E(e_start,2);
+if a == v_start
+    curr = b;
+else
+    curr = a;
+end
+prev = v_start;
+ids(end+1,1) = curr; %#ok<AGROW>
+while true
+    cand = adj{curr};
+    nextEdge = 0; nextV = 0;
+    for k = 1:numel(cand)
+        ee = cand(k);
+        if used(ee), continue; end
+        u = E(ee,1); v = E(ee,2);
+        nv = u + v - curr;
+        if nv == prev
+            continue;
+        end
+        nextEdge = ee;
+        nextV = nv;
+        break;
+    end
+    if nextEdge == 0
+        break;
+    end
+    used(nextEdge) = true;
+    prev = curr;
+    curr = nextV;
+    ids(end+1,1) = curr; %#ok<AGROW>
+    if curr == v_start
+        break;
+    end
+end
+end
+
 function paths = edges_to_path_segments(E, pts)
 paths = cell(size(E,1),1);
 for i = 1:size(E,1)
@@ -424,10 +706,11 @@ for i = 1:size(E,1)
 end
 end
 
-function [filename, add_engrave, snap_tol] = resolve_inputs(varargin)
+function [filename, add_engrave, snap_tol, fillet_radius] = resolve_inputs(varargin)
 filename = 'tessellation_cut_pattern.svg';
 add_engrave = false;
 snap_tol = [];
+fillet_radius = 0;
 
 if nargin >= 1 && ~isempty(varargin{1})
     arg = varargin{1};
@@ -452,6 +735,12 @@ if nargin >= 3 && ~isempty(varargin{3})
     arg = varargin{3};
     if isnumeric(arg) && isscalar(arg) && isfinite(arg)
         snap_tol = double(arg);
+    end
+end
+if nargin >= 4 && ~isempty(varargin{4})
+    arg = varargin{4};
+    if isnumeric(arg) && isscalar(arg) && isfinite(arg) && arg >= 0
+        fillet_radius = double(arg);
     end
 end
 [~, name, ext] = fileparts(filename);
