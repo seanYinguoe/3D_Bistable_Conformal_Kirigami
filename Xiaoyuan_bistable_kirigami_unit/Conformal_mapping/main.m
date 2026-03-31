@@ -32,7 +32,7 @@ scale_facs = sqrt(areas_3D./areas_2D); % Calculate the scale factor. Area_3D/Are
 
 %% Overlay the regular triangular grids to envelop mesh surface
 % Define the size of triangular grids
-edgeLen = 13.40;  % control the number of grid regarding the length of mmesh instead of length
+edgeLen = 28;  % control the number of grid regarding the length of mmesh instead of length
 [v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_mesh, edgeLen); % Overlay regular triangular grids in a rectangle box
 [v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, ...
     i_grid, x_grid, v_mesh, f_mesh, scale_facs, edgeLen); % Remove the grids outside the mesh surface
