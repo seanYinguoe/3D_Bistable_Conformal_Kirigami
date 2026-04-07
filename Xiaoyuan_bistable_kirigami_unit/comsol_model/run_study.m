@@ -1,43 +1,49 @@
 % %% Run convergence study on N
-% edgeLen = 15;
-% E=4.3e11; b=1.0; t=0.015*edgeLen*(sqrt(3)/2);I = b*t^3/12;EI = E*I;
-% N = 4:2:100;
-% E_cluster = zeros(size(N));
-% E_even = zeros(size(N));
-% L0 = 1;
-% A0=[0,0]; B0=[1,0];
-% A1=[0,0]; B1=[1,0];
-% vecA0 = [0,1];
-% vecB0 = [0,1];
-% vecA1=[cos(pi/10),sin(pi/10)]; vecB1=[cos(-pi/10),sin(-pi/10)];      % clamped end directions (normals)
+edgeLen = 15;
+E=4.3e11; b=1.0; t=0.015*edgeLen*(sqrt(3)/2);I = b*t^3/12;EI = E*I;
+N = 4:2:100;
+E_cluster = zeros(size(N));
+E_even = zeros(size(N));
+L0 = 1;
+A0=[0,0]; B0=[1,0];
+A1=[0,0]; B1=[1,0];
+vecA0 = [0,1];
+vecB0 = [0,1];
+vecA1=[cos(pi/10),sin(pi/10)]; vecB1=[cos(-pi/10),sin(-pi/10)];      % clamped end directions (normals)
+for i = 1:size(N,2)
+    Ni = N(i);
+    [E_cluster(i), ~, ~] = hbm_energy(L0, A1,B1, vecA1,vecB1, Ni, E,b, t, 'EndCluster',true);
+    [E_even(i), ~, ~] = hbm_energy(L0, A1,B1, vecA1,vecB1, Ni, E,b, t, 'EndCluster',false);
+end
 % for i = 1:size(N,2)
 %     Ni = N(i);
-%     [E_cluster(i), ~, ~] = hbm_energy(L0, A1,B1, vecA1,vecB1, Ni, E,b, t, 'EndCluster',true);
-%     [E_even(i), ~, ~] = hbm_energy(L0, A1,B1, vecA1,vecB1, Ni, E,b, t, 'EndCluster',false);
+%     [~, E_cluster(i)] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, Ni); % segments cluster
 % end
-% % for i = 1:size(N,2)
-% %     Ni = N(i);
-% %     [~, E_cluster(i)] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, Ni); % segments cluster
-% % end
-% % Plot figure 
-% figure; hold on; box on; grid on;
-% plot(N, E_cluster, '-o', 'Color',[0 0.45 0.74], ...
-%     'MarkerFaceColor',[0 0.45 0.74], 'LineWidth',1.6, ...
-%     'DisplayName','End-clustered');
-% 
-% % Even
-% plot(N, E_even, '-s', 'Color',[0.85 0.33 0.10], ...
-%     'MarkerFaceColor','none', 'LineWidth',1.6, ...
-%     'DisplayName','Even-divided');
-% 
-% xlabel('Number of segments  N','FontSize',20);
-% ylabel('Total energy  E_{total}','FontSize',20);
-% title('Convergence study on N','FontSize',20);
-% legend('Location','northeast','Box','off', 'Fontsize',20);
-% set(gca,'FontSize',20, ...
-%     'FontName','Times New Roman',...
-%     'LineWidth',1.0,'TickDir','out');
-% axis square;  
+% Plot figure using accuracy metric relative to FEM reference:
+%   accuracy(%) = |E - E_ref| / E * 100
+% E_ref can be scalar (single FEM reference) or same-size vector as N.
+E_ref = 2.021674068294217e+09;
+
+acc_cluster = abs(E_cluster - E_ref) ./ max(abs(E_cluster), eps) * 100;
+acc_even = abs(E_even - E_ref) ./ max(abs(E_even), eps) * 100;
+
+figure('Color','w');
+hold on; box on;
+plot(N, acc_cluster, '-o', 'Color',[0 0.45 0.74], ...
+    'MarkerFaceColor',[0 0.45 0.74], 'LineWidth',2, ...
+    'DisplayName','End-clustered');
+
+plot(N, acc_even, '-s', 'Color',[0.85 0.33 0.10], ...
+    'MarkerFaceColor','none', 'LineWidth',2, ...
+    'DisplayName','Even-divided');
+xticks(0:20:100);          % or 4:1:100 for every integer
+xlim([min(N), max(N)]);
+xlabel('Number of segments  N', 'Interpreter','tex', 'FontSize',24);
+ylabel('Error  (%)', 'Interpreter','tex', 'FontSize',24);
+set(gca, 'FontName','Times New Roman', 'FontSize',30, 'LineWidth',2);
+legend('Location','northeast','Box','off', 'FontSize',18);
+grid off;
+axis square;
 
 %% Compare semi-analytical result with FEA
 % Read FEA result from txt delta 0:0.1:0.55*edgeLen
@@ -45,7 +51,7 @@ edgeLen = 15;
 l1 = edgeLen * 0.85;
 l4 = edgeLen * 0.05;
 t  = edgeLen * 0.015;
-beta = pi/45;
+beta = pi/40;
 fname = 'pi40_015.txt';  % <- change to your actual file
 raw = fileread(fname);
 % capture lines that contain exactly two numbers (delta, energy)
@@ -61,9 +67,11 @@ delta_fem = data(:,1);             % displacement (m)
 U_fem     = data(:,2);             % total stored energy (J)
 E = 4.33e11;
 eps_fem = delta_fem ./ edgeLen;
+U_fem_max = max(U_fem);
+U_fem_norm = U_fem ./U_fem_max;
 
 % Run semi-analyical result
-delta = 0:0.05:0.55*edgeLen;
+delta = 0:0.05:0.57*edgeLen;
 N = 10;
 [~, U_hbm] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta, t, N);
 eps_hbm = delta./edgeLen;
@@ -77,20 +85,22 @@ figure('Color','w');
 hold on; box on;
 
 % semi-analytical
-plot(eps_hbm, U_hbm_norm, '-','Color',[0 0.45 0.74], 'LineWidth', 3, ...
+plot(eps_hbm, U_hbm_norm, '-','Color',[0 0.45 0.74], 'LineWidth', 2, ...
      'DisplayName','HBM');
 
 % % FEM
-% plot(eps_fem, U_fem, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 1, ...
-%      'DisplayName','FEM');
+plot(eps_fem, U_fem_norm, '-', 'Color',[0.85 0.33 0.10],'LineWidth', 2, ...
+     'DisplayName','FEM');
 xlabel('Strain', 'Interpreter','tex', ...
        'FontSize',24);
-ylabel('U/U_{max}', 'Interpreter','tex', ...
+ylabel('E/E_{max}', 'Interpreter','tex', ...
        'FontSize',24);
 set(gca, 'FontName','Times New Roman','FontSize',30,'LineWidth',2); 
-%legend('Location','northwest','Box','off', 'Fontsize',18);  
+legend('Location','northwest','Box','off', 'Fontsize',18);  
 grid off;
 axis square;
+
+ylim([0, 1.05]);          % slightly larger than 1
 
 
 % %% sensetivity study on tilting angle beta and l2 or (l4)
@@ -145,17 +155,17 @@ axis square;
 
 %% Plot anisotropic and isotropic deployment
 % isotropic
-% plot(alpha, E_total_iso, '-','Color',[0.85 0.33 0.10], 'LineWidth', 1, ...
-%      'DisplayName','Isotropic');
-% 
-% % anisotropic
-% plot(alpha, E_total_an, '-', 'Color',[0 0.45 0.74],'LineWidth', 1, ...
-%      'DisplayName','Anisotropic');
-% xlabel('Deployment', 'Interpreter','tex', ...
-%        'FontSize',28);
-% ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
-%        'FontSize',28);
-% set(gca, 'FontName','Times New Roman','FontSize',28); 
-% legend('Location','northwest','Box','off', 'Fontsize',28);  
-% grid off;
-% axis square;
+plot(alpha, E_total_iso, '-','Color',[0.85 0.33 0.10], 'LineWidth', 1, ...
+     'DisplayName','Isotropic');
+
+% anisotropic
+plot(alpha, E_total_an, '-', 'Color',[0 0.45 0.74],'LineWidth', 1, ...
+     'DisplayName','Anisotropic');
+xlabel('Deployment', 'Interpreter','tex', ...
+       'FontSize',28);
+ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
+       'FontSize',28);
+set(gca, 'FontName','Times New Roman','FontSize',28); 
+legend('Location','northwest','Box','off', 'Fontsize',28);  
+grid off;
+axis square;
