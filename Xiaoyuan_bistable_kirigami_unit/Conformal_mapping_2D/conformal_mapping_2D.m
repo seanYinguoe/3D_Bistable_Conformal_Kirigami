@@ -1,332 +1,486 @@
-function [v_initial_mesh, v_target_mesh, f_mesh, info_map] = conformal_mapping_2D(initialShape, targetShape, opts)
-%CONFORMAL_MAPPING_2D Planar boundary-controlled mapping with fixed topology.
-%   [v_initial_mesh, v_target_mesh, f_mesh, info_map] = conformal_mapping_2D(initialShape, targetShape, opts)
+function [uv, f_uv, info] = conformal_mapping_2D(v, f)
+% CONFORMAL_MAPPING_2D  Harmonic parameterization of an open triangle mesh
+%                       to a rectangle with arc-length proportional boundary.
 %
-% Inputs
-%   initialShape : shape descriptor (string or struct)
-%                  strings: 'square', 'rectangle', 'circle', 'ellipse'
-%                  struct:  .boundary (Nx2), or shape params (width/height/radius/a/b)
-%   targetShape  : same format as initialShape
-%   opts         : options struct
-%                  .n_boundary (default 200)
-%                  .mesh_h     (default auto from initial size)
-%                  .initial_scale (default 100)
-%                  .center     (default [0 0])
+% [uv, f_uv, info] = conformal_mapping_2D(v, f)
 %
-% Outputs
-%   v_initial_mesh : Nv x3 initial planar mesh vertices (z=0)
-%   v_target_mesh  : Nv x3 target planar mesh vertices (z=0)
-%   f_mesh         : Nf x3 triangle connectivity
-%   info_map       : diagnostics
+% INPUTS
+%   v  : (#V x 2) or (#V x 3) vertex positions
+%   f  : (#F x 3) triangle indices, 1-based
+%
+% OUTPUTS
+%   uv     : (#V x 2) 2-D parameterization in [0,W] x [0,H]
+%   f_uv   : (#F x 3) same connectivity as f
+%   info   : struct with fields
+%              .bnd_loop   - ordered boundary vertex indices  (#B x 1)
+%              .rect       - [W H] dimensions of output rectangle
+%              .corners    - 4 boundary vertex indices nearest rectangle corners
+%              .angle_def  - mean absolute angle defect of interior vertices
+%              .flipped    - number of inverted triangles in UV
+%
+% ALGORITHM
+%   1. Detect & order the single boundary loop.
+%   2. Compute cumulative arc-length along boundary.
+%   3. Map boundary vertices onto a rectangle by arc-length proportion.
+%      Aspect ratio is chosen from the ratio of opposite side arc-lengths.
+%   4. Build cotangent-weight Laplacian L (sparse, #V x #V).
+%   5. Solve  L_ii * uv_i = -L_ib * uv_b  for x and y independently.
+%   6. Normalize result to [0,W] x [0,H] and compute diagnostics.
+%
+% REQUIREMENTS  Pure MATLAB, no toolboxes beyond the sparse solver.
 
-if nargin < 1 || isempty(initialShape)
-    initialShape = 'square';
-end
-if nargin < 2 || isempty(targetShape)
-    targetShape = 'circle';
-end
-if nargin < 3 || isempty(opts)
-    opts = struct();
-end
+% =========================================================================
+% 0. Input validation & dimension handling
+% =========================================================================
+assert(ismatrix(v) && size(v,2) >= 2, ...
+    'v must be (#V x 2) or (#V x 3).');
+assert(ismatrix(f) && size(f,2) == 3, ...
+    'f must be (#F x 3) with 1-based indices.');
+assert(all(f(:) >= 1) && all(f(:) <= size(v,1)), ...
+    'f contains out-of-range vertex indices.');
 
-if ~isfield(opts, 'n_boundary') || isempty(opts.n_boundary)
-    opts.n_boundary = 200;
-end
-if ~isfield(opts, 'initial_scale') || isempty(opts.initial_scale)
-    opts.initial_scale = 100;
-end
-if ~isfield(opts, 'center') || isempty(opts.center)
-    opts.center = [0 0];
-end
+nV = size(v, 1);
+nF = size(f,  1);
 
-% 1) Construct initial and target boundaries.
-bnd_initial = shape_to_boundary(initialShape, opts.n_boundary, opts.initial_scale, opts.center);
-bnd_target  = shape_to_boundary(targetShape,  opts.n_boundary, opts.initial_scale, opts.center);
-
-% 2) Build initial triangular mesh inside initial boundary.
-if ~isfield(opts, 'mesh_h') || isempty(opts.mesh_h)
-    bb = [min(bnd_initial,[],1); max(bnd_initial,[],1)];
-    span = bb(2,:) - bb(1,:);
-    opts.mesh_h = max(min(span) / 25, 1e-3);
-end
-[v2, f_mesh] = mesh_inside_polygon(bnd_initial, opts.mesh_h);
-
-% 3) Extract ordered boundary vertices of initial mesh.
-[bnd_vid, bnd_loop] = ordered_boundary_vertices(v2, f_mesh);
-
-% 4) Boundary correspondence by arclength; map to target boundary.
-t = normalized_arclength(bnd_loop);
-bnd_target_sampled = sample_closed_polyline(bnd_target, t);
-
-% 5) Harmonic solve for interior vertices (Tutte/Laplacian style).
-v2_target = harmonic_with_fixed_boundary(v2, f_mesh, bnd_vid, bnd_target_sampled);
-
-% 6) Pack outputs as 3D-with-zero-z for compatibility.
-v_initial_mesh = [v2, zeros(size(v2,1),1)];
-v_target_mesh  = [v2_target, zeros(size(v2_target,1),1)];
-
-info_map = struct();
-info_map.n_vertices = size(v2,1);
-info_map.n_faces = size(f_mesh,1);
-info_map.n_boundary_vertices = numel(bnd_vid);
-info_map.mesh_h = opts.mesh_h;
-info_map.initial_boundary = bnd_initial;
-info_map.target_boundary = bnd_target;
-info_map.target_boundary_sampled = bnd_target_sampled;
-end
-
-function B = shape_to_boundary(shape, n, scale0, center)
-if isnumeric(shape)
-    if size(shape,2) ~= 2
-        error('Numeric shape must be Nx2 boundary points.');
-    end
-    B = shape;
-    return;
-end
-
-if ischar(shape) || (isstring(shape) && isscalar(shape))
-    shape = struct('type', lower(char(shape)));
-elseif ~isstruct(shape)
-    error('shape must be string, struct, or Nx2 numeric boundary.');
-end
-
-if isfield(shape, 'boundary') && ~isempty(shape.boundary)
-    if size(shape.boundary,2) ~= 2
-        error('shape.boundary must be Nx2.');
-    end
-    B = shape.boundary;
-    return;
-end
-
-if isfield(shape, 'type')
-    type = lower(char(shape.type));
+% Work in 3-D internally (pad with zeros if 2-D input)
+if size(v,2) == 2
+    v3 = [v, zeros(nV,1)];
 else
-    type = 'polygon';
+    v3 = v(:,1:3);
 end
 
-cx = center(1);
-cy = center(2);
+% =========================================================================
+% 1. Detect boundary loop
+% =========================================================================
+bnd_loop = detect_boundary_loop(f, nV);   % may error internally
 
-t = linspace(0, 1, n+1).';
-t(end) = [];
+% =========================================================================
+% 2. Arc-length parameterisation of boundary
+% =========================================================================
+nB = numel(bnd_loop);
+bnd_pts = v3(bnd_loop, :);                % (#B x 3) positions in order
 
-switch type
-    case 'square'
-        L = field_or(shape, 'side', scale0);
-        poly = [cx-L/2, cy-L/2;
-                cx+L/2, cy-L/2;
-                cx+L/2, cy+L/2;
-                cx-L/2, cy+L/2];
-        B = sample_closed_polyline(poly, t);
+% Edge lengths around the loop (closed: last vertex back to first)
+diffs   = [bnd_pts(2:end,:); bnd_pts(1,:)] - bnd_pts;
+seg_len = sqrt(sum(diffs.^2, 2));         % (#B x 1)
+cum_len = [0; cumsum(seg_len)];           % (#B+1 x 1), cum_len(end)=total
+total_L = cum_len(end);
 
-    case 'rectangle'
-        W = field_or(shape, 'width', scale0);
-        H = field_or(shape, 'height', 0.75*scale0);
-        poly = [cx-W/2, cy-H/2;
-                cx+W/2, cy-H/2;
-                cx+W/2, cy+H/2;
-                cx-W/2, cy+H/2];
-        B = sample_closed_polyline(poly, t);
+if total_L < eps
+    error('conformal_mapping_2D: boundary has zero arc-length.');
+end
 
-    case 'circle'
-        R = field_or(shape, 'radius', 0.5*scale0);
-        th = 2*pi*t;
-        B = [cx + R*cos(th), cy + R*sin(th)];
+t = cum_len(1:end-1) / total_L;          % normalised parameter in [0,1)
 
-    case 'ellipse'
-        a = field_or(shape, 'a', 0.5*scale0);
-        b = field_or(shape, 'b', 0.35*scale0);
-        th = 2*pi*t;
-        B = [cx + a*cos(th), cy + b*sin(th)];
+% -------------------------------------------------------------------------
+% Choose rectangle aspect ratio
+%   The boundary is traversed counter-clockwise.  We split it into 4 sides
+%   at the parametric midpoints 0, 0.25, 0.5, 0.75 and use the arc-length
+%   ratio of horizontal vs vertical sides to set W and H.
+%   Simple heuristic: side0+side2 (width-like), side1+side3 (height-like).
+% -------------------------------------------------------------------------
+breaks   = [0, 0.25, 0.5, 0.75, 1.0];   % parametric corners
+side_len = zeros(1,4);
+for s = 1:4
+    mask = (t >= breaks(s)) & (t < breaks(s+1));
+    side_len(s) = sum(seg_len(mask));
+end
+% Avoid degenerate aspect ratios
+horiz = max(side_len(1) + side_len(3), eps);
+vert  = max(side_len(2) + side_len(4), eps);
+ratio = horiz / vert;                     % W/H
 
-    case 'polygon'
-        if ~isfield(shape, 'vertices') || isempty(shape.vertices)
-            error('For shape.type="polygon", provide shape.vertices (Nx2).');
+% Normalise so that area ≈ 1 (cosmetic; will be renormalised later)
+H = 1.0;
+W = ratio;
+
+% -------------------------------------------------------------------------
+% Map each boundary vertex to rectangle edge by arc-length
+%   Corners (t): 0 → (0,0), 0.25 → (W,0), 0.5 → (W,H), 0.75 → (0,H)
+% -------------------------------------------------------------------------
+uv_bnd = zeros(nB, 2);
+corner_t = [0, 0.25, 0.5, 0.75];
+corner_xy = [0,0; W,0; W,H; 0,H];
+
+for k = 1:nB
+    tk = t(k);
+    if tk < 0.25          % bottom edge: (0,0) → (W,0)
+        s = tk / 0.25;
+        uv_bnd(k,:) = (1-s)*corner_xy(1,:) + s*corner_xy(2,:);
+    elseif tk < 0.5       % right edge:  (W,0) → (W,H)
+        s = (tk - 0.25) / 0.25;
+        uv_bnd(k,:) = (1-s)*corner_xy(2,:) + s*corner_xy(3,:);
+    elseif tk < 0.75      % top edge:    (W,H) → (0,H)
+        s = (tk - 0.5) / 0.25;
+        uv_bnd(k,:) = (1-s)*corner_xy(3,:) + s*corner_xy(4,:);
+    else                  % left edge:   (0,H) → (0,0)
+        s = (tk - 0.75) / 0.25;
+        uv_bnd(k,:) = (1-s)*corner_xy(4,:) + s*corner_xy(1,:);
+    end
+end
+
+% =========================================================================
+% 3. Cotangent Laplacian
+% =========================================================================
+L = build_cotan_laplacian(v3, f, nV);
+
+% =========================================================================
+% 4. Partition: boundary (b) and interior (i)
+% =========================================================================
+is_bnd = false(nV, 1);
+is_bnd(bnd_loop) = true;
+idx_all  = (1:nV)';
+interior = idx_all(~is_bnd);
+nI = numel(interior);
+
+if nI == 0
+    % Trivial: every vertex is on boundary, no interior to solve
+    uv = zeros(nV, 2);
+    uv(bnd_loop, :) = uv_bnd;
+    f_uv = f;
+    uv = normalise_uv(uv, W, H);
+    info = build_info(bnd_loop, uv, f, W, H, t);
+    return
+end
+
+% Index map: global → interior row
+g2i = zeros(nV, 1);
+g2i(interior) = (1:nI)';
+
+% =========================================================================
+% 5. Solve harmonic system:  L_ii * uv_i = -L_ib * uv_b
+% =========================================================================
+L_ii = L(interior, interior);          % (nI x nI) sparse
+L_ib = L(interior, bnd_loop);          % (nI x nB) sparse
+
+rhs_x = -L_ib * uv_bnd(:,1);
+rhs_y = -L_ib * uv_bnd(:,2);
+
+% Use backslash (MATLAB's sparse LU / Cholesky fallback)
+warning('off','MATLAB:singularMatrix');
+warning('off','MATLAB:nearlySingularMatrix');
+sol_x = L_ii \ rhs_x;
+sol_y = L_ii \ rhs_y;
+warning('on','MATLAB:singularMatrix');
+warning('on','MATLAB:nearlySingularMatrix');
+
+if ~all(isfinite(sol_x)) || ~all(isfinite(sol_y))
+    error('conformal_mapping_2D: linear solve produced non-finite values. Check mesh connectivity.');
+end
+
+% =========================================================================
+% 6. Assemble full UV
+% =========================================================================
+uv = zeros(nV, 2);
+uv(bnd_loop,  :) = uv_bnd;
+uv(interior, 1)  = sol_x;
+uv(interior, 2)  = sol_y;
+
+% =========================================================================
+% 7. Post-process: normalise to [0,W] x [0,H]
+% =========================================================================
+uv = normalise_uv(uv, W, H);
+
+% =========================================================================
+% 8. Outputs
+% =========================================================================
+f_uv = f;
+info = build_info(bnd_loop, uv, f, W, H, t);
+
+end % ── main function ──────────────────────────────────────────────────────
+
+
+% =========================================================================
+% LOCAL HELPER: detect_boundary_loop
+% =========================================================================
+function bnd_loop = detect_boundary_loop(f, nV)
+% Returns an ordered (#B x 1) list of boundary vertex indices.
+% Errors if mesh has 0 or >1 boundary loops, or is non-manifold.
+
+    nF = size(f, 1);
+
+    % Build all half-edges and count occurrences of undirected edges
+    % A boundary edge appears exactly once.
+    all_edges = [f(:,1), f(:,2);
+                 f(:,2), f(:,3);
+                 f(:,3), f(:,1)];          % (3*nF x 2) directed
+
+    % Sort each edge so a < b (undirected key)
+    edge_key = sort(all_edges, 2);         % (3*nF x 2)
+
+    % Find edges that appear exactly once → boundary
+    [uniq_edges, ~, ic] = unique(edge_key, 'rows');
+    counts = accumarray(ic, 1);
+    bnd_mask = (counts == 1);
+
+    if ~any(bnd_mask)
+        error('conformal_mapping_2D: no boundary found. Mesh may be closed (genus 0) or degenerate.');
+    end
+
+    % Recover directed boundary half-edges
+    % Among the directed half-edges, pick those whose undirected key is boundary
+    is_bnd_he = bnd_mask(ic);             % (3*nF x 1) logical
+    bnd_he    = all_edges(is_bnd_he, :);  % (#bnd_edges x 2) directed
+
+    % Build adjacency list: next[a] = b
+    nBE = size(bnd_he, 1);
+    adj = containers.Map('KeyType','int32','ValueType','int32');
+    for k = 1:nBE
+        a = int32(bnd_he(k,1));
+        b = int32(bnd_he(k,2));
+        if isKey(adj, a)
+            error('conformal_mapping_2D: non-manifold boundary detected at vertex %d.', a);
         end
-        poly = shape.vertices;
-        if size(poly,2) ~= 2
-            error('shape.vertices must be Nx2.');
+        adj(a) = b;
+    end
+
+    % Walk all loops
+    visited = false(nV, 1);
+    all_loops = {};
+    starts = int32(bnd_he(:,1));
+
+    for s = 1:numel(starts)
+        v0 = starts(s);
+        if visited(v0), continue; end
+        loop = [];
+        cur = v0;
+        for steps = 1:nBE+1
+            if visited(cur) && cur ~= v0
+                break;   % hit a previously completed loop
+            end
+            if ~isKey(adj, cur)
+                error('conformal_mapping_2D: boundary is not a closed loop (vertex %d has no successor).', cur);
+            end
+            loop(end+1) = cur; %#ok<AGROW>
+            visited(cur) = true;
+            cur = adj(cur);
+            if cur == v0, break; end
         end
-        B = sample_closed_polyline(poly, t);
-
-    otherwise
-        error('Unsupported shape type: %s', type);
-end
-end
-
-function val = field_or(s, name, default_val)
-if isfield(s, name) && ~isempty(s.(name))
-    val = s.(name);
-else
-    val = default_val;
-end
-end
-
-function [V, F] = mesh_inside_polygon(poly, h)
-minxy = min(poly, [], 1);
-maxxy = max(poly, [], 1);
-
-xv = (minxy(1):h:maxxy(1)).';
-yv = (minxy(2):h:maxxy(2)).';
-[XX, YY] = meshgrid(xv, yv);
-P = [XX(:), YY(:)];
-
-inside = inpolygon(P(:,1), P(:,2), poly(:,1), poly(:,2));
-P_in = P(inside,:);
-
-P_all = [poly; P_in];
-P_all = unique(round(P_all / max(h,1e-9)) * max(h,1e-9), 'rows', 'stable');
-
-DT = delaunayTriangulation(P_all);
-F_all = DT.ConnectivityList;
-V_all = DT.Points;
-
-C = (V_all(F_all(:,1),:) + V_all(F_all(:,2),:) + V_all(F_all(:,3),:)) / 3;
-keep = inpolygon(C(:,1), C(:,2), poly(:,1), poly(:,2));
-F = F_all(keep,:);
-V = V_all;
-
-[V, F] = remove_unused_verts_local(V, F);
-end
-
-function [V2, F2] = remove_unused_verts_local(V, F)
-used = false(size(V,1),1);
-used(F(:)) = true;
-map = zeros(size(V,1),1);
-map(used) = 1:nnz(used);
-V2 = V(used,:);
-F2 = map(F);
-end
-
-function [bnd_vid, bnd_xy] = ordered_boundary_vertices(V, F)
-TR = triangulation(F, V);
-B = freeBoundary(TR);
-if isempty(B)
-    error('No free boundary found in initial mesh.');
-end
-
-adj = cell(size(V,1),1);
-for e = 1:size(B,1)
-    a = B(e,1);
-    b = B(e,2);
-    adj{a}(end+1) = b; %#ok<AGROW>
-    adj{b}(end+1) = a; %#ok<AGROW>
-end
-
-start = B(1,1);
-bnd_vid = start;
-prev = 0;
-curr = start;
-for k = 1:size(B,1)+5
-    nbr = adj{curr};
-    if isempty(nbr)
-        break;
+        all_loops{end+1} = loop(:); %#ok<AGROW>
     end
-    if numel(nbr) == 1
-        nxt = nbr(1);
-    else
-        cand = nbr(nbr ~= prev);
-        if isempty(cand)
-            nxt = nbr(1);
-        else
-            nxt = cand(1);
+
+    if numel(all_loops) == 0
+        error('conformal_mapping_2D: failed to detect any boundary loop.');
+    elseif numel(all_loops) > 1
+        sizes = cellfun(@numel, all_loops);
+        error('conformal_mapping_2D: mesh has %d boundary loops (sizes: %s). Requires exactly 1.', ...
+              numel(all_loops), num2str(sizes));
+    end
+
+    bnd_loop = double(all_loops{1});
+end
+
+
+% =========================================================================
+% LOCAL HELPER: build_cotan_laplacian
+% =========================================================================
+function L = build_cotan_laplacian(v, f, nV)
+% Assembles the cotangent-weight Laplacian (sparse, symmetric, nV x nV).
+% L(i,j) = -0.5*(cot(alpha_ij) + cot(beta_ij))  for adjacent i,j
+% L(i,i) = -sum_{j~i} L(i,j)
+%
+% Robustness: clamp cotangents to avoid blow-up on degenerate triangles.
+
+    nF = size(f, 1);
+    II = zeros(6*nF, 1);
+    JJ = zeros(6*nF, 1);
+    VV = zeros(6*nF, 1);
+    ptr = 0;
+
+    for fi = 1:nF
+        idx = f(fi, :);                 % [i j k]
+        P   = v(idx, :);               % 3x3, rows are vertices
+
+        % Edge vectors
+        e = [P(3,:)-P(2,:);            % edge opposite vertex 1
+             P(1,:)-P(3,:);            % edge opposite vertex 2
+             P(2,:)-P(1,:)];           % edge opposite vertex 3  (= -e(1)-e(2))
+
+        % Cotangent of each angle via dot/cross
+        % angle at vertex k is between edges from k to the other two
+        cots = zeros(1,3);
+        for k = 1:3
+            a = k;               % vertex index in local {1,2,3}
+            b = mod(k,3)+1;
+            c = mod(k+1,3)+1;
+            ea = P(b,:) - P(a,:);
+            ec = P(c,:) - P(a,:);
+            cos_a = dot(ea, ec);
+            sin_a = norm(cross(ea, ec));
+            cots(k) = cos_a / (sin_a + eps);
+        end
+        % Clamp to avoid degenerate triangles
+        cots = max(min(cots, 1e6), -1e6);
+
+        % Cotangent weight for each edge:
+        %   edge (i,j) opposite vertex k  → weight = 0.5 * cot(angle_k)
+        % Edges: (2,3) opposite k=1, (1,3) opposite k=2, (1,2) opposite k=3
+        pairs = [2,3; 1,3; 1,2];
+        for e_loc = 1:3
+            a = idx(pairs(e_loc,1));
+            b = idx(pairs(e_loc,2));
+            w = 0.5 * cots(e_loc);
+            % Off-diagonal entries: L(a,b) += -w, L(b,a) += -w
+            % Diagonal entries:     L(a,a) += +w, L(b,b) += +w
+            ptr = ptr + 1;
+            II(ptr) = a; JJ(ptr) = b; VV(ptr) = -w;
+            ptr = ptr + 1;
+            II(ptr) = b; JJ(ptr) = a; VV(ptr) = -w;
+            ptr = ptr + 1;
+            II(ptr) = a; JJ(ptr) = a; VV(ptr) = +w;
+            ptr = ptr + 1;
+            II(ptr) = b; JJ(ptr) = b; VV(ptr) = +w;
         end
     end
-    if nxt == start
-        break;
+
+    II = II(1:ptr);
+    JJ = JJ(1:ptr);
+    VV = VV(1:ptr);
+    L  = sparse(II, JJ, VV, nV, nV);
+end
+
+
+% =========================================================================
+% LOCAL HELPER: normalise_uv
+% =========================================================================
+function uv = normalise_uv(uv, W, H)
+% Shift and scale UV so it fits exactly in [0,W] x [0,H].
+
+    mn = min(uv, [], 1);
+    mx = max(uv, [], 1);
+    rng = mx - mn;
+    rng(rng < eps) = 1;      % avoid division by zero
+
+    uv(:,1) = (uv(:,1) - mn(1)) / rng(1) * W;
+    uv(:,2) = (uv(:,2) - mn(2)) / rng(2) * H;
+end
+
+
+% =========================================================================
+% LOCAL HELPER: build_info
+% =========================================================================
+function info = build_info(bnd_loop, uv, f, W, H, t)
+% Assemble diagnostic struct.
+
+    info.bnd_loop = bnd_loop;
+    info.rect     = [W, H];
+
+    % Corner indices: boundary vertices closest to t = 0, 0.25, 0.5, 0.75
+    corner_t = [0, 0.25, 0.5, 0.75];
+    corners  = zeros(1,4);
+    for c = 1:4
+        [~, ci]    = min(abs(t - corner_t(c)));
+        corners(c) = bnd_loop(ci);
     end
-    bnd_vid(end+1,1) = nxt; %#ok<AGROW>
-    prev = curr;
-    curr = nxt;
-end
+    info.corners = corners;
 
-if numel(bnd_vid) < 3
-    error('Failed to reconstruct ordered boundary loop.');
-end
+    % Angle defect at interior vertices (Gaussian curvature proxy)
+    %   For a flat map, angle defect should be ~0 at interior vertices.
+    nV = size(uv,1);
+    is_bnd = false(nV,1);
+    is_bnd(bnd_loop) = true;
+    interior = find(~is_bnd);
 
-bnd_xy = V(bnd_vid,:);
-end
-
-function v_target = harmonic_with_fixed_boundary(V, F, bnd_idx, bnd_target)
-n = size(V,1);
-is_bnd = false(n,1);
-is_bnd(bnd_idx) = true;
-
-E = [F(:,[1 2]); F(:,[2 3]); F(:,[3 1])];
-E = sort(E,2);
-E = unique(E, 'rows');
-
-ii = [E(:,1); E(:,2)];
-jj = [E(:,2); E(:,1)];
-A = sparse(ii, jj, 1, n, n);
-L = spdiags(sum(A,2), 0, n, n) - A;
-
-bx = zeros(n,1);
-by = zeros(n,1);
-bx(bnd_idx) = bnd_target(:,1);
-by(bnd_idx) = bnd_target(:,2);
-
-M = L;
-I = speye(n);
-M(is_bnd,:) = I(is_bnd,:);
-
-rhsx = zeros(n,1);
-rhsy = zeros(n,1);
-rhsx(~is_bnd) = -L(~is_bnd,is_bnd) * bx(is_bnd);
-rhsy(~is_bnd) = -L(~is_bnd,is_bnd) * by(is_bnd);
-rhsx(is_bnd) = bx(is_bnd);
-rhsy(is_bnd) = by(is_bnd);
-
-x = M \ rhsx;
-y = M \ rhsy;
-v_target = [x, y];
-end
-
-function t = normalized_arclength(P)
-if size(P,1) < 2
-    t = zeros(size(P,1),1);
-    return;
-end
-Pc = [P; P(1,:)];
-d = sqrt(sum(diff(Pc,1,1).^2,2));
-s = [0; cumsum(d(1:end-1))];
-L = sum(d);
-if L <= eps
-    t = linspace(0,1,size(P,1)+1).';
-    t(end) = [];
-else
-    t = s / L;
-end
-end
-
-function Q = sample_closed_polyline(poly, t)
-if size(poly,1) < 2
-    Q = repmat(poly(1,:), numel(t), 1);
-    return;
-end
-polyC = [poly; poly(1,:)];
-seg = sqrt(sum(diff(polyC,1,1).^2,2));
-S = [0; cumsum(seg)];
-L = S(end);
-if L <= eps
-    Q = repmat(poly(1,:), numel(t), 1);
-    return;
-end
-
-ss = mod(t,1) * L;
-Q = zeros(numel(t), 2);
-for i = 1:numel(t)
-    s = ss(i);
-    k = find(S <= s, 1, 'last');
-    if k >= numel(S)
-        k = numel(S)-1;
+    % Sum of triangle angles at each interior vertex in UV
+    angle_sum = zeros(nV,1);
+    for fi = 1:size(f,1)
+        idx = f(fi,:);
+        P   = uv(idx,:);
+        for k = 1:3
+            a = k; b = mod(k,3)+1; c = mod(k+1,3)+1;
+            ea = P(b,:) - P(a,:);
+            ec = P(c,:) - P(a,:);
+            na = norm(ea); nc = norm(ec);
+            if na > eps && nc > eps
+                cos_a = dot(ea,ec)/(na*nc);
+                cos_a = max(min(cos_a,1),-1);
+                angle_sum(idx(a)) = angle_sum(idx(a)) + acos(cos_a);
+            end
+        end
     end
-    ds = seg(k);
-    if ds <= eps
-        a = 0;
-    else
-        a = (s - S(k)) / ds;
+    defects = abs(2*pi - angle_sum(interior));
+    info.angle_def = mean(defects);
+
+    % Count flipped triangles (signed area < 0 in UV)
+    n_flip = 0;
+    for fi = 1:size(f,1)
+        idx = f(fi,:);
+        A = uv(idx(1),:); B = uv(idx(2),:); C = uv(idx(3),:);
+        area2 = (B(1)-A(1))*(C(2)-A(2)) - (B(2)-A(2))*(C(1)-A(1));
+        if area2 < 0
+            n_flip = n_flip + 1;
+        end
     end
-    Q(i,:) = (1-a)*polyC(k,:) + a*polyC(k+1,:);
+    info.flipped = n_flip;
 end
-end
+
+
+% =========================================================================
+%
+%  USAGE DEMO (run this block as a script after saving this file):
+%
+% -------------------------------------------------------------------------
+%
+%   % --- Create a simple triangulated disk mesh ---
+%   n_rings   = 10;
+%   n_sectors = 32;
+%   [vd, fd]  = make_disk_mesh(n_rings, n_sectors);   % see sub-function below
+%
+%   % --- Run conformal mapping ---
+%   [uv, f_uv, info] = conformal_mapping_2D(vd, fd);
+%
+%   fprintf('Rectangle: %.4f x %.4f\n', info.rect(1), info.rect(2));
+%   fprintf('Mean angle defect: %.4e rad\n', info.angle_def);
+%   fprintf('Flipped triangles: %d\n', info.flipped);
+%
+%   % --- Plot ---
+%   figure('Name','Conformal Mapping Demo','Color','w');
+%
+%   subplot(1,2,1); hold on; axis equal; title('Original Mesh (XY)');
+%   triplot(fd, vd(:,1), vd(:,2), 'b-', 'LineWidth', 0.3);
+%   bnd = info.bnd_loop;
+%   plot(vd([bnd;bnd(1)],1), vd([bnd;bnd(1)],2), 'r-', 'LineWidth', 2);
+%   xlabel('X'); ylabel('Y');
+%
+%   subplot(1,2,2); hold on; axis equal;
+%   title(sprintf('UV Parameterization [%.2f x %.2f]', info.rect(1), info.rect(2)));
+%   triplot(f_uv, uv(:,1), uv(:,2), 'g-', 'LineWidth', 0.3);
+%   bnd_uv = info.bnd_loop;
+%   plot(uv([bnd_uv;bnd_uv(1)],1), uv([bnd_uv;bnd_uv(1)],2), 'r-', 'LineWidth', 2);
+%   rectangle('Position',[0 0 info.rect(1) info.rect(2)],'EdgeColor','k','LineWidth',2);
+%   xlabel('U'); ylabel('V');
+%
+% -------------------------------------------------------------------------
+% Helper: make_disk_mesh
+%   function [v, f] = make_disk_mesh(n_rings, n_sectors)
+%       v = [0 0 0];
+%       f = [];
+%       for r = 1:n_rings
+%           radius = r / n_rings;
+%           for s = 1:n_sectors
+%               angle = 2*pi*(s-1)/n_sectors;
+%               v(end+1,:) = [radius*cos(angle), radius*sin(angle), 0];
+%           end
+%       end
+%       % Fan from center to first ring
+%       for s = 1:n_sectors
+%           a = 1 + s;
+%           b = 1 + mod(s, n_sectors) + 1;
+%           f(end+1,:) = [1, a, b];
+%       end
+%       % Ring-to-ring quads split into triangles
+%       for r = 1:n_rings-1
+%           base_i = 1 + (r-1)*n_sectors;
+%           base_o = 1 +  r   *n_sectors;
+%           for s = 1:n_sectors
+%               i0 = base_i + s - 1;
+%               i1 = base_i + mod(s, n_sectors);
+%               o0 = base_o + s - 1;
+%               o1 = base_o + mod(s, n_sectors);
+%               f(end+1,:) = [i0+1, o0+1, i1+1];
+%               f(end+1,:) = [i1+1, o0+1, o1+1];
+%           end
+%       end
+%   end
+%
+% =========================================================================

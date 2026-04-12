@@ -3,46 +3,91 @@
 clc
 clear
 
-%% load target shape and inital shape
-% load target deployed shape
+%% Load target shape (deployed) and build reliable initial square by conformal mapping
 modelname = 'circle';
 path = strcat('/Users/sean/Desktop/Project 2/3D_Bistable_Conformal_Kirigami/Xiaoyuan_bistable_kirigami_unit/Input_model/2D_shape/');
 filename_2D = strcat(modelname,'.obj'); % 2D model the node order is different?
 obj_2D = readObj(path,filename_2D); % read 2D object, vertices, connectivity
 
-% change the order the nodes in vt the connectivity doesn't match
-sorted_uv = vertice_sort(obj_2D.vt,obj_2D.f.v,obj_2D.f.vt);
-obj_2D.vt = sorted_uv;
-
-v_mesh = obj_2D.vt;
-f_mesh = obj_2D.f.v;
-c_mesh = face_center(v_mesh, f_mesh);
-
-%% Calculate the scale factor of mesh
-areas_ini = triangle_area_2D(obj_2D.vt, obj_2D.f.v);  % Deprive the area of mesh in 2D
-areas_deploy = triangle_area_3D(obj_2D.v, obj_2D.f.v);  % Deprive the area of mesh in 3D
-
-scale_facs = sqrt(areas_ini./areas_deploy); % Calculate the scale factor. Area_3D/Area_2D
-
-%% Overlay the regular triangular grids to envelop mesh surface
-% Define the size of triangular grids
-edgeLen = 10;  % control the number of grid regarding the length of mmesh instead of length 28
-[v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_mesh, edgeLen); % Overlay regular triangular grids in a rectangle box
-[v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, ...
-    i_grid, x_grid, v_mesh, f_mesh, scale_facs, edgeLen); % Remove the grids outside the mesh surface
-
-disp("Scale area min: "+num2str(min(scale_area)) +", max: "+num2str(max(scale_area)))
-
-%% Plot the Overlaid grids
-figure(); 
-hold on;
-TR = triangulation(f_mesh, v_mesh);
-B  = freeBoundary(TR);   % boundary edges only
-patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceColor', '[0.78 0.80 0.88]', 'EdgeColor', [0.7 0.7 0.7],'LineWidth',0.5); % Plot mesh surface
-for i = 1:size(B,1)
-    plot(v_mesh(B(i,:),1), v_mesh(B(i,:),2), 'Color', [0.5 0.5 0.5], 'LineWidth', 1.5);
+% Keep vt ordering consistent with face connectivity (if vt exists)
+if isfield(obj_2D, 'vt') && ~isempty(obj_2D.vt) && isfield(obj_2D.f, 'vt')
+    sorted_uv = vertice_sort(obj_2D.vt, obj_2D.f.v, obj_2D.f.vt);
+    obj_2D.vt = sorted_uv;
 end
-plotgrid(f_out,v_out)
+
+f_mesh = obj_2D.f.v;
+
+% Deployed target mesh (2D or 3D -> use XY for mapping)
+v_deployed = obj_2D.v;
+if size(v_deployed,2) < 2
+    error('obj_2D.v must have at least 2 columns.');
+end
+v_deployed_xy = v_deployed(:,1:2);
+
+% Initial mesh from conformal mapping to rectangle/square
+[uv, f_uv, info_uv] = conformal_mapping_2D(v_deployed, f_mesh);
+
+% Use conformal-map result as initial/reference mesh
+v_initial_mesh = uv;
+f_mesh = f_uv;
+
+%% Calculate per-face area scale on mesh (deployed / initial)
+areas_ini = triangle_area_2D(v_initial_mesh, f_mesh);
+if size(v_deployed,2) >= 3
+    areas_deploy = triangle_area_3D(v_deployed(:,1:3), f_mesh);
+else
+    areas_deploy = triangle_area_2D(v_deployed_xy, f_mesh);
+end
+scale_facs_mesh = sqrt(areas_deploy ./ max(areas_ini, eps));
+
+%% Overlay regular triangular grids to envelop initial mesh surface
+edgeLen = 10;
+[v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_initial_mesh, edgeLen);
+[v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, ...
+    i_grid, x_grid, v_initial_mesh, f_mesh, scale_facs_mesh, edgeLen);
+
+disp("Scale area min: " + num2str(min(scale_area)) + ", max: " + num2str(max(scale_area)))
+
+%% Plot overlaid grids on initial mesh
+figure();
+hold on;
+TR = triangulation(f_mesh, v_initial_mesh);
+B = freeBoundary(TR);
+patch('Vertices', v_initial_mesh, 'Faces', f_mesh, ...
+    'FaceColor', [0.78 0.80 0.88], 'EdgeColor', [0.7 0.7 0.7], 'LineWidth', 0.5);
+for i = 1:size(B,1)
+    plot(v_initial_mesh(B(i,:),1), v_initial_mesh(B(i,:),2), 'Color', [0.5 0.5 0.5], 'LineWidth', 1.5);
+end
+plotgrid(f_out, v_out)
 axis equal;
 axis off;
 hold off
+
+%% Map fitted grid from initial mesh to deployed target mesh (pure 2D)
+v_target_xy = map_points_barycentric_2D(v_out(:,1:2), v_initial_mesh, f_mesh, v_deployed_xy);
+v_initial = [v_out(:,1:2), zeros(size(v_out,1),1)];
+v_target  = [v_target_xy, zeros(size(v_target_xy,1),1)];
+
+%% Load admissible range
+load("Inverse_design/anisotropy_filter_refine.mat")
+mask = (anisotropy_filter_refine.eta_val > 0.10) & isfinite(anisotropy_filter_refine.eps_bist);
+anisotropy_filter = anisotropy_filter_refine(mask,:);
+
+%% Scale factors on fitted grid and admissibility report
+scale_facs = scale_facs_2D(v_initial, f_out, v_target, f_out);
+min_scale_factor = min(scale_facs(:), [], 'omitnan');
+max_scale_factor = max(scale_facs(:), [], 'omitnan');
+
+lam_min_adm = 1 + min(anisotropy_filter.eps_bist);
+lam_max_adm = 1 + max(anisotropy_filter.eps_bist);
+disp("Min scale factor: " + num2str(min_scale_factor) + ...
+     ", Max scale factor: " + num2str(max_scale_factor) + ...
+     " | admissible [" + num2str(lam_min_adm) + ", " + num2str(lam_max_adm) + "]");
+
+%% Plot grid deployment and edge stretch
+grid_deployment(v_target, v_initial, f_out);
+[anisotropy_level, ~] = scale_facs_to_angles(scale_facs);
+plot_edge_stretch(scale_facs, v_initial, f_out)
+
+% Optional: expose conformal-map diagnostics
+disp(info_uv)
