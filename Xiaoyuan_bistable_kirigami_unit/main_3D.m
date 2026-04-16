@@ -28,14 +28,14 @@ c_mesh = face_center(v_mesh, f_mesh);
 areas_2D = triangle_area_2D(obj_2D.vt, obj_2D.f.v);  % Deprive the area of mesh in 2D
 areas_3D = triangle_area_3D(obj_2D.v, obj_2D.f.v);  % Deprive the area of mesh in 3D
 
-scale_facs = sqrt(areas_3D./areas_2D); % Calculate the scale factor. Area_3D/Area_2D
+scale_facs_mesh = sqrt(areas_3D./areas_2D); % Calculate the scale factor. Area_3D/Area_2D
 
 %% Overlay the regular triangular grids to envelop mesh surface
 % Define the size of triangular grids
-edgeLen = 28;  % control the number of grid regarding the length of mmesh instead of length
+edgeLen = 13.40;  % control the number of grid regarding the length of mmesh instead of length
 [v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_mesh, edgeLen); % Overlay regular triangular grids in a rectangle box
 [v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, ...
-    i_grid, x_grid, v_mesh, f_mesh, scale_facs, edgeLen); % Remove the grids outside the mesh surface
+    i_grid, x_grid, v_mesh, f_mesh, scale_facs_mesh, edgeLen); % Remove the grids outside the mesh surface
 
 disp("Scale area min: "+num2str(min(scale_area)) +", max: "+num2str(max(scale_area)))
 
@@ -86,15 +86,18 @@ grid_deployment(v_target, v_initial, f_out);
 
 [anisotropy_level, ~] = scale_facs_to_angles(scale_facs);
 
-% Visulalize the scale factor on the edge
+% Visulalize the scale factor on edges
 plot_edge_stretch(scale_facs, v_initial, f_out)
+
+% Colourmap scale factor on edges
+plot_edge_scale_factors(v_target, f_out, scale_facs)
 
 %% Plot tessellation deployment
 % Define the size of tessellation
 l1 = edgeLen * 0.85;
 l4 = edgeLen * 0.05; % the length of the filament 0.1
-t_min = edgeLen * 0.035; % minimum ligament thickness
-t_max = edgeLen * 0.04;  % maximum ligament thickness
+t_min = edgeLen * 0.06; % minimum ligament thickness
+t_max = edgeLen * 0.07;  % maximum ligament thickness
 t  = t_min; % default ligament thickness stored in params
 %beta = zeros(size(i_out)); % tilting angle initial
 params = [edgeLen % The length of a unit
@@ -126,45 +129,45 @@ tessellation_target = tessellated_triangle(f_out, i_out, params, v_target, opt_b
 tessellation_deployment(tessellation,tessellation_target); % Plot deployment
 
 
-%% Calculate the energy
-% Plot selected unit from the tessellation
-i = 88;
-nD = 150;
-Nseg = 8;
-[q1, q2, q3, is_valid, reason] = scale_facs_to_q(scale_facs(i,:), edgeLen);
-[E_sel, alpha_sel] = deform_triangle_anisotropic( ...
-    q1, q2, q3, edgeLen, l1, l4, opt_beta(i), opt_t(i), nD, Nseg, true);
-
-%% Plot global energy
-[E_total, E_unit, info] = calculate_global_energy(params, opt_beta, opt_t, scale_facs, false);
-alpha = linspace(0, 1, nD);
-
-% Plot energy curve
-% Normalize axes
-Emax = max(E_total);
-E_norm = E_total ./ max(Emax, eps);   % E / Emax
-xi = 1.0;                             % set your xi here
-x_norm = alpha ./ xi;                 % deployment / xi
-
-% Plot energy curve
-figure('Color','w');
-hold on; box on;
-plot(x_norm, E_norm, '-', 'Color',[0.85 0.33 0.10], 'LineWidth', 1.5, ...
-    'DisplayName', 'Global energy');
-xlabel('Deployment \xi', 'Interpreter','tex', 'FontSize',20);
-ylabel('E/E_{max}', 'Interpreter','tex', 'FontSize',20);
-set(gca, 'FontName','Times New Roman', 'FontSize',28, 'LineWidth',1.5);
-legend('Location','northwest','Box','off', 'FontSize',28);
-grid off;
-
-% Rectangle aspect (not square) + margin above 1
-xlim([min(x_norm), max(x_norm)]);
-ylim([0, 1.05]);          % slightly larger than 1
-pbaspect([2.0 1 1]);      % rectangular look
+% %% Calculate the energy
+% % Plot selected unit from the tessellation
+% i = 88;
+% nD = 150;
+% Nseg = 8;
+% [q1, q2, q3, is_valid, reason] = scale_facs_to_q(scale_facs(i,:), edgeLen);
+% [E_sel, alpha_sel] = deform_triangle_anisotropic( ...
+%     q1, q2, q3, edgeLen, l1, l4, opt_beta(i), opt_t(i), nD, Nseg, true);
+% 
+% %% Plot global energy
+% [E_total, E_unit, info] = calculate_global_energy(params, opt_beta, opt_t, scale_facs, false);
+% alpha = linspace(0, 1, nD);
+% 
+% % Plot energy curve
+% % Normalize axes
+% Emax = max(E_total);
+% E_norm = E_total ./ max(Emax, eps);   % E / Emax
+% xi = 1.0;                             % set your xi here
+% x_norm = alpha ./ xi;                 % deployment / xi
+% 
+% % Plot energy curve
+% figure('Color','w');
+% hold on; box on;
+% plot(x_norm, E_norm, '-', 'Color',[0.85 0.33 0.10], 'LineWidth', 1.5, ...
+%     'DisplayName', 'Global energy');
+% xlabel('Deployment \xi', 'Interpreter','tex', 'FontSize',20);
+% ylabel('E/E_{max}', 'Interpreter','tex', 'FontSize',20);
+% set(gca, 'FontName','Times New Roman', 'FontSize',28, 'LineWidth',1.5);
+% legend('Location','northwest','Box','off', 'FontSize',28);
+% grid off;
+% 
+% % Rectangle aspect (not square) + margin above 1
+% xlim([min(x_norm), max(x_norm)]);
+% ylim([0, 1.05]);          % slightly larger than 1
+% pbaspect([2.0 1 1]);      % rectangular look
 
 
 %% Create deployment figure
-generate_gif(tessellation, tessellation_target, modelname);
+% generate_gif(tessellation, tessellation_target, modelname);
 
 % Create svg cut pattern for fabrication
 generate_svg(tessellation, 'quarter_dome_pattern',false, [], 0.15);
@@ -206,13 +209,13 @@ generate_svg(tessellation, 'quarter_dome_pattern',false, [], 0.15);
 % % hold off
 % 
 % %% Plot the scale_fac tor colormap of mesh surface
-figure()
-patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceVertexCData', scale_facs, 'FaceColor', 'flat', 'EdgeColor', 'none');
-colormap summer; 
-c = colorbar; 
-c.FontSize = 18;
-axis equal; 
-axis off
+% figure()
+% patch('Vertices', v_mesh, 'Faces', f_mesh, 'FaceVertexCData', scale_facs_mesh, 'FaceColor', 'flat', 'EdgeColor', 'none');
+% colormap summer; 
+% c = colorbar; 
+% c.FontSize = 18;
+% axis equal; 
+% axis off
 % 
 % %% Plot the scale_area colormap of overlaid grips
 % figure()
