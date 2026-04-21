@@ -96,8 +96,8 @@ plot_edge_scale_factors(v_target, f_out, scale_facs)
 % Define the size of tessellation
 l1 = edgeLen * 0.85;
 l4 = edgeLen * 0.05; % the length of the filament 0.1
-t_min = edgeLen * 0.025; % minimum ligament thickness
-t_max = edgeLen * 0.030;  % maximum ligament thickness
+t_min = edgeLen * 0.015; % minimum ligament thickness
+t_max = edgeLen * 0.020;  % maximum ligament thickness
 t  = t_min; % default ligament thickness stored in params
 %beta = zeros(size(i_out)); % tilting angle initial
 params = [edgeLen % The length of a unit
