@@ -1,12 +1,12 @@
-% Main program for generating hexagonal kirigami tessellation
+% Main program for generating triangle-based kirigami tessellation
 
 % Reset the environment
 clc;
 clear;
 
 % Set the number of hexagonal unit
-num_x = 3; 
-num_y = 3;
+num_x = 2; 
+num_y = 4;
 
 % Set the parameters of a unit(fixed)
 edgeLen = 15; % length of a unit
@@ -15,7 +15,7 @@ l1 = 0.85 * edgeLen; % length of flank(not correct)
 
 % Set the parameters of a unit(variable)
 beta = 0; % titling angle
-t  = edgeLen * 0.025; % thickness of filaments
+t  = edgeLen * 0.008; % thickness of filaments
 
 % Set the coulour of display
 %colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
@@ -32,8 +32,8 @@ delta = 0;
 % Generate the hexagon
 [hexagon,~,~] = hexagon_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
 
-% Generate the hexagon tessellation
-tessellation = hexagonal_tessellation(num_x,num_y,beta,edgeLen,l1,l4,t);
+% Generate the triangle tessellation
+tessellation = triangle_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t);
 
 
 %% Plot the result
@@ -51,10 +51,15 @@ interactive_triangle(edgeLen,l1,l4,beta,t)
 % Plot the interactive hexagon unit
 interactive_hexagon(edgeLen,l1,l4,beta,t)
 
-% Plot hexagon tessellation
-for i = 1:num_x
-    for j = 1:num_y
-        plot_hexagon(tessellation{i,j},colour);
-    end
+% Plot triangle tessellation
+figure(3)
+hold on
+for i = 1:numel(tessellation)
+    plot_triangle(tessellation{i}, colour);
 end
+hold off
+axis equal
+axis off
 
+% Create svg cut pattern for fabrication
+generate_svg(tessellation, 'triangle_tessellation.svg', false, [], 0.30);
