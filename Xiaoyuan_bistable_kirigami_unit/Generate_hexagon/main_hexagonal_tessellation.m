@@ -11,7 +11,7 @@ num_y = 4;
 % Set the parameters of a unit(fixed)
 edgeLen = 15; % length of a unit
 l4 = 0.05 * edgeLen; % thickness of flank
-l1 = 0.85 * edgeLen; % length of flank(not correct)
+l1 = 0.80 * edgeLen; % length of flank(not correct)
 
 % Set the parameters of a unit(variable)
 beta = 0; % titling angle
