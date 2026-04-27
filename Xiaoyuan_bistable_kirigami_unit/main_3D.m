@@ -170,7 +170,7 @@ tessellation_target = tessellated_triangle(f_out, i_out, params, v_target, opt_b
 % generate_gif(tessellation, tessellation_target, modelname);
 
 % Create svg cut pattern for fabrication
-generate_svg(tessellation, 'quarter_dome_pattern_less',false, [], 0.30);
+generate_svg(tessellation, 'double_dome',false, [], 0.30);
 
 
 % %% Plot the original configurations
