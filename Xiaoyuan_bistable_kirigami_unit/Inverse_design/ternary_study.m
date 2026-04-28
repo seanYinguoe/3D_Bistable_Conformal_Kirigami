@@ -35,7 +35,7 @@ alpha3_list = alpha3_grid(mask);
 nConfig = numel(alpha1_list);
 
 %% ---- Beta sweep settings ----
-beta_vec = linspace(0, pi/12, 30);
+beta_vec = linspace(0, pi/20, 20);
 %beta_vec = pi/40;
 nBeta = numel(beta_vec);
 
@@ -77,9 +77,14 @@ q3_x(valid) = -sqrt(inside(valid));
 
 %% ================== MAIN LOOPS ==================
 % Geometry parameters independent of (a1,a2,a3)
-l1_geom = edgeLen * 0.85;
+l1_geom = edgeLen * 0.80;
 l4_geom = edgeLen * 0.05;
 t_geom  = edgeLen * 0.015;
+
+% Parameter-specific save tag so repeated studies do not overwrite each other.
+l1_tag = sprintf('l1_%03d', round(100 * l1_geom / edgeLen));
+beta_tag = sprintf('beta_%03d_%03d', round(1000 * min(beta_vec)), round(1000 * max(beta_vec)));
+study_tag = [l1_tag '_' beta_tag];
 
 % Batch by beta (checkpoint each beta slice)
 outDir = fullfile(out_root, 'beta_batches_refine');
@@ -132,15 +137,21 @@ anisotropy_study_refine = table( ...
     a1_all, a2_all, a3_all, eps_all, eta_all, beta_all, ...
     'VariableNames', {'a1','a2','a3','eps_bist','eta_val','beta'});
 
-% Save only final table
-save(fullfile(out_root, 'anisotropy_study_refine.mat'), 'anisotropy_study_refine');
+% Save only final table under a parameter-specific name.
+study_var_name = ['anisotropy_study_refine_' study_tag];
+S_study = struct();
+S_study.(study_var_name) = anisotropy_study_refine;
+save(fullfile(out_root, [study_var_name '.mat']), '-struct', 'S_study');
 
 %% Clean islands first, then fill missing, then plot ternary figure (optional)
 [anisotropy_clean, reportClean] = clean_isolated_outliers(anisotropy_study_refine);
 [anisotropy_filled, reportFill] = clean_and_fill_anisotropy(anisotropy_clean);
 mask = isfinite(anisotropy_filled.eta_val) & isfinite(anisotropy_filled.eps_bist);
 anisotropy_filter = anisotropy_filled(mask,:);
-save(fullfile(out_root, 'anisotropy_filter.mat'), 'anisotropy_filter');
+filter_var_name = ['anisotropy_filter_' study_tag];
+S_filter = struct();
+S_filter.(filter_var_name) = anisotropy_filter;
+save(fullfile(out_root, [filter_var_name '.mat']), '-struct', 'S_filter');
 
 % Refine eps_bist toward endpoint-consistent deployment
 opts_refine = struct();
@@ -156,11 +167,20 @@ opts_refine.epsCeil = 2.0;
 opts_refine.alphaTol = 1e-3;
 
 anisotropy_filter_refine = refine_eps_bist_to_endpoint(anisotropy_filter, opts_refine);
-save(fullfile(out_root, 'anisotropy_filter_refine.mat'), 'anisotropy_filter_refine', 'opts_refine');
+filter_refine_var_name = ['anisotropy_filter_refine_' study_tag];
+S_filter_refine = struct();
+S_filter_refine.(filter_refine_var_name) = anisotropy_filter_refine;
+S_filter_refine.opts_refine = opts_refine;
+save(fullfile(out_root, [filter_refine_var_name '.mat']), '-struct', 'S_filter_refine');
 
 % Save filled table
-save(fullfile(out_root, 'anisotropy_filled_refine.mat'), ...
-    'anisotropy_filled', 'anisotropy_clean', 'reportClean', 'reportFill');
+filled_var_name = ['anisotropy_filled_refine_' study_tag];
+S_filled = struct();
+S_filled.(filled_var_name) = anisotropy_filled;
+S_filled.anisotropy_clean = anisotropy_clean;
+S_filled.reportClean = reportClean;
+S_filled.reportFill = reportFill;
+save(fullfile(out_root, [filled_var_name '.mat']), '-struct', 'S_filled');
 
 fprintf('Saved refined ternary outputs to: %s\n', out_root);
 
