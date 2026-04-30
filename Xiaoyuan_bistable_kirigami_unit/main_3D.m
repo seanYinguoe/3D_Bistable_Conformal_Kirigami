@@ -32,7 +32,7 @@ scale_facs_mesh = sqrt(areas_3D./areas_2D); % Calculate the scale factor. Area_3
 
 %% Overlay the regular triangular grids to envelop mesh surface
 % Define the size of triangular grids
-edgeLen = 28;  % control the number of grid regarding the length of mmesh instead of length
+edgeLen = 17.3;  % control the number of grid regarding the length of mmesh instead of length
 [v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_mesh, edgeLen); % Overlay regular triangular grids in a rectangle box
 [v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, ...
     i_grid, x_grid, v_mesh, f_mesh, scale_facs_mesh, edgeLen); % Remove the grids outside the mesh surface
@@ -96,8 +96,8 @@ plot_edge_scale_factors(v_target, f_out, scale_facs)
 % Define the size of tessellation
 l1 = edgeLen * 0.85;
 l4 = edgeLen * 0.05; % the length of the filament 0.1
-t_min = edgeLen * 0.015; % minimum ligament thickness
-t_max = edgeLen * 0.015;  % maximum ligament thickness
+t_min = edgeLen * 0.025; % minimum ligament thickness
+t_max = edgeLen * 0.025;  % maximum ligament thickness
 t  = t_min; % default ligament thickness stored in params
 %beta = zeros(size(i_out)); % tilting angle initial
 params = [edgeLen % The length of a unit
@@ -170,7 +170,7 @@ tessellation_target = tessellated_triangle(f_out, i_out, params, v_target, opt_b
 % generate_gif(tessellation, tessellation_target, modelname);
 
 % Create svg cut pattern for fabrication
-generate_svg(tessellation, 'quarter_dome_pattern_less',false, [], 0.30);
+generate_svg(tessellation, 'quarter_dome',false, [], 0.30);
 
 
 % %% Plot the original configurations
