@@ -419,6 +419,7 @@ end
 
 function d = points_to_path_with_vertex_fillets(P, ids, is_closed, deg_map, boundary_vertex_mask, boundary_segA, boundary_segB, snap_tol, r_in)
 % Replace each valid corner by exactly one tangent circular fillet arc.
+[P, ids] = sanitize_path_vertices_with_ids(P, ids, is_closed, max(snap_tol, 1e-8));
 n = size(P,1);
 if n < 2 || ~isfinite(r_in) || r_in <= 0
     if is_closed
@@ -618,6 +619,91 @@ end
 t = min(max(t, 0), 1);
 Q = A + t*AB;
 tf = norm(P - Q) <= tol;
+end
+
+function [P, ids] = sanitize_path_vertices_with_ids(P, ids, is_closed, tol)
+% Remove tiny duplicate and near-collinear vertices before filleting.
+if isempty(P)
+    ids = zeros(0,1,'uint32');
+    return;
+end
+
+if nargin < 2 || isempty(ids)
+    ids = uint32((1:size(P,1)).');
+else
+    ids = uint32(ids(:));
+end
+
+keep = all(isfinite(P),2);
+P = P(keep,:);
+ids = ids(keep);
+
+if isempty(P)
+    return;
+end
+
+if is_closed && size(P,1) >= 2 && norm(P(end,:) - P(1,:)) <= tol
+    P(end,:) = [];
+    ids(end) = [];
+end
+
+% Remove consecutive duplicates / micro-edges.
+if size(P,1) >= 2
+    d = hypot(diff(P(:,1)), diff(P(:,2)));
+    keep = [true; d > tol];
+    P = P(keep,:);
+    ids = ids(keep);
+end
+
+% Remove nearly collinear intermediate points that often cause SVG arc kinks.
+changed = true;
+while changed
+    changed = false;
+    n = size(P,1);
+    if n < 3
+        break;
+    end
+
+    if is_closed
+        idx_range = 1:n;
+    else
+        idx_range = 2:n-1;
+    end
+
+    for ii = idx_range
+        im1 = ii - 1;
+        ip1 = ii + 1;
+        if is_closed
+            if im1 < 1, im1 = n; end
+            if ip1 > n, ip1 = 1; end
+        end
+
+        A = P(im1,:);
+        B = P(ii,:);
+        C = P(ip1,:);
+        AB = B - A;
+        BC = C - B;
+        AC = C - A;
+
+        LAB = norm(AB);
+        LBC = norm(BC);
+        LAC = norm(AC);
+        if LAB <= tol || LBC <= tol
+            P(ii,:) = [];
+            ids(ii) = [];
+            changed = true;
+            break;
+        end
+
+        cross_mag = abs(AB(1)*BC(2) - AB(2)*BC(1));
+        if cross_mag <= 1e-6 * max(LAB * LBC, tol^2) && LAC >= max(LAB, LBC) - tol
+            P(ii,:) = [];
+            ids(ii) = [];
+            changed = true;
+            break;
+        end
+    end
+end
 end
 
 function e0 = first_unused_incident(v, adj, used)
