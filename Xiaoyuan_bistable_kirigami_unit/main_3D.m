@@ -32,7 +32,7 @@ scale_facs_mesh = sqrt(areas_3D./areas_2D); % Calculate the scale factor. Area_3
 
 %% Overlay the regular triangular grids to envelop mesh surface
 % Define the size of triangular grids
-edgeLen = 17.3;  % control the number of grid regarding the length of mmesh instead of length
+edgeLen = 22.3;  % control the number of grid regarding the length of mmesh instead of length
 [v_grid, f_grid, c_grid, i_grid, x_grid] = generate_overlay_grid(v_mesh, edgeLen); % Overlay regular triangular grids in a rectangle box
 [v_out, f_out, c_out, i_out, x_out, scale_area] = fit_grid(v_grid, f_grid, c_grid, ...
     i_grid, x_grid, v_mesh, f_mesh, scale_facs_mesh, edgeLen); % Remove the grids outside the mesh surface
@@ -58,7 +58,7 @@ hold off
 
 %% Reparametrization
 % Input admissable range
-load("Inverse_design/ternary_refine_20260430_123351/anisotropy_filter_refine.mat")
+load("Inverse_design/output/ternary_refine_20260430_123351/anisotropy_filter_refine.mat")
 mask = (anisotropy_filter_refine.eta_val>0.10) & isfinite(anisotropy_filter_refine.eps_bist);
 anisotropy_filter = anisotropy_filter_refine(mask,:);
 
@@ -71,7 +71,7 @@ min_scale_factor = min(scale_facs_repa(:));
 max_scale_factor = max(scale_facs_repa(:));
 
 % Rescale target edges
-rescale_factor = 1.20/min_scale_factor;
+rescale_factor = 1.15/min_scale_factor;
 [v_target, scale_facs, ~] = rescale_target_edges(v_initial, f_out, obj_2D, v_repa, rescale_factor, opts);
 
 lam_min_adm = 1 + min(anisotropy_filter.eps_bist);
