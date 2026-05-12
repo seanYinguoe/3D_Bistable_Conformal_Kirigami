@@ -24,7 +24,7 @@ colour = {'white', [0.9216    0.8863    0.4235
 % Set the initial guess of alpha_1 and alpha_2 regarding the displacement delta
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
-delta = 0;
+delta = edgeLen*0.23;
 
 % Generate the triangle
 [triangle,alpha_1,alpha_2] = triangle_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
@@ -33,7 +33,17 @@ delta = 0;
 [hexagon,~,~] = hexagon_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
 
 % Generate the triangle tessellation
-tessellation = triangle_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t);
+%tessellation = triangle_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t);
+
+tessellation = hexagonal_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t, delta);
+
+figure; hold on;
+for i = 1:num_x
+    for j = 1:num_y
+        plot_hexagon(tessellation{i,j}, colour);
+    end
+end
+axis equal; axis off;
 
 
 % %% Plot the result
