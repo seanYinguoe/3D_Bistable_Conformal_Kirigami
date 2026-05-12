@@ -3,16 +3,19 @@
 %        (l1,l2,l3,t) the geometric parameters of a hexagonal unit
 % Output: The hexagonal tessellation
 
-function tessellation = hexagonal_tessellation(num_x,num_y,beta,edgeLen,l1,l4,t)
+function tessellation = hexagonal_tessellation(num_x,num_y,beta,edgeLen,l1,l4,t,delta)
 
 % Set the number of hexagonal unit
 tessellation = cell(num_x,num_y);
 
+if nargin < 8
+    delta = 0;
+end
 
 % Define the initial guess
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
-delta = 0;
+
 % Generate single hexagon unit
 [hexagon,~,~] = hexagon_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
 %plot_hexagon(hexagon_unit,colour) % Plot the single hexagon unit
