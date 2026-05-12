@@ -6,7 +6,7 @@ clear;
 
 % Set the number of hexagonal unit
 num_x = 2; 
-num_y = 4;
+num_y = 2;
 
 % Set the parameters of a unit(fixed)
 edgeLen = 15; % length of a unit
@@ -24,7 +24,7 @@ colour = {'white', [0.9216    0.8863    0.4235
 % Set the initial guess of alpha_1 and alpha_2 regarding the displacement delta
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
-delta = edgeLen*0.23;
+delta = edgeLen*0.14;
 
 % Generate the triangle
 [triangle,alpha_1,alpha_2] = triangle_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
