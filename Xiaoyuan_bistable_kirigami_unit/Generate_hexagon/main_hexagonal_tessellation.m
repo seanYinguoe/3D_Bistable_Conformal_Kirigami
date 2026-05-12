@@ -14,8 +14,8 @@ l4 = 0.05 * edgeLen; % thickness of flank
 l1 = 0.80 * edgeLen; % length of flank(not correct)
 
 % Set the parameters of a unit(variable)
-beta = pi/20; % titling angle
-t  = edgeLen * 0.02; % thickness of filaments
+beta = 0; % titling angle
+t  = edgeLen * 0.025; % thickness of filaments
 
 % Set the coulour of display
 %colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
@@ -62,5 +62,5 @@ axis equal
 axis off
 
 % Create svg cut pattern for fabrication
-generate_svg(tessellation, 'triangle_tessellation_pi20.svg', false, [], 0.20);
+% generate_svg(tessellation, 'triangle_tessellation_pi20.svg', false, [], 0.20);
 %generate_svg(hexagon, 'hexagon.svg', false, [], 0.30);
