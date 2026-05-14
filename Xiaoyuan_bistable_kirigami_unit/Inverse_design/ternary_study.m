@@ -202,7 +202,7 @@ fprintf('Saved refined ternary outputs to: %s\n', out_root);
 % end
 
 %% Plot 3D ternary figure in terms of beta (scatter version)
-plot_ternary_3D(anisotropy_clean.a1, anisotropy_clean.a2, anisotropy_clean.a3, anisotropy_clean.eps_bist, anisotropy_clean.beta)
+% plot_ternary_3D(anisotropy_clean.a1, anisotropy_clean.a2, anisotropy_clean.a3, anisotropy_clean.eps_bist, anisotropy_clean.beta)
 
 %% Plot bistable region contours stacked along beta axis
 % opts.threshold : eps_bist cut-off that defines "bistable" (default 0)
