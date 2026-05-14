@@ -26,27 +26,24 @@ f_filament = [31 32 33 34;
 f_inner = [43 44 45];
 
 %% Plot faces
-% Plot voids
+% Plot voids (transparent fill, black edge traces the cut lines)
 patch('Vertices', triangle, 'Faces', f_void, ...
-    'FaceColor', colour{1}, 'FaceAlpha', 0.5, 'EdgeColor', 'none');
+    'FaceColor', 'none', 'EdgeColor', 'black', 'LineWidth', 0.8);
 
 % Plot flanks
 patch('Vertices', triangle, 'Faces', f_flank, ...
     'FaceColor', colour{2}, 'FaceAlpha', 0.5, ...
-    'EdgeColor', 'black', 'LineWidth', 0.5, ...
-    'MarkerFaceColor', 'cyan');
+    'EdgeColor', 'none');
 
 % Plot filaments
 patch('Vertices', triangle, 'Faces', f_filament, ...
     'FaceColor', colour{3}, 'FaceAlpha', 0.5, ...
-    'EdgeColor', 'black', 'LineWidth', 0.5, ...
-    'MarkerFaceColor', 'cyan');
+    'EdgeColor', 'none');
 
 % Plot innertriangle
 patch('Vertices', triangle, 'Faces', f_inner, ...
     'FaceColor', colour{4}, 'FaceAlpha', 0.5, ...
-    'EdgeColor', 'black', 'LineWidth', 0.5, ...
-    'MarkerFaceColor', 'cyan');
+    'EdgeColor', 'none');
 
 % % Plot voids
 % for i = 1:3
@@ -57,12 +54,12 @@ patch('Vertices', triangle, 'Faces', f_inner, ...
 %     plot([triangle(4*(i-1)+1+18:4*i+18,1);triangle(4*(i-1)+1+18,1)], [triangle(4*(i-1)+1+18:4*i+18,2);triangle(4*(i-1)+1+18,2)], 'Color', colour{2}, 'LineWidth', 1.5, 'MarkerFaceColor', 'cyan');
 %     fill([triangle(4*(i-1)+1+18:4*i+18,1);triangle(4*(i-1)+1+18,1)], [triangle(4*(i-1)+1+18:4*i+18,2);triangle(4*(i-1)+1+18,2)], colour{2}, 'FaceAlpha', 0.5);
 % end
-% % Plot filaments 
-% for i = 1:3 
+% % Plot filaments
+% for i = 1:3
 %     plot([triangle(4*(i-1)+1+30:4*i+30,1);triangle(4*(i-1)+1+30,1)], [triangle(4*(i-1)+1+30:4*i+30,2);triangle(4*(i-1)+1+30,2)], 'Color', colour{3}, 'LineWidth', 1.5, 'MarkerFaceColor', 'cyan');
 %     fill([triangle(4*(i-1)+1+30:4*i+30,1);triangle(4*(i-1)+1+30,1)], [triangle(4*(i-1)+1+30:4*i+30,2);triangle(4*(i-1)+1+30,2)], colour{3}, 'FaceAlpha', 0.5);
 % end
-% % Plot Innertriangle 
+% % Plot Innertriangle
 % plot([triangle(43:45,1);triangle(43,1)], [triangle(43:45,2);triangle(43,2)], 'Color', colour{4}, 'LineWidth', 1.5, 'MarkerFaceColor', 'cyan');
 % fill([triangle(43:45,1);triangle(43,1)], [triangle(43:45,2);triangle(43,2)], colour{4}, 'FaceAlpha', 0.5);
 % end
