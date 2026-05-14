@@ -201,5 +201,13 @@ fprintf('Saved refined ternary outputs to: %s\n', out_root);
 %     end
 % end
 
-%% Plot 3D ternary figure in terms of beta
-% plot_ternary_3D(anisotropy_study.a1, anisotropy_study.a2, anisotropy_study.a3, anisotropy_study.eps_bist, anisotropy_study.beta)
+%% Plot 3D ternary figure in terms of beta (scatter version)
+plot_ternary_3D(anisotropy_clean.a1, anisotropy_clean.a2, anisotropy_clean.a3, anisotropy_clean.eps_bist, anisotropy_clean.beta)
+
+%% Plot bistable region contours stacked along beta axis
+% opts.threshold : eps_bist cut-off that defines "bistable" (default 0)
+% opts.nGrid     : interpolation grid resolution (default 100)
+% opts.faceAlpha : filled-patch transparency (default 0.4)
+opts_contour = struct('threshold', 0, 'nGrid', 100, 'faceAlpha', 0.4, 'cmap', 'parula');
+plot_ternary_beta_contour(anisotropy_clean.a1, anisotropy_clean.a2, anisotropy_clean.a3, ...
+    anisotropy_clean.eps_bist, anisotropy_clean.beta, opts_contour)
