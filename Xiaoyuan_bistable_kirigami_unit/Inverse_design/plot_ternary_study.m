@@ -8,35 +8,33 @@
 clear; clc;
 
 %% ---- Select output folder ----
-out_root = fullfile('output', 'ternary_refine_20260430_123351');   % <-- change as needed
+out_root = fullfile('output', 'ternary_refine_20260430_123351');%
 
-%% ---- Load saved data ----
-S = load(fullfile(out_root, 'anisotropy_filled_refine.mat'));
-anisotropy_filled = S.anisotropy_filled_refine;
-anisotropy_clean  = S.anisotropy_clean;
-
-%% ---- Filter for finite values ----
-mask = isfinite(anisotropy_filled.eta_val) & isfinite(anisotropy_filled.eps_bist);
-anisotropy_filter = anisotropy_filled(mask, :);
+% ---- Load saved data ----
+S = load(fullfile(out_root, 'anisotropy_filter_refine.mat'));
+data = S.anisotropy_filter_refine;
+% data = anisotropy_filter;
 
 %% ---- Parameters for a single beta slice ----
-etaThreshold = 0.03;
+etaThreshold = 0.15;
 beta_plot    = 0;        % pick a beta value present in the data
 beta_tol     = 1e-4;
 
 %% ---- 2D ternary: plot_ternary ----
-T0   = anisotropy_filter(abs(anisotropy_filter.beta - beta_plot) < beta_tol, :);
+T0   = data(abs(data.beta - beta_plot) < beta_tol, :);
 isB  = isfinite(T0.eps_bist) & isfinite(T0.eta_val) & (T0.eta_val > etaThreshold);
 T_bist = T0(isB, :);
 
+alphaRange2D = [50, 80];   % degrees shown on 2D ternary axes
+
 if ~isempty(T_bist)
     % eps_bist map
-    plot_ternary(T_bist.a1, T_bist.a2, T_bist.a3, T_bist.eps_bist, 'scatter');
+    plot_ternary(T_bist.a1, T_bist.a2, T_bist.a3, T_bist.eps_bist, 'scatter', [], alphaRange2D);
     title(sprintf('\\epsilon_{bist} ternary map  (\\beta = %.4f)', beta_plot), ...
         'Interpreter', 'tex', 'FontSize', 18);
 
     % eta map
-    plot_ternary(T_bist.a1, T_bist.a2, T_bist.a3, T_bist.eta_val, 'scatter');
+    plot_ternary(T_bist.a1, T_bist.a2, T_bist.a3, T_bist.eta_val, 'scatter', [], alphaRange2D);
     title(sprintf('\\eta ternary map  (\\beta = %.4f)', beta_plot), ...
         'Interpreter', 'tex', 'FontSize', 18);
 else
@@ -44,10 +42,10 @@ else
 end
 
 %% ---- 3D ternary: plot_ternary_3D ----
-plot_ternary_3D(anisotropy_clean.a1, anisotropy_clean.a2, anisotropy_clean.a3, ...
-    anisotropy_clean.eps_bist, anisotropy_clean.beta);
+% plot_ternary_3D(data.a1, data.a2, data.a3, ...
+%     data.eps_bist, data.beta);
 
-%% ---- Beta-contour stack: plot_ternary_beta_contour ----
-opts_contour = struct('threshold', 0, 'nGrid', 100, 'faceAlpha', 0.4, 'cmap', 'parula');
-plot_ternary_beta_contour(anisotropy_clean.a1, anisotropy_clean.a2, anisotropy_clean.a3, ...
-    anisotropy_clean.eps_bist, anisotropy_clean.beta, opts_contour);
+%% ---- Beta-contour surface: plot_ternary_beta_contour ----
+opts_contour = struct('threshold', 0, 'etaThreshold', 0.20, 'nGrid', 120, 'faceAlpha', 0.55, 'alphaRange', [50, 70]);
+plot_ternary_beta_contour(data.a1, data.a2, data.a3, ...
+    data.eps_bist, data.beta, data.eta_val, opts_contour);
