@@ -1,24 +1,27 @@
-function plot_ternary(alpha1, alpha2, alpha3, index, mode, clim)
+function plot_ternary(alpha1, alpha2, alpha3, index, mode, clim, alphaRange)
 % PLOT_TERNARY  Standalone symmetric ternary plot (no toolbox required)
-% Now includes symbolic radian ticks: 0, π/6, π/3, π/2, 2π/3, 5π/6, π
 %
 % alpha1, alpha2, alpha3 : internal angles (rad)
 % index                  : scalar field (e.g. eps_bist or eta)
 %                          Points with index = NaN will not be plotted.
-% mode (optional)        : 'scatter' (default) | 'field'
-% clim (optional)        : color limits [cmin cmax]
+% mode       (optional)  : 'scatter' (default) | 'field'
+% clim       (optional)  : color limits [cmin cmax]
+% alphaRange (optional)  : [alpha_lo alpha_hi] in degrees, default [0 180]
+%                          Zooms the ternary plot to this sub-range.
 %
-% Axis convention (matching your figure):
-%   - alpha3: bottom edge, 0 → π from left to right
-%   - alpha2: right  edge, 0 → π from bottom to top
-%   - alpha1: left   edge, 0 → π from top to bottom
+% Axis convention:
+%   - alpha3: bottom edge
+%   - alpha2: right  edge
+%   - alpha1: left   edge
 
-if nargin < 5 || isempty(mode)
-    mode = 'scatter';
-end
-if nargin < 6
-    clim = [];
-end
+if nargin < 5 || isempty(mode),       mode = 'scatter'; end
+if nargin < 6,                         clim = [];        end
+if nargin < 7 || isempty(alphaRange), alphaRange = [0 180]; end
+
+alpha_lo_deg  = alphaRange(1);
+alpha_hi_deg  = alphaRange(2);
+alpha_lo_rad  = alpha_lo_deg * pi / 180;
+alpha_denom_rad = (180 - 3*alpha_lo_deg) * pi / 180;   % pi - 3*alpha_lo_rad
 
 %% ---- 1) Symmetrize points across all 6 permutations (full triangle) ----
 Aang = [alpha1(:), alpha2(:), alpha3(:)];
@@ -38,7 +41,7 @@ Vfull = [];
 
 for i = 1:6
     Afull = [Afull; Aang(:,P(i,:))]; %#ok<AGROW>
-    Vfull = [Vfull; V]; %#ok<AGROW>
+    Vfull = [Vfull; V];              %#ok<AGROW>
 end
 
 alpha1 = Afull(:,1);
@@ -46,27 +49,25 @@ alpha2 = Afull(:,2);
 alpha3 = Afull(:,3);
 index  = Vfull;
 
-%% ---- 2) Convert to barycentric coordinates ----
-% Mapping to vertices:
-%   A ↔ alpha1  (left-bottom vertex)
-%   B ↔ alpha3  (right-bottom vertex)
-%   C ↔ alpha2  (top vertex)
-S = alpha1 + alpha2 + alpha3;   % ≈ π
-A = alpha1 ./ S;
-B = alpha3 ./ S;
-C = alpha2 ./ S;
+%% ---- 2) Rescale to zoomed barycentric coordinates ----
+% A' = (alpha_i - alpha_lo) / (pi - 3*alpha_lo)  →  sum = 1 exactly
+Ap = (alpha1 - alpha_lo_rad) ./ alpha_denom_rad;
+Bp = (alpha3 - alpha_lo_rad) ./ alpha_denom_rad;
+Cp = (alpha2 - alpha_lo_rad) ./ alpha_denom_rad;
 
-[X, Y] = ternaryToCartesian(A,B,C);
+[X, Y] = ternaryToCartesian(Ap, Bp, Cp);
 
-%% ---- 3) Keep only finite index values ----
-mask = isfinite(index) & isfinite(X) & isfinite(Y);
-X = X(mask);
-Y = Y(mask);
+%% ---- 3) Keep only finite index values and points inside zoomed range ----
+inRange = (Ap >= -1e-6) & (Bp >= -1e-6) & (Cp >= -1e-6) & ...
+          (Ap <=  1+1e-6) & (Bp <= 1+1e-6) & (Cp <= 1+1e-6);
+mask = isfinite(index) & isfinite(X) & isfinite(Y) & inRange;
+X   = X(mask);
+Y   = Y(mask);
 val = index(mask);
 
 %% ---- 4) Plot frame, grid, axis ticks ----
 figure; hold on; axis equal; axis off;
-drawTernaryAxesWithSymbolicTicks();
+drawTernaryAxesWithZoomedTicks(alpha_lo_deg, alpha_hi_deg, alpha_denom_rad);
 
 %% ---- 5) Draw data ----
 switch lower(mode)
@@ -85,16 +86,14 @@ if ~isempty(clim) && numel(clim) == 2 && all(isfinite(clim))
     caxis(clim);
 end
 
-cb = colorbar('southoutside');   % put colorbar UNDER the triangle
+cb = colorbar('southoutside');
 cb.Label.Interpreter = 'none';
-cb.Label.FontSize = 18;          % make label big
-cb.FontSize = 18;                % make tick labels bigger
+cb.Label.FontSize = 18;
+cb.FontSize = 18;
 pos = cb.Position;
-
-pos(1) = 0.15;   % left edge
-pos(3) = 0.45;   % width (0.15 → 0.60)
-pos(2) = pos(2) - 0.05;   % move downward a bit
-
+pos(1) = 0.15;
+pos(3) = 0.45;
+pos(2) = pos(2) - 0.05;
 cb.Position = pos;
 
 %% ---- 6) Axis labels ----
@@ -115,28 +114,27 @@ end
 % BARYCENTRIC → CARTESIAN
 %% ------------------------------------------------------------------------
 function [x, y] = ternaryToCartesian(A, B, C)
-% A,B,C >= 0, A+B+C = 1
 x = 0.5*(2*B + C);
 y = (sqrt(3)/2)*C;
 end
 
 
 %% ------------------------------------------------------------------------
-% DRAW TERNARY AXES + GRID + SYMBOLIC RADIAN TICKS
+% DRAW TERNARY AXES + GRID + DEGREE TICKS (zoomed range)
 %% ------------------------------------------------------------------------
-function drawTernaryAxesWithSymbolicTicks()
+function drawTernaryAxesWithZoomedTicks(alpha_lo_deg, alpha_hi_deg, alpha_denom_rad)
 
 % Outer triangle
 plot([0 1 0.5 0], [0 0 sqrt(3)/2 0], 'k-', 'LineWidth', 2);
 hold on;
 
+% Tick positions: every 5 degrees within [alpha_lo, alpha_hi]
+tick_vals_deg = alpha_lo_deg : 5 : alpha_hi_deg;
+alpha_denom_deg = (180 - 3*alpha_lo_deg);   % same denominator in degrees
+g = (tick_vals_deg - alpha_lo_deg) / alpha_denom_deg;  % normalised [0,1]
 
-g   = linspace(0,1,7);   % 0, 1/6, ..., 1
-symTicks = { ...
-    '0', '\pi/6', '\pi/3', '\pi/2', '2\pi/3', '5\pi/6', '\pi'};
-
-%% ---- Grid lines: constant A, B, C ----
-for i = 2:6   % 跳过 0 和 1，避免画在边框上
+% Grid lines at interior ticks (skip endpoints 0 and 1)
+for i = 2 : numel(g)-1
     v = g(i);
 
     % constant A (alpha1)
@@ -155,30 +153,35 @@ for i = 2:6   % 跳过 0 和 1，避免画在边框上
     plot([x1 x2],[y1 y2],'Color',[0.9 0.9 0.9]);
 end
 
-%% ---- Symbolic tick labels: 0, π/6, ..., π ----
+% Outward tick normals (unit vectors pointing away from triangle centre)
+n_bottom = [0, -1];
+n_left   = [-sqrt(3)/2,  0.5];
+n_right  = [ sqrt(3)/2,  0.5];
+tick_len = 0.025;
+label_gap = 0.06;
+
+% Tick marks and labels
 for i = 1:numel(g)
-    r     = g(i);          % = angle / π
-    label = symTicks{i};
+    r     = g(i);
+    label = sprintf('%g\\circ', tick_vals_deg(i));
 
-    % --- α3 bottom edge: left → right ---
-    % B = r, C = 0, A = 1-r
+    % --- α3 bottom edge: left → right  (B=r, C=0, A=1-r) ---
     [xb,yb] = ternaryToCartesian(1-r, r, 0);
-    text(xb, yb - 0.05, label, 'FontSize', 18, ...
-        'HorizontalAlignment','center','Interpreter','tex');
+    plot([xb, xb + tick_len*n_bottom(1)], [yb, yb + tick_len*n_bottom(2)], 'k-', 'LineWidth', 1);
+    text(xb + label_gap*n_bottom(1), yb + label_gap*n_bottom(2), label, ...
+        'FontSize', 13, 'HorizontalAlignment','center','Interpreter','tex');
 
-    % --- α1 left edge: top → bottom ---
-    % A = r, C = 1-r, B = 0
+    % --- α1 left edge: top → bottom  (A=r, C=1-r, B=0) ---
     [x1,y1] = ternaryToCartesian(r, 0, 1-r);
-    text(x1 - 0.05, y1, label, 'FontSize', 18, ...
-        'HorizontalAlignment','center','Rotation', 60,...
-        'Interpreter','tex');
+    plot([x1, x1 + tick_len*n_left(1)], [y1, y1 + tick_len*n_left(2)], 'k-', 'LineWidth', 1);
+    text(x1 + label_gap*n_left(1), y1 + label_gap*n_left(2), label, ...
+        'FontSize', 13, 'HorizontalAlignment','center','Rotation', 60, 'Interpreter','tex');
 
-    % --- α2 right edge: bottom → top ---
-    % C = r, B = 1-r, A = 0
+    % --- α2 right edge: bottom → top  (C=r, B=1-r, A=0) ---
     [x2,y2] = ternaryToCartesian(0, 1-r, r);
-    text(x2 + 0.05, y2, label, 'FontSize', 18, ...
-        'HorizontalAlignment','center','Rotation', -60,...
-        'Interpreter','tex');
+    plot([x2, x2 + tick_len*n_right(1)], [y2, y2 + tick_len*n_right(2)], 'k-', 'LineWidth', 1);
+    text(x2 + label_gap*n_right(1), y2 + label_gap*n_right(2), label, ...
+        'FontSize', 13, 'HorizontalAlignment','center','Rotation', -60, 'Interpreter','tex');
 end
 
 end
