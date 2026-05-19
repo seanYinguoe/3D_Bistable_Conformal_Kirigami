@@ -14,29 +14,34 @@ out_root = fullfile('output', 'ternary_refine_20260430_123351');%
 S = load(fullfile(out_root, 'anisotropy_filter_refine.mat'));
 data = S.anisotropy_filter_refine;
 % data = anisotropy_filter;
-
+[data, ~] = clean_and_fill_anisotropy(data);
 %% ---- Parameters for a single beta slice ----
-etaThreshold = 0.15;
-beta_plot    = 0;        % pick a beta value present in the data
+etaThreshold = 0.18;
+beta_plot    = 0.132277585414307;        % pick a beta value present in the data
 beta_tol     = 1e-4;
 
 %% ---- 2D ternary: plot_ternary ----
-T0   = data(abs(data.beta - beta_plot) < beta_tol, :);
-isB  = isfinite(T0.eps_bist) & isfinite(T0.eta_val) & (T0.eta_val > etaThreshold);
-T_bist = T0(isB, :);
-
 alphaRange2D = [50, 80];   % degrees shown on 2D ternary axes
+
+T0 = data(abs(data.beta - beta_plot) < beta_tol, :);
+
+% Fill gaps within this beta slice so the hexagonal lattice is complete
+[T0_filled, ~] = clean_and_fill_anisotropy(T0);
+
+isB    = isfinite(T0_filled.eps_bist) & isfinite(T0_filled.eta_val) & ...
+         (T0_filled.eta_val > etaThreshold);
+T_bist = T0_filled(isB, :);
 
 if ~isempty(T_bist)
     % eps_bist map
     plot_ternary(T_bist.a1, T_bist.a2, T_bist.a3, T_bist.eps_bist, 'scatter', [], alphaRange2D);
     title(sprintf('\\epsilon_{bist} ternary map  (\\beta = %.4f)', beta_plot), ...
-        'Interpreter', 'tex', 'FontSize', 18);
+        'Interpreter', 'tex', 'FontSize', 24);
 
     % eta map
     plot_ternary(T_bist.a1, T_bist.a2, T_bist.a3, T_bist.eta_val, 'scatter', [], alphaRange2D);
     title(sprintf('\\eta ternary map  (\\beta = %.4f)', beta_plot), ...
-        'Interpreter', 'tex', 'FontSize', 18);
+        'Interpreter', 'tex', 'FontSize', 24);
 else
     warning('No bistable points at beta = %.4f (tol = %.1e). Check beta_plot.', beta_plot, beta_tol);
 end
