@@ -28,12 +28,14 @@ f_inner = [43 44 45];
 %% Plot faces
 % Plot voids (transparent fill, black edge traces the cut lines)
 patch('Vertices', triangle, 'Faces', f_void, ...
-    'FaceColor', 'none', 'EdgeColor', 'black', 'LineWidth', 0.8);
+    'FaceColor', 'none', 'EdgeColor', 'none');
 
 % Plot flanks
 patch('Vertices', triangle, 'Faces', f_flank, ...
     'FaceColor', colour{2}, 'FaceAlpha', 0.5, ...
     'EdgeColor', 'none');
+
+%'EdgeColor', 'none'
 
 % Plot filaments
 patch('Vertices', triangle, 'Faces', f_filament, ...
