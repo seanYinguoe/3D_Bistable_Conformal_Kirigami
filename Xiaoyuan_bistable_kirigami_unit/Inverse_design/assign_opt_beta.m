@@ -30,7 +30,7 @@ opts = fill_opts(opts);
 [a1, a2, a3, eps_bist, eta_val, beta] = unpack_study(anisotropy_study);
 
 nUnit = numel(strain3);
-beta_max = pi / 10;
+beta_max = pi / 20;
 beta_grid = linspace(0, beta_max, opts.nBetaEval).';
 
 opt_beta = zeros(nUnit, 1);
@@ -45,6 +45,7 @@ info.beta_error = NaN(nUnit, 1);
 info.n_local = zeros(nUnit, 1);
 info.n_feasible = zeros(nUnit, 1);
 info.strain3_target = strain3;  % working copy of strain3; remapped if normalizeStrain=true
+info.n_rim = 0;                 % number of rim units forced to beta=0
 info.beta_grid = beta_grid;
 info.opts = opts;
 
@@ -65,28 +66,56 @@ end
 
 study_angles = [a1, a2, a3];
 
-% Linearly rescale the whole strain3 field into the admissible eps range.
-% This preserves the relative spacing of strain3 across all units so the
-% beta gradient tracks the surface curvature, rather than clamping every
-% out-of-range unit to the same boundary beta.
+% --- Rim mask ---------------------------------------------------------
+% Rim units sit on the mesh boundary and cannot be deployed during
+% fabrication.  They are forced to beta = 0 (scale factor = 1) and skip
+% the optimisation loop entirely.
+is_rim = false(nUnit, 1);
+if ~isempty(opts.rimMask)
+    rm = logical(opts.rimMask(:));
+    if numel(rm) == nUnit
+        is_rim = rm;
+    else
+        warning('assign_opt_beta:rimMaskSize', ...
+            'rimMask length (%d) does not match nUnit (%d); ignoring.', ...
+            numel(rm), nUnit);
+    end
+end
+info.n_rim = sum(is_rim);
+
+% --- Strain normalisation for inner units ----------------------------
+% Inner units are mapped from [s_lo, s_hi] (their actual strain3 range)
+% into [e_lo, e_hi] = [bistable_min, bistable_max], preserving the
+% relative gradient so the beta map follows the surface curvature.
+% Rim units are excluded from this mapping; they keep strain3_target = 0.
 strain3_target = strain3;
+strain3_target(is_rim) = 0;   % rim: target = no-stretch
 if opts.normalizeStrain
-    valid_s = isfinite(strain3);
-    if nnz(valid_s) >= 2
-        s_lo = min(strain3(valid_s));
-        s_hi = max(strain3(valid_s));
+    inner = ~is_rim & isfinite(strain3);
+    if nnz(inner) >= 2
+        s_lo = min(strain3(inner));
+        s_hi = max(strain3(inner));
         e_lo = min(eps_bist);
         e_hi = max(eps_bist);
         if (s_hi - s_lo) > 1e-12 && (e_hi - e_lo) > 1e-12
-            strain3_target(valid_s) = e_lo + ...
-                (strain3(valid_s) - s_lo) ./ (s_hi - s_lo) .* (e_hi - e_lo);
+            strain3_target(inner) = e_lo + ...
+                (strain3(inner) - s_lo) ./ (s_hi - s_lo) .* (e_hi - e_lo);
+            info.norm_params = struct('s_lo', s_lo, 's_hi', s_hi, ...
+                                     'e_lo', e_lo, 'e_hi', e_hi);
         end
     end
     info.strain3_target = strain3_target;
-    info.norm_params = struct('s_lo', s_lo, 's_hi', s_hi, 'e_lo', e_lo, 'e_hi', e_hi);
 end
 
 for i = 1:nUnit
+    % Rim units: cannot deploy during fabrication → assign maximum beta
+    if is_rim(i)
+        opt_beta(i)    = beta_max;
+        bistability(i) = NaN;
+        info.flag(i)   = "rim_undeployed";
+        continue;
+    end
+
     if ~isfinite(a1_level(i)) || ~isfinite(a2_level(i)) || ~isfinite(a3_level(i)) || ~isfinite(strain3(i))
         opt_beta(i) = 0;
         bistability(i) = NaN;
@@ -188,7 +217,8 @@ opts = set_default(opts, 'distPower', 2.0);
 opts = set_default(opts, 'betaMergeTol', 1e-10);
 opts = set_default(opts, 'epsClipMin', 0.0);
 opts = set_default(opts, 'etaClipMin', 0.0);
-opts = set_default(opts, 'normalizeStrain', true);  % linearly rescale strain3 field to admissible eps range
+opts = set_default(opts, 'normalizeStrain', true);  % linearly rescale inner units to admissible eps range
+opts = set_default(opts, 'rimMask', []);            % logical Nx1: true = boundary unit, forced to beta=0
 
 opts.kNN = max(1, round(opts.kNN));
 opts.nBetaEval = max(5, round(opts.nBetaEval));
@@ -278,7 +308,7 @@ end
 end
 
 function local = local_interp_beta(beta, eps_bist, eta_val, d_local, beta_grid, opts)
-beta_max = pi / 10;
+beta_max = pi / 20;
 valid_beta = isfinite(beta) & (beta >= 0) & (beta <= beta_max);
 
 beta = beta(valid_beta);
