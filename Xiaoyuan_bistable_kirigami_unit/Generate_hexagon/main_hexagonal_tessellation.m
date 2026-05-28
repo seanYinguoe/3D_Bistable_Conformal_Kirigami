@@ -5,8 +5,8 @@ clc;
 clear;
 
 % Set the number of hexagonal unit
-num_x = 2; 
-num_y = 2;
+num_x = 9; 
+num_y = 6;
 
 % Set the parameters of a unit(fixed)
 edgeLen = 15; % length of a unit
@@ -15,7 +15,7 @@ l1 = 0.80 * edgeLen; % length of flank(not correct)
 
 % Set the parameters of a unit(variable)
 beta = 0; % titling angle
-t  = edgeLen * 0.025; % thickness of filaments
+t  = edgeLen * 0.028; % thickness of filaments
 
 % Set the coulour of display
 %colour = {'white', [206,101,95]/255, [90,174,52]/255, [109,131,250]/255}; % The colour of void, flank, filament, Innertriangle
@@ -24,7 +24,7 @@ colour = {'white', [0.9216    0.8863    0.4235
 % Set the initial guess of alpha_1 and alpha_2 regarding the displacement delta
 prev_alpha_1 = pi/3;
 prev_alpha_2 = 2*pi/3;
-delta = edgeLen*0.14;
+delta = edgeLen*0;
 
 % Generate the triangle
 [triangle,alpha_1,alpha_2] = triangle_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
@@ -33,17 +33,17 @@ delta = edgeLen*0.14;
 [hexagon,~,~] = hexagon_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
 
 % Generate the triangle tessellation
-%tessellation = triangle_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t);
+tessellation = triangle_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t);
 
-tessellation = hexagonal_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t, delta);
+%tessellation = hexagonal_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t, delta);
 
-figure; hold on;
-for i = 1:num_x
-    for j = 1:num_y
-        plot_hexagon(tessellation{i,j}, colour);
-    end
-end
-axis equal; axis off;
+% figure; hold on;
+% for i = 1:num_x
+%     for j = 1:num_y
+%         plot_hexagon(tessellation{i,j}, colour);
+%     end
+% end
+% axis equal; axis off;
 
 
 % %% Plot the result
@@ -72,5 +72,5 @@ axis equal
 axis off
 
 % Create svg cut pattern for fabrication
-% generate_svg(tessellation, 'triangle_tessellation_pi20.svg', false, [], 0.20);
+generate_svg(tessellation, 'triangle_tessellation_pi0.svg', false, [], 0.20);
 %generate_svg(hexagon, 'hexagon.svg', false, [], 0.30);

@@ -83,26 +83,32 @@ if ~isempty(opts.rimMask)
 end
 info.n_rim = sum(is_rim);
 
-% --- Strain normalisation for inner units ----------------------------
-% Inner units are mapped from [s_lo, s_hi] (their actual strain3 range)
-% into [e_lo, e_hi] = [bistable_min, bistable_max], preserving the
-% relative gradient so the beta map follows the surface curvature.
-% Rim units are excluded from this mapping; they keep strain3_target = 0.
+% --- Target strain for inner units -----------------------------------
+% The raw strain3 field often spans a range that doesn't overlap the
+% admissible bistable range [e_lo, e_hi], so a hard clamp would push most
+% units to the same boundary beta and destroy the gradient.
+%
+% Instead, the inner-unit strain3 range [s_lo, s_hi] is mapped
+% proportionally onto [e_lo, e_hi].  This preserves the full spatial
+% gradient: the unit with the smallest strain3 gets e_lo (lowest bistable
+% beta) and the most-stretched unit gets e_hi (highest bistable beta),
+% with everything in between varying smoothly.
+%
+% Rim units are excluded and handled separately in the loop (beta_max).
+e_lo = min(eps_bist);
+e_hi = max(eps_bist);
 strain3_target = strain3;
-strain3_target(is_rim) = 0;   % rim: target = no-stretch
+strain3_target(is_rim) = 0;
 if opts.normalizeStrain
     inner = ~is_rim & isfinite(strain3);
     if nnz(inner) >= 2
         s_lo = min(strain3(inner));
         s_hi = max(strain3(inner));
-        e_lo = min(eps_bist);
-        e_hi = max(eps_bist);
         if (s_hi - s_lo) > 1e-12 && (e_hi - e_lo) > 1e-12
             strain3_target(inner) = e_lo + ...
                 (strain3(inner) - s_lo) ./ (s_hi - s_lo) .* (e_hi - e_lo);
-            info.norm_params = struct('s_lo', s_lo, 's_hi', s_hi, ...
-                                     'e_lo', e_lo, 'e_hi', e_hi);
         end
+        info.norm_params = struct('s_lo', s_lo, 's_hi', s_hi, 'e_lo', e_lo, 'e_hi', e_hi);
     end
     info.strain3_target = strain3_target;
 end

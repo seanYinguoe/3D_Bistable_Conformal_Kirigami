@@ -30,22 +30,23 @@ f_inner = [43 44 45];
 patch('Vertices', triangle, 'Faces', f_void, ...
     'FaceColor', 'none', 'EdgeColor', 'none');
 
+%'FaceColor', 'none', 'EdgeColor', 'black', 'LineWidth', 0.8);
 % Plot flanks
 patch('Vertices', triangle, 'Faces', f_flank, ...
     'FaceColor', colour{2}, 'FaceAlpha', 0.5, ...
-    'EdgeColor', 'none');
+    'EdgeColor', 'black', 'LineWidth', 0.8);
 
 %'EdgeColor', 'none'
 
 % Plot filaments
 patch('Vertices', triangle, 'Faces', f_filament, ...
     'FaceColor', colour{3}, 'FaceAlpha', 0.5, ...
-    'EdgeColor', 'none');
+    'EdgeColor', 'black', 'LineWidth', 0.8);
 
 % Plot innertriangle
 patch('Vertices', triangle, 'Faces', f_inner, ...
     'FaceColor', colour{4}, 'FaceAlpha', 0.5, ...
-    'EdgeColor', 'none');
+    'EdgeColor', 'black', 'LineWidth', 0.8);
 
 % % Plot voids
 % for i = 1:3
