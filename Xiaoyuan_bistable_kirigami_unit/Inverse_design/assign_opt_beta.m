@@ -30,7 +30,7 @@ opts = fill_opts(opts);
 [a1, a2, a3, eps_bist, eta_val, beta] = unpack_study(anisotropy_study);
 
 nUnit = numel(strain3);
-beta_max = pi / 20;
+beta_max = pi / 10;
 beta_grid = linspace(0, beta_max, opts.nBetaEval).';
 
 opt_beta = zeros(nUnit, 1);
@@ -44,8 +44,6 @@ info.eps_bist_max = NaN(nUnit, 1);
 info.beta_error = NaN(nUnit, 1);
 info.n_local = zeros(nUnit, 1);
 info.n_feasible = zeros(nUnit, 1);
-info.strain3_target = strain3;  % working copy of strain3; remapped if normalizeStrain=true
-info.n_rim = 0;                 % number of rim units forced to beta=0
 info.beta_grid = beta_grid;
 info.opts = opts;
 
@@ -66,62 +64,7 @@ end
 
 study_angles = [a1, a2, a3];
 
-% --- Rim mask ---------------------------------------------------------
-% Rim units sit on the mesh boundary and cannot be deployed during
-% fabrication.  They are forced to beta = 0 (scale factor = 1) and skip
-% the optimisation loop entirely.
-is_rim = false(nUnit, 1);
-if ~isempty(opts.rimMask)
-    rm = logical(opts.rimMask(:));
-    if numel(rm) == nUnit
-        is_rim = rm;
-    else
-        warning('assign_opt_beta:rimMaskSize', ...
-            'rimMask length (%d) does not match nUnit (%d); ignoring.', ...
-            numel(rm), nUnit);
-    end
-end
-info.n_rim = sum(is_rim);
-
-% --- Target strain for inner units -----------------------------------
-% The raw strain3 field often spans a range that doesn't overlap the
-% admissible bistable range [e_lo, e_hi], so a hard clamp would push most
-% units to the same boundary beta and destroy the gradient.
-%
-% Instead, the inner-unit strain3 range [s_lo, s_hi] is mapped
-% proportionally onto [e_lo, e_hi].  This preserves the full spatial
-% gradient: the unit with the smallest strain3 gets e_lo (lowest bistable
-% beta) and the most-stretched unit gets e_hi (highest bistable beta),
-% with everything in between varying smoothly.
-%
-% Rim units are excluded and handled separately in the loop (beta_max).
-e_lo = min(eps_bist);
-e_hi = max(eps_bist);
-strain3_target = strain3;
-strain3_target(is_rim) = 0;
-if opts.normalizeStrain
-    inner = ~is_rim & isfinite(strain3);
-    if nnz(inner) >= 2
-        s_lo = min(strain3(inner));
-        s_hi = max(strain3(inner));
-        if (s_hi - s_lo) > 1e-12 && (e_hi - e_lo) > 1e-12
-            strain3_target(inner) = e_lo + ...
-                (strain3(inner) - s_lo) ./ (s_hi - s_lo) .* (e_hi - e_lo);
-        end
-        info.norm_params = struct('s_lo', s_lo, 's_hi', s_hi, 'e_lo', e_lo, 'e_hi', e_hi);
-    end
-    info.strain3_target = strain3_target;
-end
-
 for i = 1:nUnit
-    % Rim units: cannot deploy during fabrication → assign maximum beta
-    if is_rim(i)
-        opt_beta(i)    = beta_max;
-        bistability(i) = NaN;
-        info.flag(i)   = "rim_undeployed";
-        continue;
-    end
-
     if ~isfinite(a1_level(i)) || ~isfinite(a2_level(i)) || ~isfinite(a3_level(i)) || ~isfinite(strain3(i))
         opt_beta(i) = 0;
         bistability(i) = NaN;
@@ -172,24 +115,10 @@ for i = 1:nUnit
 
     eps_feas = local.eps_hat(feasible);
     beta_feas = beta_grid(feasible);
-    target_eps = strain3_target(i);
-    err_feas = abs(eps_feas - target_eps);
+    err_feas = abs(eps_feas - strain3(i));
     [~, idx_pick] = min(err_feas);
 
-    % Invert eps_hat(beta) to find precise beta via linear interpolation
-    % between the two grid points that bracket target_eps.  This gives a
-    % continuous beta even when the filter has coarse beta sampling.
-    % Falls back to nearest grid point when no crossing exists (target_eps
-    % lies outside the per-unit achievable range after normalization).
-    beta_inv = invert_eps_curve(beta_feas, eps_feas, target_eps);
-    if isfinite(beta_inv)
-        opt_beta(i) = clamp_beta(beta_inv, beta_max);
-        info.flag(i) = "eps_interpolated";
-    else
-        opt_beta(i) = clamp_beta(beta_feas(idx_pick), beta_max);
-        info.flag(i) = "eps_matched";
-    end
-
+    opt_beta(i) = clamp_beta(beta_feas(idx_pick), beta_max);
     % keep bistability output for compatibility if eta interpolation exists
     eta_feas = local.eta_hat(feasible);
     if ~isempty(eta_feas) && all(isfinite(eta_feas))
@@ -204,6 +133,7 @@ for i = 1:nUnit
         info.eta_pred(i) = NaN;
     end
     info.beta_error(i) = err_feas(idx_pick);
+    info.flag(i) = "eps_matched";
 end
 end
 
@@ -223,8 +153,6 @@ opts = set_default(opts, 'distPower', 2.0);
 opts = set_default(opts, 'betaMergeTol', 1e-10);
 opts = set_default(opts, 'epsClipMin', 0.0);
 opts = set_default(opts, 'etaClipMin', 0.0);
-opts = set_default(opts, 'normalizeStrain', true);  % linearly rescale inner units to admissible eps range
-opts = set_default(opts, 'rimMask', []);            % logical Nx1: true = boundary unit, forced to beta=0
 
 opts.kNN = max(1, round(opts.kNN));
 opts.nBetaEval = max(5, round(opts.nBetaEval));
@@ -314,7 +242,7 @@ end
 end
 
 function local = local_interp_beta(beta, eps_bist, eta_val, d_local, beta_grid, opts)
-beta_max = pi / 20;
+beta_max = pi / 10;
 valid_beta = isfinite(beta) & (beta >= 0) & (beta <= beta_max);
 
 beta = beta(valid_beta);
@@ -425,41 +353,4 @@ end
 
 function beta = clamp_beta(beta, beta_max)
 beta = min(max(beta, 0), beta_max);
-end
-
-function beta_out = invert_eps_curve(beta_feas, eps_feas, target_eps)
-% Find beta by linear interpolation between the two adjacent grid points
-% whose eps_hat values bracket target_eps.  Returns NaN when no crossing
-% is found (target_eps is outside the per-unit achievable range).
-%
-% When multiple crossings exist (non-monotone curve), the one closest to
-% the median beta of the bracketing pair is preferred.
-
-beta_out = NaN;
-
-% Sort by beta so adjacent pairs are contiguous on the curve
-[beta_s, ord] = sort(beta_feas(:), 'ascend');
-eps_s = eps_feas(ord);
-
-n = numel(beta_s);
-best_beta = NaN;
-best_mid = Inf;
-
-for k = 1:n-1
-    e1 = eps_s(k);   b1 = beta_s(k);
-    e2 = eps_s(k+1); b2 = beta_s(k+1);
-    % Check if target lies in [min(e1,e2), max(e1,e2)]
-    if (e1 - target_eps) * (e2 - target_eps) <= 0 && abs(e2 - e1) > 1e-12
-        t = (target_eps - e1) / (e2 - e1);
-        beta_cand = b1 + t * (b2 - b1);
-        % Among multiple crossings prefer the one near the centre of the grid
-        mid_dist = abs(beta_cand - (beta_s(1) + beta_s(end)) / 2);
-        if mid_dist < best_mid
-            best_mid = mid_dist;
-            best_beta = beta_cand;
-        end
-    end
-end
-
-beta_out = best_beta;
 end
