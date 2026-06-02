@@ -30,8 +30,20 @@ opts = fill_opts(opts);
 [a1, a2, a3, eps_bist, eta_val, beta] = unpack_study(anisotropy_study);
 
 nUnit = numel(strain3);
-beta_max = pi / 10;
+beta_max = pi / 12;
 beta_grid = linspace(0, beta_max, opts.nBetaEval).';
+
+% Rim mask: rim triangles are locked at beta_max (undeployed boundary).
+is_rim = false(nUnit, 1);
+if ~isempty(opts.rimMask)
+    rm = logical(opts.rimMask(:));
+    if numel(rm) == nUnit
+        is_rim = rm;
+    else
+        warning('assign_opt_beta:rimMaskSize', ...
+            'rimMask length (%d) does not match nUnit (%d); ignoring.', numel(rm), nUnit);
+    end
+end
 
 opt_beta = zeros(nUnit, 1);
 bistability = NaN(nUnit, 1);
@@ -46,6 +58,7 @@ info.n_local = zeros(nUnit, 1);
 info.n_feasible = zeros(nUnit, 1);
 info.beta_grid = beta_grid;
 info.opts = opts;
+info.n_rim = sum(is_rim);
 
 study_valid = isfinite(a1) & isfinite(a2) & isfinite(a3) & isfinite(beta) ...
     & (beta >= 0) & (beta <= beta_max);
@@ -65,6 +78,15 @@ end
 study_angles = [a1, a2, a3];
 
 for i = 1:nUnit
+    % Rim triangles sit on the free boundary and stay undeployed; assign
+    % beta_max so they contribute no snap but don't break the pattern.
+    if is_rim(i)
+        opt_beta(i)    = beta_max;
+        bistability(i) = NaN;
+        info.flag(i)   = "rim_undeployed";
+        continue;
+    end
+
     if ~isfinite(a1_level(i)) || ~isfinite(a2_level(i)) || ~isfinite(a3_level(i)) || ~isfinite(strain3(i))
         opt_beta(i) = 0;
         bistability(i) = NaN;
@@ -153,6 +175,7 @@ opts = set_default(opts, 'distPower', 2.0);
 opts = set_default(opts, 'betaMergeTol', 1e-10);
 opts = set_default(opts, 'epsClipMin', 0.0);
 opts = set_default(opts, 'etaClipMin', 0.0);
+opts = set_default(opts, 'rimMask', []);
 
 opts.kNN = max(1, round(opts.kNN));
 opts.nBetaEval = max(5, round(opts.nBetaEval));
@@ -242,7 +265,7 @@ end
 end
 
 function local = local_interp_beta(beta, eps_bist, eta_val, d_local, beta_grid, opts)
-beta_max = pi / 10;
+beta_max = pi / 20;
 valid_beta = isfinite(beta) & (beta >= 0) & (beta <= beta_max);
 
 beta = beta(valid_beta);
