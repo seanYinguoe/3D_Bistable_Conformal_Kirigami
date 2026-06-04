@@ -29,18 +29,18 @@ acc_even = abs(E_even - E_ref) ./ max(abs(E_even), eps) * 100;
 
 figure('Color','w');
 hold on; box on;
-plot(N, acc_cluster, '-o', 'Color',[0 0.45 0.74], ...
+semilogy(N, acc_cluster, '-o', 'Color',[0 0.45 0.74], ...
     'MarkerFaceColor',[0 0.45 0.74], 'LineWidth',2, ...
     'DisplayName','End-clustered');
 
-plot(N, acc_even, '-s', 'Color',[0.85 0.33 0.10], ...
+semilogy(N, acc_even, '-s', 'Color',[0.85 0.33 0.10], ...
     'MarkerFaceColor','none', 'LineWidth',2, ...
     'DisplayName','Even-divided');
 xticks(0:20:100);          % or 4:1:100 for every integer
 xlim([min(N), max(N)]);
 xlabel('Number of segments  N', 'Interpreter','tex', 'FontSize',24);
 ylabel('Error  (%)', 'Interpreter','tex', 'FontSize',24);
-set(gca, 'FontName','Times New Roman', 'FontSize',30, 'LineWidth',2);
+set(gca, 'FontName','Times New Roman', 'FontSize',30, 'LineWidth',2, 'YScale','log');
 legend('Location','northeast','Box','off', 'FontSize',18);
 grid off;
 axis square;

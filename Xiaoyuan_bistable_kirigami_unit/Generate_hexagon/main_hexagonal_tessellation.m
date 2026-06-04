@@ -5,7 +5,7 @@ clc;
 clear;
 
 % Set the number of hexagonal unit
-num_x = 9; 
+num_x = 10;
 num_y = 6;
 
 % Set the parameters of a unit(fixed)
@@ -49,15 +49,15 @@ tessellation = triangle_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t);
 % %% Plot the result
 % % Plot the single triangular unit
 % figure(1)
-% plot_triangle(triangle,colour) 
-% 
+% plot_triangle(triangle,colour)
+%
 % % Plot the single hexagon unit
 % figure(2)
 % plot_hexagon(hexagon,colour)
-% 
+%
 % % Plot the interactive hexagon unit
 % interactive_triangle(edgeLen,l1,l4,beta,t)
-% 
+%
 % % Plot the interactive hexagon unit
 % interactive_hexagon(edgeLen,l1,l4,beta,t)
 
@@ -72,5 +72,5 @@ axis equal
 axis off
 
 % Create svg cut pattern for fabrication
-generate_svg(tessellation, 'triangle_tessellation_pi0.svg', false, [], 0.20);
+% generate_svg(tessellation, 'triangle_unit_pi25.svg', false, [], 0.20);
 %generate_svg(hexagon, 'hexagon.svg', false, [], 0.30);
