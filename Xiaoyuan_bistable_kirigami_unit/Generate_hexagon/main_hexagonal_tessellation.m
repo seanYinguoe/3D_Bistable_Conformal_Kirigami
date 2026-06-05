@@ -5,8 +5,8 @@ clc;
 clear;
 
 % Set the number of hexagonal unit
-num_x = 10;
-num_y = 6;
+num_x = 2;
+num_y = 3;
 
 % Set the parameters of a unit(fixed)
 edgeLen = 15; % length of a unit
@@ -14,7 +14,7 @@ l4 = 0.05 * edgeLen; % thickness of flank
 l1 = 0.80 * edgeLen; % length of flank(not correct)
 
 % Set the parameters of a unit(variable)
-beta = 0; % titling angle
+beta = pi/30; % titling angle
 t  = edgeLen * 0.028; % thickness of filaments
 
 % Set the coulour of display
@@ -33,8 +33,9 @@ delta = edgeLen*0;
 [hexagon,~,~] = hexagon_unit(prev_alpha_1, prev_alpha_2, delta, beta, edgeLen, l1,l4,t);
 
 % Generate the triangle tessellation
-tessellation = triangle_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t);
+%tessellation = triangle_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t);
 
+tessellation = create_nonuniform_tessellation(num_x, num_y, edgeLen, l1, l4, t);
 %tessellation = hexagonal_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t, delta);
 
 % figure; hold on;
@@ -51,9 +52,9 @@ tessellation = triangle_tessellation(num_x, num_y, beta, edgeLen, l1, l4, t);
 % figure(1)
 % plot_triangle(triangle,colour)
 %
-% % Plot the single hexagon unit
-% figure(2)
-% plot_hexagon(hexagon,colour)
+% Plot the single hexagon unit
+figure(2)
+plot_hexagon(hexagon,colour)
 %
 % % Plot the interactive hexagon unit
 % interactive_triangle(edgeLen,l1,l4,beta,t)
@@ -73,4 +74,4 @@ axis off
 
 % Create svg cut pattern for fabrication
 % generate_svg(tessellation, 'triangle_unit_pi25.svg', false, [], 0.20);
-%generate_svg(hexagon, 'hexagon.svg', false, [], 0.30);
+generate_svg(hexagon, 'hexagon_pi30.svg', false, [], 0.20);

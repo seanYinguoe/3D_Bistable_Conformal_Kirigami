@@ -1,4 +1,4 @@
-% %% Run convergence study on N
+%% Run convergence study on N
 edgeLen = 15;
 E=4.3e11; b=1.0; t=0.015*edgeLen*(sqrt(3)/2);I = b*t^3/12;EI = E*I;
 N = 4:2:100;
@@ -167,5 +167,40 @@ ylabel('Strain Energy(N/mm^2)', 'Interpreter','tex', ...
        'FontSize',28);
 set(gca, 'FontName','Times New Roman','FontSize',28); 
 legend('Location','northwest','Box','off', 'Fontsize',28);  
+grid off;
+axis square;
+
+
+%% Plot energy profile with different beta on same plot
+edgeLen = 15;
+l1      = edgeLen * 0.85;
+l4      = edgeLen * 0.05;
+t       = edgeLen * 0.015;
+N       = 10;
+delta   = 0:0.05:0.57*edgeLen;
+eps_hbm = delta ./ edgeLen;
+
+% Beta values from 0 to pi/20 (6 evenly spaced values)
+n_beta  = 6;
+beta_vec = linspace(0, pi/20, n_beta);
+
+% Colour map: blue (beta=0) to red (beta=pi/20)
+cmap = [linspace(0,0.85,n_beta)', linspace(0.45,0.10,n_beta)', linspace(0.74,0.10,n_beta)'];
+
+figure('Color','w');
+hold on; box on;
+
+for k = 1:n_beta
+    [~, U_hbm] = deform_triangle_isotropic(delta, edgeLen, l1, l4, beta_vec(k), t, N);
+    plot(eps_hbm, U_hbm, '-', ...
+         'Color',     cmap(k,:), ...
+         'LineWidth', 2, ...
+         'DisplayName', sprintf('\\beta = %.4g', beta_vec(k)));
+end
+
+xlabel('Strain  \delta / L',          'Interpreter','tex', 'FontSize',24);
+ylabel('Strain Energy (N{\cdot}mm)',   'Interpreter','tex', 'FontSize',24);
+set(gca, 'FontName','Times New Roman', 'FontSize',24, 'LineWidth',2);
+legend('Location','northwest', 'Box','off', 'FontSize',16);
 grid off;
 axis square;
