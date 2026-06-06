@@ -1,5 +1,5 @@
 % Plot tensile test results for kirigami tessellation
-% Data: tessellation_stretch_7.csv
+% Data: tessellation_stretch_7.csv, tessellation_stretch_11.csv
 %   Columns : Time (s) | Displacement (mm) | Force (kN)
 %   All recorded values are negative (machine convention).
 %   Processing: negate both channels → positive extension & tensile force.
@@ -8,48 +8,44 @@
 
 clc; clear; close all;
 
-%% ── Read CSV ──────────────────────────────────────────────────────────────
-% Row 1 = variable names, Row 2 = unit labels  →  data starts at row 3.
-% Values are stored as quoted strings; MATLAB strips quotes automatically.
+%% ── Helper: load and process one CSV ─────────────────────────────────────
+    function [displacement, force_smooth] = load_sample(filepath)
+        opts = delimitedTextImportOptions( ...
+            'NumVariables', 3, ...
+            'DataLines',    [3, Inf], ...
+            'Delimiter',    ',', ...
+            'VariableNames', {'Time_s', 'Displacement_mm', 'Force_kN'}, ...
+            'VariableTypes', {'double',  'double',          'double'});
+        T = readtable(filepath, opts);
+
+        displacement = -T.Displacement_mm;
+        force        = -T.Force_kN * 1e3;
+        displacement = displacement - displacement(1);
+
+        poly_order   = 3;
+        win_size     = 501;   % larger window → stronger noise suppression
+        force_smooth = sgolayfilt(force, poly_order, win_size);
+    end
+
+%% ── Read & process both samples ──────────────────────────────────────────
 data_dir = fileparts(mfilename('fullpath'));
-filename  = fullfile(data_dir, 'tessellation_stretch_7.csv');
 
-opts = delimitedTextImportOptions( ...
-    'NumVariables', 3, ...
-    'DataLines',    [3, Inf], ...
-    'Delimiter',    ',', ...
-    'VariableNames', {'Time_s', 'Displacement_mm', 'Force_kN'}, ...
-    'VariableTypes', {'double',  'double',          'double'});
-
-T = readtable(filename, opts);
-
-%% ── Process ───────────────────────────────────────────────────────────────
-% Negate: machine pulled in negative direction; flip to positive convention.
-displacement = -T.Displacement_mm;          % mm  (positive extension)
-force        = -T.Force_kN * 1e3;           % N   (positive tensile load)
-
-% Zero-offset displacement so the curve starts at (0, F0).
-displacement = displacement - displacement(1);
-
-% Smooth force signal with a Savitzky-Golay filter.
-% Window of 201 pts (~2 mm at the data density) removes high-freq noise
-% while preserving the overall curve shape.
-poly_order  = 3;
-win_size    = 201;   % must be odd; increase to smooth more aggressively
-force_smooth = sgolayfilt(force, poly_order, win_size);
+[disp7,  force7]  = load_sample(fullfile(data_dir, 'tessellation_stretch_8.csv'));
+[disp11, force11] = load_sample(fullfile(data_dir, 'tessellation_stretch_11.csv'));
 
 %% ── Plot ──────────────────────────────────────────────────────────────────
 figure('Color', 'w', 'Units', 'centimeters', 'Position', [5 5 14 10]);
 hold on; box on;
 
-plot(displacement, force_smooth, '-', ...
-    'Color',     [0.85 0.33 0.10], ...
-    'LineWidth', 1.5);
+plot(disp7,  force7,  '-', 'Color', [0.85 0.33 0.10], 'LineWidth', 1.5);
+plot(disp11, force11, '-', 'Color', [0.00 0.45 0.74], 'LineWidth', 1.5);
 
 xlabel('Displacement (mm)', 'Interpreter', 'tex', 'FontSize', 20);
 ylabel('Force (N)',          'Interpreter', 'tex', 'FontSize', 20);
-title('Tessellation Stretch – Sample 7', ...
-    'FontSize', 18, 'FontWeight', 'normal');
+title('Tessellation Stretch', 'FontSize', 18, 'FontWeight', 'normal');
+
+legend('Sample 7', 'Sample 11', ...
+    'Location', 'northwest', 'FontSize', 16, 'Box', 'off');
 
 set(gca, 'FontName', 'Times New Roman', 'FontSize', 18, 'LineWidth', 1.5);
 
@@ -59,7 +55,7 @@ ylim([0, 20]);
 grid off;
 hold off;
 
-fprintf('Displacement range : %.2f – %.2f mm\n', ...
-    min(displacement), max(displacement));
-fprintf('Force range        : %.2f – %.2f N\n', ...
-    min(force), max(force));
+fprintf('Sample 7  – Displacement: %.2f – %.2f mm | Force: %.2f – %.2f N\n', ...
+    min(disp7),  max(disp7),  min(force7),  max(force7));
+fprintf('Sample 11 – Displacement: %.2f – %.2f mm | Force: %.2f – %.2f N\n', ...
+    min(disp11), max(disp11), min(force11), max(force11));
