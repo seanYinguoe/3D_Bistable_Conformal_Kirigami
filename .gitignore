@@ -20,3 +20,6 @@ __pycache__/
 .codex/
 .vscode/
 matlab_crash_dump*
+
+# COMSOL models are outside the maintained Project 2 workflows.
+*.mph

@@ -1,7 +1,13 @@
-# Selected target meshes
+# Target meshes and supplied UV maps
 
-These files are unchanged copies of the author's target geometries from the existing repository. The selection includes `quarter_dome`, `double_dome` and `hemisphere`; the planar `circle.obj` is retained for the original 2D driver.
+The retained examples are `quarter_dome`, `double_dome` and `hemisphere`. Each `*_flat.obj` already contains both curved target vertices (`v`) and planar UV coordinates (`vt`), together with face indices. Separate raw OBJ copies are unnecessary for the retained workflows.
 
-Each `*_flat.obj` stores the curved target vertices (`v`), planar UV coordinates (`vt`), and face indices. The UV maps were supplied with the research project and are described by the original driver as BFF outputs. `vertice_sort` aligns UV ordering with target connectivity.
+These are unchanged inputs from `Xiaoyuan_bistable_kirigami_unit/Input_model/Reference_model/<name>/` at source commit `afb8ffa`. The original driver describes the UV maps as Boundary First Flattening outputs; `vertice_sort` aligns their indexing. BFF is not bundled.
 
-Do not assume that OBJ coordinates have an intrinsic unit. Use a consistent length convention across grid size, ligament geometry and material parameters. The source manifest records hashes and the exact original paths within the repository.
+OBJ files do not specify physical units. Keep grid size, ligament geometry, SVG dimensions and material units consistent.
+
+| File | SHA-256 |
+|---|---|
+| `double_dome/double_dome_flat.obj` | `f22d84bc883434a0d6403c7ffd044bf696ba7e5645e9ad0ee30ddd5102fd1070` |
+| `hemisphere/hemisphere_flat.obj` | `5ffefc8cb6c32563d7239114e319ab015b6d28ce59af77816e1abf5bab4601bc` |
+| `quarter_dome/quarter_dome_flat.obj` | `25c394b83e34e388159147ff4a63d6ee4937ae1b9202c16ed007a66ca53a4d7a` |

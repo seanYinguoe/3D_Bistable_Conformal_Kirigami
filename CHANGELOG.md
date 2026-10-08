@@ -1,14 +1,19 @@
 # Changes
 
-## Repository cleanup — 8 October 2026
+## Focused Project 2 cleanup — 8 October 2026
 
-- Separated functions, example inputs, COMSOL models, legacy analyses and generated outputs.
-- Added a visual explanation of smooth mapping, discrete design and bistability.
-- Added conformal-mesh and energy examples with saved settings and outputs.
-- Exposed energy-solver exit flags and constraint residuals without changing equations or solver settings.
-- Added an energy-only option to avoid conflating elastic-energy solutions with a separate rigid-link geometry reconstruction.
-- Added warnings and an optional diagnostic output when unit geometry does not converge.
-- Replaced personal input/output paths, corrected an RGB-vector literal, and made OBJ file reads report errors and close safely.
-- Preserved third-party attribution, selected source data and Git history.
+- Replaced legacy drivers and introductory demos with three entry points: `main_surface`, `main_unit_energy` and `main_unit_library`.
+- Kept the 41 source functions reachable from those programs and organised them by surface mapping, geometry, design, mechanics, library processing, plotting and export.
+- Removed unused exploratory programs, experiment comparisons, duplicate/raw mesh variants, saved COMSOL models and obsolete documentation from the current tree. Git history preserves earlier versions.
+- Retained three target/UV meshes, the selected historical unit library, citation metadata and the OBJ reader's licence.
+- Moved run choices into `config/`; isolated generated runs under ignored `results/` folders.
+- Added saved reparameterisation, assignment and deployed-unit diagnostics. A nearest library match is reported separately from meeting the strain tolerance.
+- Added convergence checks to the anisotropic energy path. Testing exposed an infeasible second deployment step in the unscaled solver (exit flag 0, constraint residual 0.0472). Scaling the objective and its gradient by a positive stiffness constant resolved the checked cases; reported energy still uses the original expression. This is a numerical-conditioning change, not a new constitutive law, and older numerical trajectories may differ.
+- Prevented invalid units from silently disappearing from an energy sum.
+- Added compact usage instructions, input provenance and a validation record.
 
-The accompanying manuscript remains a preprint **under review**.
+### Provenance
+
+The original source baseline is Git commit `afb8ffa`. The first organisational pass is preserved at `6195c06`, immediately before this cleanup. The full surface workflow comes from `Xiaoyuan_bistable_kirigami_unit/main_3D.m`; the library workflow comes from `Inverse_design/ternary_study.m` within that source tree. The unused files and old source manifest can be inspected in those commits.
+
+The original research directory, including uncommitted quarter-dome fabrication changes, was not edited. This maintained version is not represented as the exact code snapshot used for every manuscript figure. The manuscript remains **under review**.

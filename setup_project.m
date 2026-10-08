@@ -1,9 +1,10 @@
 function root = setup_project
-%SETUP_PROJECT Add this paper's paths without changing the saved MATLAB path.
+%SETUP_PROJECT Configure this repository for the current MATLAB session only.
+% Run from the repository root; does not change MATLAB's saved path.
 root = fileparts(mfilename('fullpath'));
-addpath(root);
-addpath(genpath(fullfile(root,'src')));
-addpath(fullfile(root,'third_party','Objread'));
-addpath(fullfile(root,'examples'));
-if ~isfolder(fullfile(root,'results')), mkdir(fullfile(root,'results')); end
+addpath(root, fullfile(root, 'config'), genpath(fullfile(root, 'src')), ...
+    fullfile(root, 'third_party', 'Objread'));
+if ~isfolder(fullfile(root, 'results'))
+    mkdir(fullfile(root, 'results'));
+end
 end
