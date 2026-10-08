@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "Please cite the accompanying preprint. The manuscript is under review."
+title: "Research code for instability-induced bistable shape-morphing kirigami structures"
+type: software
+authors:
+  - family-names: Ying
+    given-names: Xiaoyuan
+  - family-names: Dias
+    given-names: Marcelo A.
+repository-code: "https://github.com/seanYinguoe/3D_Bistable_Conformal_Kirigami"
+preferred-citation:
+  type: article
+  title: "Instability-induced bistable shape-morphing kirigami structures"
+  authors:
+    - family-names: Ying
+      given-names: Xiaoyuan
+    - family-names: Dias
+      given-names: Marcelo A.
+  journal: arXiv
+  year: 2026
+  url: "https://arxiv.org/abs/2607.26941"
+  notes: "Preprint; under review."

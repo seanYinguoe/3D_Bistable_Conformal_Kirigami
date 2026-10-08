@@ -1,40 +1,22 @@
-# Autosave files
+# Reproducible inputs belong in data/; generated runs do not belong in Git.
+/results/*
+!/results/README.md
+**/output/
+**/output_cut_pattern/
+.DS_Store
+._*
 *.asv
 *.m~
 *.autosave
-*.slx.r*
-*.mdl.r*
-
-# Derived content-obscured files
-*.p
-
-# Compiled MEX files
-*.mex*
-
-# Packaged app and toolbox files
-*.mlappinstall
-*.mltbx
-
-# Deployable archives
-*.ctf
-
-# Generated helpsearch folders
-helpsearch*/
-
-# Code generation folders
-slprj/
-sccprj/
-codegen/
-
-# Cache files
+*.log
+*.bak
+*.mphbin
+*.mphstatus
+*.mph.lock
 *.slxc
-
-# Cloud based storage dotfile
-.MATLABDriveTag
-
-# buildtool cache folder
-.buildtool/
-
-# SimBiology backup files
-*.sbproj.backup
-*.sbproj.bak
+*.mex*
+__pycache__/
+.claude/
+.codex/
+.vscode/
+matlab_crash_dump*
