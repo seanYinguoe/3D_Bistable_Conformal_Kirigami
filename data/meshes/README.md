@@ -2,7 +2,7 @@
 
 The retained examples are `quarter_dome`, `double_dome` and `hemisphere`. Each `*_flat.obj` already contains both curved target vertices (`v`) and planar UV coordinates (`vt`), together with face indices. Separate raw OBJ copies are unnecessary for the retained workflows.
 
-These are unchanged inputs from `Xiaoyuan_bistable_kirigami_unit/Input_model/Reference_model/<name>/` at source commit `afb8ffa`. The original driver describes the UV maps as Boundary First Flattening outputs; `vertice_sort` aligns their indexing. BFF is not bundled.
+These are unchanged inputs from `Xiaoyuan_bistable_kirigami_unit/Input_model/Reference_model/<name>/` at source commit `d978245`. The original driver describes the UV maps as Boundary First Flattening outputs; `vertice_sort` aligns their indexing. BFF is not bundled.
 
 OBJ files do not specify physical units. Keep grid size, ligament geometry, SVG dimensions and material units consistent.
 

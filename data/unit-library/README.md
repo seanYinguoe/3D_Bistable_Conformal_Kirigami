@@ -4,7 +4,7 @@
 
 `Xiaoyuan_bistable_kirigami_unit/Inverse_design/output/ternary_refine_20260325_161516/anisotropy_filter_refine.mat`
 
-Source commit: `afb8ffa`. SHA-256: `e4d1f140f81d38bc0348ea34fc16b924faefe981d796b7fbd16b28ade47b7cfe`.
+Source commit: `d978245`. SHA-256: `e4d1f140f81d38bc0348ea34fc16b924faefe981d796b7fbd16b28ade47b7cfe`.
 
 The MAT file contains the 1,590-row table `anisotropy_filter_refine` and `opts_refine` metadata.
 

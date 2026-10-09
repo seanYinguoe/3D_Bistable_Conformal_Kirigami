@@ -15,7 +15,7 @@ Checked locally with MATLAB R2025a (25.1) and Optimization Toolbox. Parallel Com
 - The anisotropic three-ligament model agrees with its isotropic reduction to within `1e-5` of the peak energy, over 41 points through strain 0.55 at beta = pi/40. All reduced-model solver checks pass.
 - An invalid unit makes the total energy unavailable rather than silently being omitted.
 
-MATLAB's dependency analysis resolves **49 project files** from the three entry points, including all **41 retained source functions**. No source dependency resolves to another research folder. The three OBJ inputs and selected MAT library are byte-for-byte identical to source commit `afb8ffa`.
+MATLAB's dependency analysis resolves **49 project files** from the three entry points, including all **41 retained source functions**. No source dependency resolves to another research folder. The three OBJ inputs and selected MAT library are byte-for-byte identical to source commit `d978245`.
 
 ## Surface workflow
 
@@ -61,3 +61,7 @@ Before objective conditioning was added, the beta = 0 run failed at step 2 with 
 ## Not established by these checks
 
 The full dense library sweep, full-sheet energy sum, parallel execution, other target surfaces beyond input-geometry checks, experimental agreement, and reproduction of every manuscript figure were not run. New geometries and material/length conventions require their own validation. The manuscript remains **under review**.
+
+## Public-release check — 9 October 2026
+
+All 10 fast MATLAB tests passed again with the default MATLAB path plus this project. Dependency analysis from the three main entry points reached all 41 retained source functions, with no dependency on the other research directories. Documentation links and the tracked-file list were checked. This release check did not repeat the full COMSOL optimisation or the dense unit-library sweep; the numerical runs and limitations above still apply.

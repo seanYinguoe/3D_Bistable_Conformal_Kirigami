@@ -59,7 +59,7 @@ This is a maintained research-code project, not an exact reproduction archive fo
 | `tests/`, `docs/` | Checks, instructions and provenance |
 | `results/` | Generated runs, ignored by Git |
 
-Unused drivers, duplicate demos, experiment-comparison scripts and saved COMSOL models have been removed from the current tree. Earlier versions remain in Git history. The author's original research directory is unchanged.
+Unused drivers, duplicate demos, experiment-comparison scripts and saved COMSOL models have been removed from the current tree. Earlier source versions remain in Git history; COMSOL model files and sidecars have also been removed from the published branch histories. The author's original research directory is unchanged.
 
 ## Check, cite and reuse
 
